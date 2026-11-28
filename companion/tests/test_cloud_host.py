@@ -560,7 +560,7 @@ def test_bridge_connect_starts_the_host_and_disconnect_stops_it_first(tmp_path, 
     # 「删除连接」才删：连接记录、远程桌面密码一起没了
     assert _wait(bridge, bridge.call("cloud_forget", "{}")) == {"ok": True}
     assert json.loads(bridge.call("cloud_status", "{}")) == {"ok": True, "link": None, "state": "idle", "places": [],
-                                                              "forget": True}
+                                                              "forget": True, "operator_remembered": False}
     bridge.shutdown()
     assert log.count(("stop", HOST)) == 2
 

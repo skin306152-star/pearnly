@@ -252,7 +252,7 @@ def test_bridge_state_stays_byte_identical_and_no_file_without_a_cloud_link(tmp_
     assert "cloud" not in " ".join(FEATURES)
     assert json.loads(bridge.call("cloud_prefill", "{}")) == {"ok": True, "host": "", "port": 3389, "user": ""}
     assert json.loads(bridge.call("cloud_status", "{}")) == {"ok": True, "link": None, "state": "idle", "places": [],
-                                                              "forget": True}
+                                                              "forget": True, "operator_remembered": False}
     assert _wait(bridge, bridge.call("cloud_disconnect", "{}")) == {"ok": True}
     assert bridge.state() == expected
     assert list(tmp_path.iterdir()) == []

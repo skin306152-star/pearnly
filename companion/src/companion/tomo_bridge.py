@@ -164,6 +164,7 @@ class TomoBridge(QObject):
         # 云端代录的 Express 登录存 / 删桥本机凭据（目标名, …）；测试注入。小窗同本地代录「授权登录」，经 ask_login 弹
         self._cloud_cred_store = cloud_cred_store or _cloud_cred_store
         self._cloud_cred_forget = cloud_cred_forget or _cloud_cred_forget
+        self._cloud_cred_exists = _cloud_cred_exists
         # 宿主没起时点了「取消授权」的连接号：下次起宿主时请云端删
         self._cloud_forgets: set = set()
         # 隧道盘 cc\ 的云端安装文件（cloud_link/cloud_package.py）：(隧道根, 主机) → 准备 / 版本变了才重放；测试注入。
@@ -518,6 +519,19 @@ class TomoBridge(QObject):
         log.info("云端代录登录已取消授权 · 连接=%s", connection)
         return {"ok": True, "removed": removed}
 
+    def _cloud_operator_saved(self) -> bool:
+        """桥上存着这条云端连接的实操登录（只看在不在，不读内容）。"""
+        store = self._cloud_links()
+        link = store.links[0] if store is not None and store.links else None
+        if link is None:
+            return False
+        try:
+            from .cloud_link import cred_handoff
+
+            return bool(self._cloud_cred_exists(cred_handoff.bridge_target(link.host, "default")))
+        except Exception:  # noqa: BLE001 - 不是 Windows / 读不了：当没存
+            return False
+
     def _forget_cloud_operator(self, host_name: str) -> None:
         """「删除连接」时连带删桥上存的实操登录（与「断开」不删一致：都只在删除连接时删）。"""
         from .cloud_link import cred_handoff
@@ -692,6 +706,8 @@ class TomoBridge(QObject):
             # 只停连接、留着连接记录与已存密码（启动不自动连）；cloud_forget 停连接并删连接记录、远程桌面密码与实操登录。
             # 同其它云端动作不进 FEATURES，页面看这一项决定出不出「删除连接」
             result["forget"] = True
+            # 连接弹窗里「实操登录」两格（⑤，11-28 用户：一个弹窗一次输完）：存过就显示圆点，空着点「连接」不动它
+            result["operator_remembered"] = self._cloud_operator_saved()
             if self._auto_installing:
                 result["installing"] = True   # 桥在替人装云端 CC：页面别自己点 cloud_pair_begin（会让桥的令牌作废）
             return result
@@ -983,6 +999,12 @@ def _cloud_cred_store(target: str, user: str, password: str) -> None:
     if sys.platform != "win32":
         raise RuntimeError("credential store needs Windows")
     credentials.store(target, user, password)
+
+
+def _cloud_cred_exists(target: str) -> bool:
+    from .express_operator import credentials
+
+    return credentials.exists(target)
 
 
 def _cloud_cred_forget(target: str) -> bool:

@@ -1681,7 +1681,7 @@ class CompanyFolders(unittest.TestCase):
         self.assertIn('export const CONNECT_DIALOG = "connect_dialog";', desktop)
         self.assertIn('"connect_dialog")', self.bridge)
         self.assertIn('api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })', row)
-        self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })', row)
+        self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: opUser.trim(), password: opPassword })', row)
         self.assertIn('api.call("cloud_add_place", { path: path.trim() })', row)
         # 11-28 用户：断开只断开（留着已存密码）；「移除」才删连接与密码——桥在 cloud_status 回 forget，页面据此出这一项
         self.assertIn('api.call("cloud_forget")', row)

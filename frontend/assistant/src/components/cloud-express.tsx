@@ -7,7 +7,8 @@
 //   CloudExpressConnect — 连接弹窗，同 MR.ERP 一样一个弹窗里填地址、用户名、密码，点一次「连接」，正在连接 / 已连接 / 失败原因都写在弹窗里；
 //                         输过一次就记住（桥存本机凭据管理器），以后开机自动连。桌面版没有 connect_dialog（旧版）时不出密码框，
 //                         桥照旧弹原生小窗收。
-//   CloudOperatorLogin  — 「实操登录」（界面术语同左上角「实操」；内部仍叫代录）：云端那本 Express 的用户名、密码，同一种弹窗，只存这台电脑（桥本机凭据管理器）。
+//                         「实操登录」（界面术语同左上角「实操」；内部仍叫代录）两格也在这个弹窗里（11-28 用户：一个弹窗一次输完）：云端那本
+//                         Express 的用户名、密码，可空着，只存这台电脑（桥本机凭据管理器）；以后补填点「重新登录」开同一个弹窗。
 //   CloudAddPlace       — 「添加文件夹…」：手填云端主机上的路径，云端那份 CC 去核（在不在、是不是 Express），结果写在弹窗里。
 //   CloudPairing        — 云端安装命令块（兜底）：桥 cloud_pair_begin 回的一行命令、复制、剩余时间；过期「重新生成」；配好收起。
 // 密码只经本机桥交出，不存页面状态以外的地方、不进地址栏、不发服务端；关弹窗即丢。
@@ -43,6 +44,8 @@ export type CloudStatus = {
   forget: boolean;
   /** 桥正在替人装云端 CC（段 ③ a）：页面不自己生成安装命令（会让桥的令牌作废） */
   installing: boolean;
+  /** 桥上存着实操登录（云端 Express 账号）：弹窗里那两格显示圆点 */
+  operatorRemembered: boolean;
 };
 
 const DEFAULT_PORT = 3389;
@@ -52,6 +55,7 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
   const value = (raw ?? {}) as {
     ok?: boolean; state?: string; link?: CloudStatus["link"]; places?: unknown; remembered?: unknown; reason?: unknown;
     cloud?: Partial<CloudSummary> | null; forget?: unknown; installing?: unknown;
+    operator_remembered?: unknown;
   };
   if (!value.ok) return null;
   const states: CloudState[] = ["idle", "connecting", "connected", "login_failed", "replaced"];
@@ -68,6 +72,7 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
     places, remembered: value.remembered === true, reason: typeof value.reason === "string" ? value.reason : "", cloud,
     forget: value.forget === true,
     installing: value.installing === true,
+    operatorRemembered: value.operator_remembered === true,
   };
 }
 
@@ -138,7 +143,7 @@ export function useCloudStatus(api: Desktop): [CloudStatus | null, () => void] {
 /** 设置 → 连接 → 账本里的「云端 Express」一行（只在 CC 桌面版里）。 */
 export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   const [status, reload] = useCloudStatus(api);
-  const [dialog, setDialog] = useState<"" | "connect" | "operator" | "place">("");
+  const [dialog, setDialog] = useState<"" | "connect" | "place">("");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // 配对块：null = 不显示；数字变了 = 重新挂一块（重新生成命令）
@@ -210,9 +215,6 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
               <DropdownMenuItem onSelect={() => setDialog("connect")} data-slot="cc-cloud-express-relogin">
                 {st.relogin}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setDialog("operator")} data-slot="cc-cloud-express-operator">
-                {st.operatorLogin}
-              </DropdownMenuItem>
               {state === "connected" && (
                 <DropdownMenuItem onSelect={pair} data-slot="cc-cloud-express-pair">
                   {st.installCommand}
@@ -276,7 +278,6 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
           }}
         />
       )}
-      {dialog === "operator" && <CloudOperatorLogin api={api} onClose={() => setDialog("")} />}
       {dialog === "place" && <CloudAddPlace api={api} onClose={() => { setDialog(""); reload(); }} />}
     </>
   );
@@ -375,6 +376,8 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
   const [address, setAddress] = useState("");
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
+  const [opUser, setOpUser] = useState("");
+  const [opPassword, setOpPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
@@ -421,6 +424,12 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
     if (!result.ok) return setError(result.code === "password_required" ? "" : st.linkFailed);
     if (!inline) return onClose(true);
     setPassword("");
+    // 实操登录两格：都填了才存（空着不报错、不拦，以后点「重新登录」补）
+    if (opUser.trim() && opPassword) {
+      const saved = await api.call("cloud_operator_authorize", { connection: "default", inline: true, username: opUser.trim(), password: opPassword });
+      setOpPassword("");
+      if (!saved.ok && !saved.cancelled) setError(st.mrerpAuthorizeFailed);
+    }
     setWaiting(true);
   };
   const progress = waiting || busy;
@@ -468,6 +477,23 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
             />
           </Field>
         )}
+        {inline && (
+          <>
+            <div className="text-body" data-slot="cc-cloud-express-operator-title">{st.operatorLogin}</div>
+            <Field>
+              <FieldLabel htmlFor="cc-cloud-operator-user">{st.username}</FieldLabel>
+              <Input id="cc-cloud-operator-user" value={opUser} autoComplete="off"
+                placeholder={status?.operatorRemembered ? "••••••••" : undefined}
+                onChange={(e) => setOpUser(e.target.value)} data-slot="cc-cloud-operator-user" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="cc-cloud-operator-password">{st.password}</FieldLabel>
+              <Input id="cc-cloud-operator-password" type="password" value={opPassword} autoComplete="off"
+                placeholder={status?.operatorRemembered ? "••••••••" : undefined}
+                onChange={(e) => setOpPassword(e.target.value)} data-slot="cc-cloud-operator-password" />
+            </Field>
+          </>
+        )}
         <DialogFooter>
           {progress && !error && (
             <span className="me-auto text-muted-foreground text-body" data-slot="cc-cloud-express-progress">
@@ -479,59 +505,6 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
             {t("cancel")}
           </Button>
           <Button disabled={progress || !address.trim() || !user.trim()} onClick={() => void submit()}>
-            {st.connect}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-/** 「实操登录」：云端那本 Express 的用户名、密码，只存这台电脑（桥本机凭据管理器），云端代录要登录时经隧道交过去。 */
-export const CloudOperatorLogin: FC<{ api: Desktop; onClose: () => void }> = ({ api, onClose }) => {
-  const inline = !!useDesktopFeatures().connectDialog;
-  const [user, setUser] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const submit = async () => {
-    setBusy(true);
-    setError("");
-    const result = inline
-      ? await api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })
-      : await api.call("cloud_operator_authorize", { connection: "default" });
-    setBusy(false);
-    setPassword("");
-    if (result.cancelled) return;
-    if (!result.ok) return setError(st.mrerpAuthorizeFailed);
-    onClose();
-  };
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent aria-describedby={undefined} data-slot="cc-cloud-operator-dialog"
-        className="z-(--cc-z-confirm) max-w-(--cc-dialog-w-sm)">
-        <DialogHeader>
-          <DialogTitle>{st.operatorLogin}</DialogTitle>
-        </DialogHeader>
-        {inline && (
-          <>
-            <Field>
-              <FieldLabel htmlFor="cc-cloud-operator-user">{st.username}</FieldLabel>
-              <Input id="cc-cloud-operator-user" value={user} autoComplete="off" onChange={(e) => setUser(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="cc-cloud-operator-password">{st.password}</FieldLabel>
-              <Input id="cc-cloud-operator-password" type="password" value={password} autoComplete="off"
-                onChange={(e) => setPassword(e.target.value)} />
-            </Field>
-          </>
-        )}
-        <DialogFooter>
-          {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
-          <Button variant="outline" onClick={onClose}>
-            {t("cancel")}
-          </Button>
-          <Button disabled={busy || (inline && (!user.trim() || !password))} onClick={() => void submit()}>
             {st.connect}
           </Button>
         </DialogFooter>

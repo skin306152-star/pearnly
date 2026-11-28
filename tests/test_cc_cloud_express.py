@@ -59,13 +59,23 @@ class CloudExpressRow(unittest.TestCase):
         self.assertIn('className="cc-status-line text-body" data-status={line.tone}', text)
         self.assertIn('<span className="cc-status-dot" />', text)
 
-    def test_the_more_menu_has_relogin_operator_login_detail_and_disconnect(self):
+    def test_the_more_menu_has_relogin_detail_disconnect_and_remove(self):
         text = read(ROW)
         menu = text.split("<DropdownMenuContent", 1)[1].split("</DropdownMenuContent>", 1)[0]
-        order = ["{st.relogin}", "{st.operatorLogin}", "{st.installCommand}", "`${link.name || link.host} · ${link.user}`",
-                 "`CC ${cloud.version}`", "{st.disconnect}"]
+        order = ["{st.relogin}", "{st.installCommand}", "`${link.name || link.host} · ${link.user}`",
+                 "`CC ${cloud.version}`", "{st.disconnect}", "{st.remove}"]
         self.assertEqual([menu.index(item) for item in order], sorted(menu.index(item) for item in order))
         self.assertIn('<DropdownMenuItem variant="destructive" onSelect={disconnect}>', menu)
+        # 11-28 用户：一个弹窗一次输完——「实操登录」两格并进连接弹窗，菜单里没有单独的「实操登录」
+        self.assertNotIn("{st.operatorLogin}", menu)
+        self.assertNotIn("CloudOperatorLogin", text)
+
+    def test_the_connect_dialog_takes_the_operator_login_too_and_may_leave_it_empty(self):
+        text = read(ROW)
+        dialog = text.split("export const CloudExpressConnect", 1)[1].split("export const CloudAddPlace", 1)[0]
+        self.assertIn('data-slot="cc-cloud-express-operator-title">{st.operatorLogin}</div>', dialog)
+        self.assertIn("if (opUser.trim() && opPassword) {", dialog)   # 空着不报错、不拦
+        self.assertIn('placeholder={status?.operatorRemembered ? "••••••••" : undefined}', dialog)
 
     def test_old_desktops_without_the_actions_get_no_row(self):
         text = read(ROW)
@@ -79,7 +89,7 @@ class CloudExpressRow(unittest.TestCase):
         # 新桌面版（connect_dialog）：一个弹窗交地址、用户名、密码（只在填了时带），带 inline；旧版不带密码、桥弹原生小窗
         self.assertIn('api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })', text)
         self.assertIn('api.call("cloud_connect", { host, port, user: user.trim() })', text)
-        self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })', text)
+        self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: opUser.trim(), password: opPassword })', text)
         self.assertIn('api.call("cloud_rescan")', text)
         self.assertIn('api.call("cloud_add_place", { path: path.trim() })', text)
         self.assertIn('api.call("cloud_disconnect")', text)
