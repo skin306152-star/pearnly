@@ -20,6 +20,7 @@ def drift(): return {}
 def restore(before): pass
 def release(key): return {}, b""
 def remount(uid): pass
+def wants_menu(uid): return True
 def publish():
     _request("POST", "richmenu")
 '''

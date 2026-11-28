@@ -190,6 +190,11 @@ def drift() -> dict:
             "default": bool(default) and listed.get(default) == want[key("th", "basic")]}
 
 
+def wants_menu(line_user_id) -> bool:
+    """同 ``sync`` 的判据：绑定着就挂（基础版或查询版），解绑才摘。"""
+    return bool(line_binding.binding_of(line_user_id))
+
+
 def remount(line_user_id) -> None:
     """按当前绑定与查询权限给这个人挂个人菜单（同 ``reconcile`` 排的任务，这里当场做）。"""
     sync(line_user_id)

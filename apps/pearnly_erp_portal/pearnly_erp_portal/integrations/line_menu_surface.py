@@ -63,6 +63,11 @@ def publish() -> dict:
     return menu.publish()
 
 
+def wants_menu(line_user_id) -> bool:
+    """按当前绑定与权限这个人该不该有个人菜单（同 ``sync`` 的判据：没权限 / 解绑就摘掉）。"""
+    return bool(menu.wanted_menu(line_user_id)[1])
+
+
 def remount(line_user_id) -> None:
     """按当前绑定、权限与手机语言给这个人挂个人菜单（同 ``reconcile`` 排的任务，这里当场做）。"""
     menu.sync(line_user_id)

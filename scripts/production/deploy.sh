@@ -179,6 +179,9 @@ for row in sys.argv[1].splitlines():
     if row.startswith("PLAN-FAILED "):
         print("  没跑成：" + row[len("PLAN-FAILED "):])
         continue
+    if row.startswith("PLAN-SKIP "):
+        print("  没有可比的：" + row[len("PLAN-SKIP "):] + "（这份镜像早于菜单随部署同步；要看这一批，先放镜像再带 --digest 演练）")
+        continue
     if not row.startswith("SUMMARY "):
         continue
     s = json.loads(row[len("SUMMARY "):])

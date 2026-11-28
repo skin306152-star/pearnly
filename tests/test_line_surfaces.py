@@ -159,6 +159,7 @@ class Surfaces(unittest.TestCase):
                 channel.user_menus.pop(line_user_id, None)
 
         stack += [patch.object(surface, "remount", remount),
+                  patch.object(surface, "wants_menu", lambda line_user_id: bool(self.bindings.get(line_user_id))),
                   patch.object(frappe, "get_all", lambda doctype, filters=None, pluck=None, **k: list(self.bindings)
                                if doctype == "Pearnly LINE Binding" and filters == {"status": "active"} else [])]
         for p in stack:
@@ -249,14 +250,24 @@ class Surfaces(unittest.TestCase):
                 self.assertEqual(channel.user_menus, {"Ualice": new[keys[0]], "Ubob": new[keys[-1]], "Udave": new[keys[0]]})
                 self.assertNotEqual(new[keys[0]], old[keys[0]])
                 patch.stopall()
-                # 发布前挂着的人发布后没了个人菜单（例如权限判错）→ 失败
+                # 发布前挂着、按规则已不该有（权限收回后旧菜单没摘）：摘掉是对的，只计数
                 channel = Channel()
                 self.published_old(product, channel)
                 module = self.stage(product, channel)
                 self.bindings = {"Ualice": None}
                 channel.user_menus = {"Ualice": dict(self.conf[module.CONFIG])[keys[0]]}
-                with self.assertRaisesRegex(RuntimeError, "lost: \\['Ualice'\\]"):
-                    line_surfaces.sync_site(product, emit=lambda text: None)
+                row = line_surfaces.sync_site(product, emit=lambda text: None)["rich_menu"]
+                self.assertEqual((row["mounted_after"], row["removed_by_rules"]), (0, 1))
+                patch.stopall()
+                # 该有却没挂上（重挂没生效、被摘了）→ 失败
+                channel = Channel()
+                self.published_old(product, channel)
+                module = self.stage(product, channel)
+                self.bindings = {"Ualice": keys[0]}
+                channel.user_menus = {"Ualice": dict(self.conf[module.CONFIG])[keys[0]]}
+                with patch.object(module, "remount", lambda uid: channel.user_menus.pop(uid, None)):
+                    with self.assertRaisesRegex(RuntimeError, "lost: \\['Ualice'\\]"):
+                        line_surfaces.sync_site(product, emit=lambda text: None)
                 patch.stopall()
 
     def test_user_ids_line_rejects_are_skipped_not_a_failure(self):

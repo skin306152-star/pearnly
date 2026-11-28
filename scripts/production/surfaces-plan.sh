@@ -68,7 +68,10 @@ PY
   # 只读挂载与连不上的缓存下的告警（写不了日志 / 锁文件、连不上 Redis）照实打出来，便于判断是静默退回还是出错
   grep -vE '^(SITE|SUMMARY) ' "$work/out" | grep -iE 'error|traceback|denied|read-only|warning' | head -10 | sed 's/^/   note: /'
   summary=$(sed -n 's/^SUMMARY //p' "$work/out" | tail -1)
-  if [[ -z "$summary" || $rc -gt 1 ]] || python3 -c 'import json,sys; sys.exit(0 if json.loads(sys.argv[1])["failed"] else 1)' "$summary"; then
+  if [[ -z "$summary" ]] && grep -q "No module named pearnly_core.line_surfaces" "$work/out"; then
+    # 这份镜像还没有菜单同步（本功能上线前的镜像，或重部署更早的标记）：没有可比的，不算没跑成
+    printf 'PLAN-SKIP %s: this image has no pearnly_core.line_surfaces yet\n' "$product"
+  elif [[ -z "$summary" || $rc -gt 1 ]] || python3 -c 'import json,sys; sys.exit(0 if json.loads(sys.argv[1])["failed"] else 1)' "$summary"; then
     tail -15 "$work/out" | sed 's/^/    /'
     printf 'PLAN-FAILED %s: preview exited %s\n' "$product" "$rc"; status=1
   fi

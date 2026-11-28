@@ -17,7 +17,8 @@
   - ``publish()``：幂等发布（按内容散列命名、重跑复用、不删旧菜单），并排已绑定用户重挂；
   - ``restore(before: dict)``：把站点配置换回 ``before``（部署日志里的 BEFORE 行），旧菜单从没删过，原编号仍有效；
   - ``release(key) -> (body, image)``：这一版这个键的菜单 body 与图（``explain`` 用它对照 LINE 上现挂的那套，说清改了什么）；
-  - ``remount(line_user_id)``：按当前绑定 / 权限 / 语言同步挂这个人的个人菜单（产品自己的 ``sync``）。
+  - ``remount(line_user_id)``：按当前绑定 / 权限 / 语言同步挂这个人的个人菜单（产品自己的 ``sync``）；
+  - ``wants_menu(line_user_id) -> bool``：按产品自己的规则这个人此刻该不该有个人菜单（没权限 / 解绑 = 不该，摘掉是对的）。
 
 - 部署（``scripts/production/deploy-run.sh`` 的 surfaces 步骤）在每个产品网页容器里跑 ``python -m pearnly_core.line_surfaces sync``：
   有漂移才发布，发布前打 BEFORE 行，发布后再 ``drift()`` 回读，不一致即部署失败；``check`` 只读报告（演练与部署后回读用）。
@@ -150,9 +151,11 @@ def _remount(module, before: dict, skipped: set) -> dict:
     after = _mounts(module, skipped)
     published = set((frappe.conf.get(module.CONFIG) or {}).values())
     stale = sorted(uid[:8] for uid, menu_id in after.items() if menu_id not in published)
-    lost = sorted(uid[:8] for uid in before if uid not in after)
-    lost = [uid for uid in lost if uid not in {u[:8] for u in skipped}]
-    result = {"mounted_before": len(before), "mounted_after": len(after), "rejected_ids": len(skipped)}
+    gone = [uid for uid in before if uid not in after and uid not in skipped]
+    # 发布前挂着、现在没了：产品规则说他不该有（权限收回后旧菜单没摘）就是摘对了，只计数；该有却没挂上才算丢
+    lost = sorted(uid[:8] for uid in gone if module.wants_menu(uid))
+    result = {"mounted_before": len(before), "mounted_after": len(after), "rejected_ids": len(skipped),
+              "removed_by_rules": len(gone) - len(lost)}
     if lost or stale:
         raise RuntimeError(f"{frappe.local.site} {module.SURFACE} remount readback: {len(before)} users had a personal menu "
                            f"before, {len(after)} after; lost: {lost}; not on this release: {stale}")
