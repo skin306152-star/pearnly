@@ -1022,6 +1022,111 @@ def b2_pitfalls(site, rounds, results):
         frappe.db.commit()
 
 
+def _pdf_bytes():
+    import io
+
+    from pypdf import PdfWriter
+
+    writer, buffer = PdfWriter(), io.BytesIO()
+    writer.add_blank_page(72, 72)
+    writer.add_metadata({"/Title": secrets.token_hex(16)})
+    writer.write(buffer)
+    return buffer.getvalue()
+
+
+def line_intake_save_conflict(site, rounds, results):
+    """④ #12：LINE 收单识别任务（`integrations.intake.run`）在外部动作期间另一路改了这张卡并提交（关快照隔离后本连接的普通读停在
+    改之前）。两种各半：识别期间改（原件已在）→ 记结果撞保存前比对；从 LINE 取件期间改 → 记原件撞保存前比对。识别用替身（不花钱），
+    LINE 取件 / 回复都是替身。判：卡片成了待提交、结果在；识别只调 1 次（扣费参考号只用 1 次）、取件只 1 次、发 LINE 只 1 次；
+    取件那种只留下记在卡上的那一份 File。修前：撞上就整笔抛出（执行器记 workflow_error、不重放），识别已付费、结果丢了。"""
+    import hashlib
+    import types
+
+    from pearnly_core import line as core_line, line_binding
+    from pearnly_core.execution import work
+    from pearnly_erp_portal.integrations import intake, line_out, line_questions
+    from pearnly_erp_portal.masters import company as companies
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    frappe.db.commit()
+    saved = {(module, name): getattr(module, name) for module, name in (
+        (intake, "_recogniser"), (line_binding, "user_of"), (line_questions, "begin"), (line_questions, "send"),
+        (line_out, "reply_or_push"), (core_line, "download_message_content"))}
+    calls = {}
+
+    def touch(name):
+        """另一个请求改这张卡（随便一栏，修改时间跟着变）并提交。"""
+        elsewhere(site, user, lambda: frappe.db.set_value(intake.DOCTYPE, name, "note", f"{TAG} touched {secrets.token_hex(3)}"))
+
+    def recognise(files, **kw):
+        calls["recognise"].append(kw.get("billing_reference"))
+        if calls["variant"] == "recognise":
+            touch(calls["card"])
+        return {"doc_no": calls["doc_no"], "lines": []}
+
+    def download(message_id, max_bytes=None):
+        calls["download"] += 1
+        if calls["variant"] == "fetch":
+            touch(calls["card"])
+        return calls["content"]
+
+    intake._recogniser = lambda direction: types.SimpleNamespace(recognise=recognise)
+    line_binding.user_of = lambda line_user_id: user
+    line_questions.begin = lambda line_user_id, names: []
+    line_questions.send = lambda line_user_id, messages, token="": calls["sent"].append(len(messages))
+    line_out.reply_or_push = lambda *a, **kw: calls["sent"].append("text")
+    core_line.download_message_content = download
+    try:
+        for index in range(rounds):
+            variant = "fetch" if index % 2 else "recognise"
+            source = None if variant == "fetch" else _private_file("LI")
+            tag = f"{TAG}-LF-{secrets.token_hex(3)}"
+            card = frappe.get_doc({"doctype": intake.DOCTYPE, "status": intake.QUEUED, "direction": "purchase", "sent_by": user,
+                                   "owner": user, "line_user_id": "U" + "c" * 32, "source": "line", "company": co,
+                                   "language": "th", "line_message_id": tag, "media_type": "pdf",
+                                   "source_file_name": source.name if source else None,
+                                   "source_file": source.file_url if source else None,
+                                   "file_hash": hashlib.sha256(source.get_content()).hexdigest() if source else None,
+                                   "received_at": frappe.utils.now_datetime()})
+            card.insert(ignore_permissions=True)
+            frappe.db.commit()
+            calls.update(variant=variant, card=card.name, doc_no=f"{TAG}-{secrets.token_hex(3)}", recognise=[], download=0,
+                         sent=[], content=_pdf_bytes())  # LINE 上的那份（每轮内容不同）
+            job = f"{TAG}-work-{secrets.token_hex(6)}"
+            outcome = error = None
+            read_view(intake.DOCTYPE)  # 识别任务开跑前执行器刚提交过：读视图从任务里第一次读起
+            try:
+                with work.context(job):
+                    outcome = intake.run(card.name, "U" + "c" * 32, filename=f"{tag}.pdf")
+            except Exception as exc:  # noqa: BLE001
+                error = "".join(traceback.format_exception_only(type(exc), exc)).strip()[:200]
+                frappe.db.rollback()
+            frappe.db.rollback()
+            row = frappe.db.get_value(intake.DOCTYPE, card.name, ["status", "result", "source_file_name"], as_dict=True)
+            result = json.loads(row.result or "{}") if row.result else {}
+            files = frappe.get_all("File", filters={"file_name": ["like", f"{tag}%"]}, pluck="name")
+            kept = (row.source_file_name == (source.name if source else (files[0] if len(files) == 1 else "?"))
+                    and bool(frappe.db.exists("File", row.source_file_name or "")))
+            good = (outcome == {} and row.status == intake.READY and result.get("doc_no") == calls["doc_no"]
+                    and calls["recognise"] == ["erp.line_intake:" + card.name] and calls["sent"] == [0] and kept
+                    and calls["download"] == (1 if variant == "fetch" else 0))
+            tally(results, "erp.line_intake_save_conflict", good,
+                  {"variant": variant, "outcome": outcome, "error": error, "status": row.status,
+                   "doc_no": result.get("doc_no"), "recognise": len(calls["recognise"]), "download": calls["download"],
+                   "sent": calls["sent"], "files": files, "source_file_name": row.source_file_name})
+            frappe.db.delete("Pearnly OCR Checkpoint", {"work": job})
+            for name in set(files + ([source.name] if source else [])):
+                if frappe.db.exists("File", name):
+                    frappe.delete_doc("File", name, ignore_permissions=True, force=True)
+            frappe.db.delete(intake.DOCTYPE, {"name": card.name})
+            frappe.db.commit()
+    finally:
+        for (module, name), value in saved.items():
+            setattr(module, name, value)
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
@@ -1033,6 +1138,7 @@ def erp(site, rounds):
     guarded(results, "erp.amend_vs_payment_web", amend_vs_payment, site, rounds, results, True)
     guarded(results, "erp.amend_vs_payment_internal", amend_vs_payment, site, rounds, results, False)
     guarded(results, "erp.line_card_submit_vs_cancel", line_card_submit_vs_cancel, site, rounds, results)
+    guarded(results, "erp.line_intake_save_conflict", line_intake_save_conflict, site, rounds, results)
     guarded(results, "erp.b2_pitfalls", b2_pitfalls, site, rounds, results)
     guarded(results, "erp.file_delete_rolled_back", file_delete_rolled_back, site, rounds, results)
     guarded(results, "erp.collection_edit_vs_release", collection_edit_vs_release, site, rounds, results)
