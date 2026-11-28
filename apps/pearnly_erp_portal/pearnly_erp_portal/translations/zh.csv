@@ -516,6 +516,7 @@ Deleted {0} stock counts,已删除 {0} 份盘点
 Delivery type,运输方式
 Department,部门
 Deposit,定金
+Deposit is not set up for this account set,此账套未设置定金科目
 Description,描述
 Details,详细信息
 Diff,差异

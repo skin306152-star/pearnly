@@ -1664,6 +1664,8 @@ class CollectionDate(TwoBooks):
         self.assertEqual(texts.reason("[PERIOD_LOCKED] accounting period of 2024-12-31 is locked in Express"),
                          "express.reason.periodLocked")
         self.assertEqual(texts.reason("[X] other"), "other")
+        self.assertEqual(texts.reason("[deposit_account_missing] deposits 300 taken off but no deposit account"),
+                         "Deposit is not set up for this account set")
 
 
 class Explained(unittest.TestCase):

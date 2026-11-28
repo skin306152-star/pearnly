@@ -516,6 +516,7 @@ Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
 Department,部門
 Deposit,手付金
+Deposit is not set up for this account set,この帳簿には手付金科目がありません
 Description,説明
 Details,詳細
 Diff,差異

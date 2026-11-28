@@ -75,6 +75,8 @@ def reason(value) -> str:
 
     if ack_rules.error_code(value) == "PERIOD_LOCKED":
         return _("express.reason.periodLocked")
+    if ack_rules.error_code(value) == "deposit_account_missing":
+        return _("Deposit is not set up for this account set")  # 抵了定金但账套没设定金科目（ISINFO.ACCNUM31）
     text = str(value or "")
     if text == contracts.EXPRESS_UNKNOWN:
         # CC 桌面版写到一半断了：同 ERP 单据弹窗与待处理那句（先在 Express 核对，`express.pending.REASONS`）

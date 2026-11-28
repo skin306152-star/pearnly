@@ -2298,3 +2298,4 @@ Documents	单据	เอกสาร	書類	guide.step.documents.items
 Waiting for computer	等待电脑	รอคอมพิวเตอร์	パソコン待ち
 Deposit	定金	เงินมัดจำ	手付金
 Credit notes exceed the invoices	减项超过发票金额	ยอดลดหนี้เกินยอดใบแจ้งหนี้	値引額が請求額を超えています
+Deposit is not set up for this account set	此账套未设置定金科目	ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินมัดจำ	この帳簿には手付金科目がありません

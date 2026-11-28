@@ -516,6 +516,7 @@ Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} �
 Delivery type,ประเภทขนส่ง
 Department,แผนก
 Deposit,เงินมัดจำ
+Deposit is not set up for this account set,ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินมัดจำ
 Description,คำอธิบาย
 Details,รายละเอียด
 Diff,ผลต่าง
