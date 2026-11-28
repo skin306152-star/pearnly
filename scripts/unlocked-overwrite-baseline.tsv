@@ -1,6 +1,5 @@
 # check-unlocked-overwrite.py --extended 三类新写法的存量基线（11-28 B ③ 全仓扫描）：只拦新增，基线只许减少；修好一处同一提交删一行。
 # 每行：文件<TAB>函数<TAB>表<TAB>类别<TAB>归属（② / ④ / 随各自改动）<TAB>初判（真 / 未判；误报不进这里）<TAB>原因。
-apps/pearnly_control/pearnly_control/account/member_service.py	link_line	Pearnly LINE Login Link	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_control/pearnly_control/account/repool.py	move	Pearnly Issue	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_control/pearnly_control/account/repool.py	move	Pearnly Issue	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_control/pearnly_control/account/repool.py	move	Pearnly Provisioning Request	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清

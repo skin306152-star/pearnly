@@ -201,6 +201,19 @@ LINE_B = "U" + "b" * 32
 BUSINESS = "https://auth.example.test/realms/pearnly-business"
 
 
+def _line_link_sql(rows, query, values=(), as_dict=False):
+    """替身 `frappe.db.sql`：命名锁、放锁，以及 member_service 里两句 LINE 关联的加锁读（读到最新的行）。"""
+    text = " ".join(query.split()).lower()
+    if "get_lock" in text or "release_all_locks" in text:
+        return [[1]]
+    assert "from `tabpearnly line login link`" in text and text.endswith("for update"), query
+    fields = ("realm", "alias", "line_user_id") if len(values) == 3 else ("tenant", "product", "subject", "alias")
+    hits = [row for row in rows if all(row.get(field) == value for field, value in zip(fields, values))]
+    if len(values) == 3:
+        return [[row["name"]] for row in hits[:1]]
+    return [SimpleNamespace(line_user_id=row["line_user_id"], realm=row.get("realm")) for row in hits]
+
+
 class TestLineLinks(unittest.TestCase):
     """LINE 登录登记：只替本租户登记过的身份登记；每个 LINE 在每个池一个专用身份，按池计数释放。"""
 
@@ -211,17 +224,48 @@ class TestLineLinks(unittest.TestCase):
                             "pearnly_member_identity_ownership_key": "k" * 48}
         self.headers = {}
         self.native.get_request_header.side_effect = lambda name: self.headers.get(name)
-        self.native.db.sql.return_value = [[1]]  # get_lock
         self.owners = {("tenant-a", "owner-subject"), ("tenant-b", "owner-subject")}
         self.members = {("tenant-a", "member-subject")}
         self.links = {}
+        # 另一连接刚提交、本事务的读视图里看不到的关联行（普通读看不到、加锁读看得到）；提交 / 回滚后新事务看得到。
+        self.hidden = set()
+        self.committed = {}
+        self.log = []
+        self.on_lock = None  # 拿命名锁那一刻另一路要做的事（只做一次）
+        self.lock_result = 1
 
         def matches(row, filters):
             return all(getattr(row, key, None) == value for key, value in filters.items())
 
+        def visible():
+            return {key: row for key, row in self.links.items() if key not in self.hidden}
+
+        def sql(query, values=(), as_dict=False):
+            if "get_lock" in query:
+                self.log.append("get_lock")
+                hook, self.on_lock = self.on_lock, None
+                if hook:
+                    hook()
+                return [[self.lock_result]]
+            if "release_all_locks" in query:
+                self.log.append("release_all_locks")
+                return [[1]]
+            self.log.append("locked-read")
+            return _line_link_sql([vars(row) for row in self.links.values()], query, values, as_dict)
+
+        def commit():
+            self.log.append("commit")
+            self.committed = {key: SimpleNamespace(**vars(row)) for key, row in self.links.items()}
+            self.hidden.clear()
+
+        def rollback():
+            self.log.append("rollback")
+            self.links = {key: SimpleNamespace(**vars(row)) for key, row in self.committed.items()}
+            self.hidden.clear()
+
         def exists(doctype, filters=None):
             if doctype == service.LINE_LINK:
-                return any(matches(row, filters) for row in self.links.values())
+                return any(matches(row, filters) for row in visible().values())
             if isinstance(filters, dict):
                 pool = self.owners if doctype == service.TENANT_IDENTITY else self.members
                 return any(matches(SimpleNamespace(tenant=t, subject=s), filters) for t, s in pool)
@@ -231,13 +275,15 @@ class TestLineLinks(unittest.TestCase):
             if doctype == "Pearnly Tenant":
                 return "active"
             if doctype == service.LINE_LINK:
-                row = self.links.get(name)
+                self.log.append("locked-get" if kwargs.get("for_update") else "plain-get")
+                row = (self.links if kwargs.get("for_update") else visible()).get(name)
                 return SimpleNamespace(**vars(row)) if row else None  # 与 Frappe 一样给副本
 
         def get_all(doctype, filters=None, fields=None, **kwargs):
-            return [row for row in self.links.values() if matches(row, filters or {})]
+            return [row for row in visible().values() if matches(row, filters or {})]
 
         def delete(doctype, filters):
+            self.log.append("delete")
             for key in [k for k, row in self.links.items() if matches(row, filters)]:
                 del self.links[key]
 
@@ -248,6 +294,9 @@ class TestLineLinks(unittest.TestCase):
         def insert(values):
             self.links[values["name"]] = SimpleNamespace(**values)
 
+        self.native.db.sql.side_effect = sql
+        self.native.db.commit.side_effect = commit
+        self.native.db.rollback.side_effect = rollback
         self.native.db.exists.side_effect = exists
         self.native.db.get_value.side_effect = get_value
         self.native.get_all.side_effect = get_all
@@ -268,6 +317,8 @@ class TestLineLinks(unittest.TestCase):
         self.addCleanup(p.stop)
         self.provider = self.provider_class.return_value
         self.provider.realm = "pearnly-business"
+        self.provider.unlink_line.side_effect = lambda *args: self.log.append("kc-unlink")
+        self.provider.release_line_person.side_effect = lambda *args: self.log.append("kc-release")
 
     def scope(self, product, tenant="tenant-a"):
         self.headers.update({"X-Pearnly-Billing-Product": product,
@@ -338,7 +389,7 @@ class TestLineLinks(unittest.TestCase):
         self.assertEqual(self.links, {})
 
     def test_lock_timeout_is_unavailable(self):
-        self.native.db.sql.return_value = [[0]]
+        self.lock_result = 0
         with self.assertRaises(member_provider.MemberError) as raised:
             self.link("owner-subject")
         self.assertEqual(raised.exception.code, "unavailable")
@@ -350,6 +401,62 @@ class TestLineLinks(unittest.TestCase):
                 service.execute("tenant-a", action, "x@example.test", "secret", "User1", "a" * 32)
         self.provider.create.assert_not_called()
         self.provider.reset_password.assert_not_called()
+
+    def rpc(self, action, subject="owner-subject", tenant="tenant-a", line=LINE):
+        """走账号入口：成功提交、出错回滚，最后放命名锁。"""
+        self.scope("erp", tenant)
+        return member_api.execute(tenant, action, None, None, subject=subject, line_user_id=line,
+                                  login_channel=CHANNEL)
+
+    def bound_elsewhere(self, tenant="tenant-b", line=LINE):
+        """另一个租户在这边拿到命名锁之前刚把同一个 LINE 绑上并提交：这边事务的读视图里看不到。"""
+        key = service._link_key(tenant, "erp", "owner-subject", ALIAS)
+        self.links[key] = SimpleNamespace(name=key, tenant=tenant, product="erp", subject="owner-subject",
+                                          alias=ALIAS, line_user_id=line, realm="pearnly-business")
+        self.hidden.add(key)
+        return key
+
+    def test_unlink_keeps_the_person_another_tenant_just_bound(self):
+        # B8：解绑判「池里还有没有站点绑着这个 LINE」用加锁读，看得到别的租户刚提交的绑定，不删对方的专用身份。
+        self.assertTrue(self.rpc("link-line")["ok"])
+        self.log.clear()
+        self.on_lock = self.bound_elsewhere
+        self.assertEqual(self.rpc("unlink-line"), {"ok": True, "subject": "owner-subject"})
+        self.provider.release_line_person.assert_not_called()
+        self.assertEqual([row.tenant for row in self.links.values()], ["tenant-b"])
+
+    def test_rebind_keeps_the_old_person_another_tenant_just_bound(self):
+        # 改绑到别的 LINE 时释放旧 LINE 同样按加锁读判；旧绑定也在拿到命名锁之后加锁读。
+        self.assertTrue(self.rpc("link-line")["ok"])
+        self.log.clear()
+        self.on_lock = self.bound_elsewhere
+        self.assertTrue(self.rpc("link-line", line=LINE_B)["ok"])
+        self.provider.release_line_person.assert_not_called()
+        self.assertIn("locked-get", self.log)
+        self.assertLess(self.log.index("get_lock"), self.log.index("locked-get"))
+        self.assertEqual(sorted(row.line_user_id for row in self.links.values()), [LINE, LINE_B])
+
+    def test_unlink_order_locks_before_rows_and_external_before_commit(self):
+        # 命名锁 → 加锁读本站关联 → 库内删 → 身份服务摘关联 / 删专用身份 → 提交 → 放锁（提交不放命名锁）。
+        self.assertTrue(self.rpc("link-line")["ok"])
+        self.log.clear()
+        self.assertTrue(self.rpc("unlink-line")["ok"])
+        self.assertEqual(self.log, ["get_lock", "locked-read", "delete", "kc-unlink", "locked-read", "kc-release",
+                                    "commit", "release_all_locks"])
+
+    def test_keycloak_failure_rolls_back_and_the_retry_finishes(self):
+        # 身份服务失败：整笔回滚，关联行还在（站点留待对账重发），重发照行补删；放锁在回滚之后。
+        self.assertTrue(self.rpc("link-line")["ok"])
+        self.log.clear()
+        self.provider.release_line_person.side_effect = member_provider.MemberError("unavailable")
+        self.assertEqual(self.rpc("unlink-line"), {"ok": False, "error": "unavailable"})
+        self.assertEqual(self.log[-2:], ["rollback", "release_all_locks"])
+        self.assertEqual([row.tenant for row in self.links.values()], ["tenant-a"])
+        self.provider.release_line_person.side_effect = None
+        self.provider.release_line_person.reset_mock()
+        self.assertTrue(self.rpc("unlink-line")["ok"])
+        self.provider.release_line_person.assert_called_once_with(self.owner_of(LINE))
+        self.assertEqual(self.links, {})
 
     def test_unlink_is_scoped_too(self):
         self.assertEqual(self.unlink("member-subject"), {"subject": "member-subject"})
@@ -420,6 +527,9 @@ class FakeKeycloak:
 COWORK = "https://auth.example.test/realms/pearnly-cowork"
 
 
+LINE_LINK_DOCTYPE = service.LINE_LINK
+
+
 class FakeDb:
     """够用的内存表：成员登记、操作台账、租户状态（字段按 Frappe 的 get_value / get_all 取）。"""
 
@@ -463,6 +573,9 @@ class FakeDb:
         table = self.tables[doctype]
         for name in [name for name, row in table.items() if self._matches(row, filters)]:
             del table[name]
+
+    def sql(self, query, values=(), as_dict=False):
+        return _line_link_sql(self.tables[LINE_LINK_DOCTYPE].values(), query, values, as_dict)
 
     def commit(self):
         pass
@@ -643,7 +756,7 @@ class TestMoveMembers(_TwoPools):
 
     def setUp(self):
         super().setUp()
-        self.native.db.sql.return_value = [[1]]  # _person_lock 的 get_lock
+        self.native.db.sql.side_effect = self.db.sql  # 命名锁与 LINE 关联的加锁读
         self.native.db.exists.side_effect = lambda doctype, filters: bool(
             self.db.get_all(doctype, filters=filters, pluck="name"))
 
