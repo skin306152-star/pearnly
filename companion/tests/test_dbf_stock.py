@@ -163,17 +163,18 @@ def _receipt(acct, docnum, day, qty, value, code="ICE01", loc="01", seq="  1"):
 
 
 def test_a_count_gain_in_a_fifo_book_takes_the_cost_of_the_latest_receipt_and_links_that_lot(book):
-    """实录第 9 条：先进先出账套的盘盈（载荷没带单价）取这个仓最近一次进货那一批的成本（S 盘 2,836 行），MLOTNUM / RDOCNUM
-    指向那一行；别的仓的进货不算。"""
+    """实录第 9 条：先进先出账套的盘盈（载荷没带单价）取这个仓最近一次进货那一批的成本（S 盘 2,836 行），RDOCNUM 指向那一行；
+    别的仓的进货不算。行上 MLOTNUM 记写前主档那一批的原样批号（11-28 原生 TK0000002），不是挂靠的批。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
     _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
     _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
     _receipt(book, "RR0000011", dt.date(2026, 3, 9), 10, 600, loc="02")
+    _set_master(book, MLOTNUM="202603010RR0000009     1")
     res = _write(book, _entry("TK", [_line("ICE01", 15)]))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
     assert (line["UNITPR"], line["XUNITPR"], line["XTRNVAL"], line["NETVAL"]) == (45.0, 45.0, 675.0, 675.0)
-    assert (line["RDOCNUM"], line["MLOTNUM"].strip()) == ("RR0000010     1", "202603050RR0000010     1")
+    assert (line["RDOCNUM"], line["MLOTNUM"].strip()) == ("RR0000010     1", "202603010RR0000009     1")
     assert (line["LOTBAL"], line["LOTVAL"], line["LUNITPR"], line["PHYBAL"]) == (15.0, 675.0, 45.0, 20.0)
     _heads, lines = _journal(book, res.docnum)
     assert lines == [("0", INVENTORY_ACC, Decimal("675.00"), "1"), ("1", OFFSET_ACC, Decimal("675.00"), "1")]

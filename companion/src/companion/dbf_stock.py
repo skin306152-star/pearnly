@@ -232,6 +232,22 @@ _fifo_take = stock_costing.fifo_take
 _lot_heads = stock_costing.lot_heads
 
 
+def _stored_heads(account_dir, codes) -> Dict[str, str]:
+    """各存货主档上此刻存的批号原样（STMAS.MLOTNUM，带「负」标记的照带）；主档没有批号栏时回空表（行上照旧记挂靠的批）。"""
+    out: Dict[str, str] = {}
+    table = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    try:
+        if "MLOTNUM" not in {name.upper() for name in table.field_names}:
+            return out
+        for rec in S.live_rows(table):
+            code = (rec.STKCOD or "").strip()
+            if code in codes:
+                out[code] = str(rec.MLOTNUM or "").rstrip()
+    finally:
+        table.close()
+    return out
+
+
 def _lots(account_dir, keys, docdat=None) -> Dict[Tuple[str, str], Tuple[Decimal, str, str, Any]]:
     """盘盈挂的那一批（实录第 9 条）：各 (商品, 仓) 最近一次进货的那一行（STCRD POSOPR 0、数量为正，按日期取最后的）
     → (每个库存单位的成本, 原单号, 原单行号（存的原样 3 位）, 日期)。仓库码空的旧行算主仓。``docdat`` 给了只认不晚于盘点那天的进货
@@ -493,6 +509,10 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     # （`stock_entry._net`，11-06 审定 #5；盘点直写不带价），以人改过的价为准（主会话 11-10 定第 5 点）。明细带 PHYBAL（写后这个仓的结存）
     gains = {place for place, item in zip(places, items) if _dec(item.get("qty")) > 0}
     lots = _lots(account_dir, gains, docdat) if count else {}
+    # 盘盈行的 MLOTNUM 记写前主档那一批的原样批号（带「负」标记照带），挂靠的进货批只记 RDOCNUM（11-28 70EXP\\test 原生
+    # TK0000002：501780 写前 20261026:TK0000001 → 行记它、RDOCNUM RR0000014，原生作废主档按行原样回写）；同一件存货一张单里第二行盘盈
+    # 的写前批是前一行盘盈的新批
+    heads = _stored_heads(account_dir, {match["stkcod"] for match in found}) if count and gains else {}
     has_stloc = stock_location._file(account_dir, stock_location.TABLE) is not None
     located = _location_states(account_dir, set(places)) if count else {}
     fifo = _fifo(account_dir)
@@ -570,6 +590,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                     link = f"{lot[1]:<12}{lot[2]}"
                     row.update({"RDOCNUM": link, "MLOTNUM": f"{lot[3]:%Y%m%d}{S.STCRD_POSOPR_PURCHASE}{link}",
                                 "LOTBAL": float(qty), "LOTVAL": float(value), "LUNITPR": float(_q2(unit_cost))})
+                if signed > 0 and stkcod in heads:
+                    row["MLOTNUM"] = heads[stkcod] or stock_chain.row_head("", bal)
                 S.append_stcrd(table, _filtered(table, row))
                 if moves is not None:
                     moves.append(stock_location.move(row, move_kind))
@@ -577,6 +599,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 master = {"LASUPD": docdat}
                 if signed > 0:
                     master["MLOTNUM"] = stock_costing.lot_number(docdat, S.STCRD_POSOPR_COUNT, docnum, seq)
+                    if stkcod in heads:
+                        heads[stkcod] = master["MLOTNUM"]
                 stock_sale.move_stmas(account_dir, stkcod, signed, signed_value, fields=master)
             total += signed_value
             if value and perpetual:

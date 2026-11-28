@@ -24,6 +24,20 @@ def _master(acct):
     return {k: (row[k].rstrip() if isinstance(row[k], str) else row[k]) for k in ("MLOTNUM", "MREMBAL", "MREMVAL", "TOTBAL", "TOTVAL")}
 
 
+def _patch_rows(acct, docnum, **fields):
+    import dbf as _dbf
+    table = _dbf.Table(str(acct / "STCRD.DBF"), codepage="cp874")
+    table.open(_dbf.READ_WRITE)
+    try:
+        for record in table:
+            if record["DOCNUM"].strip() == docnum:
+                with record:
+                    for key, value in fields.items():
+                        record[key] = value
+    finally:
+        table.close()
+
+
 def _place(acct, loc="01"):
     row = _stloc(acct, "ICE01", loc)
     return (row["LOCBAL"], round(row["LOCVAL"], 2), row["MREMBAL"], round(row["MREMVAL"], 2), row["MLOTNUM"].rstrip())
@@ -183,9 +197,9 @@ def test_voiding_a_count_loss_keeps_the_master_lot_since_count_rows_record_none(
         assert _master(book) == before
 
 
-def test_voiding_a_count_gain_puts_the_lot_back_to_the_last_lot_left_not_the_purchase_it_links(book):
-    """盘盈行记的是挂靠的进货批（原生实录第 9 条），不是写前指针：作废时批号回到这条链剩下排最后的一批（同调入行；原生盘盈作废
-    没有实录，照调入同法推定）。以前按行回写把主档批号改成那张进货的批（审查 11-25）。"""
+def test_a_count_gain_records_the_lot_before_writing_and_its_void_puts_it_back(book):
+    """11-28 70EXP\\test 原生实录 TK0000002（501780 盘盈 +5）：行上 MLOTNUM 记写前主档那一批（20261026:TK0000001），挂靠的进货批只记
+    RDOCNUM（RR0000014）；原生作废主档五栏原样回写前，批号就是行上记的那一批，不是挂靠的进货批。"""
     import datetime as dt
     from test_dbf_stock import _receipt
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
@@ -197,7 +211,24 @@ def test_voiding_a_count_gain_puts_the_lot_back_to_the_last_lot_left_not_the_pur
     assert before["MLOTNUM"] == ju_lot
     res = _write(book, _entry("TK", [_line("ICE01", 2)]))
     assert res.ok, res.error
-    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].startswith("202603010RR0000009")
+    row = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (row["MLOTNUM"].strip(), row["RDOCNUM"].strip()) == (ju_lot.strip(), "RR0000009     1".strip())
+    assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
+    assert _master(book) == before
+
+
+def test_voiding_an_older_cc_count_gain_that_recorded_the_linked_lot_finds_the_lot_before_it(book):
+    """11-28 前 CC 写的盘盈行记的是挂靠的进货批（= RDOCNUM）：那种行作废时仍按库存卡写入顺序找本单之前的链头，不回到那张进货的批。"""
+    import datetime as dt
+    from test_dbf_stock import _receipt
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
+    first = _write(book, _entry("JU", [_line("ICE01", 1, unit_cost="40")], docdate_be="690310"))
+    assert first.ok, first.error
+    before = _master(book)
+    res = _write(book, _entry("TK", [_line("ICE01", 2)]))
+    assert res.ok, res.error
+    _patch_rows(book, res.docnum, MLOTNUM="202603010RR0000009     1")  # 旧版写法
     assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
     assert _master(book) == before
 
@@ -258,3 +289,22 @@ def test_voiding_a_count_gain_with_no_earlier_rows_goes_back_to_the_purchase_lot
         t.close()
     assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
     assert _master(book)["MLOTNUM"] == lot
+
+
+def test_a_count_gain_on_a_master_chain_like_70exp_test_matches_the_native_record(book):
+    """照 11-28 原生 TK0000002：主档 25 / 1,200、批号 20261026:TK0000001；盘盈 +5 挂进货批 → 行记写前批号与写前结存，主档换成本单的批；
+    作废后主档五栏回到写前。"""
+    import datetime as dt
+    from test_dbf_stock import _receipt
+    acct = _average(book)
+    PRE_LOT = "20261026:TK0000009     1"  # 写前那一批（原生是 TK0000001；夹具这张新单也编成 TK0000001，换个号免得撞号）
+    _receipt(acct, "RR0000014", dt.date(2026, 10, 26), 1, 60)
+    _set_master(acct, MLOTNUM=PRE_LOT, MREMBAL=25.0, MREMVAL=1200.0, TOTBAL=25.0, TOTVAL=1200.0, UNITPR=48.0)
+    before = _master(acct)
+    res = _write(acct, _entry("TK", [_line("ICE01", 5)], docdate_be="691128"))
+    assert res.ok, res.error
+    row = _rows(acct, "STCRD", DOCNUM=res.docnum)[0]
+    assert (row["MLOTNUM"].rstrip(), row["MREMBAL"], row["MREMVAL"], row["RDOCNUM"].rstrip()) == (PRE_LOT, 25.0, 1200.0, "RR0000014     1")
+    assert _master(acct)["MLOTNUM"] == f"20261128:{res.docnum:<12}  1"
+    assert _void(acct, res.docnum, "TK", [{"code": "ICE01", "qty": "5"}]).ok
+    assert _master(acct) == before
