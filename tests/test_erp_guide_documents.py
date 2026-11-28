@@ -135,6 +135,8 @@ class Base(unittest.TestCase):
 
     def get_all(self, doctype, filters=None, fields=None, limit_page_length=None, **kw):
         names = set(filters["name"][1])
+        if "source" not in filters:  # 结果行按单据类型取单号（`guide_documents._numbers`）
+            return [row for row in self.records.values() if row.name in names]
         return [row for row in self.records.values() if row.name in names and row.source == filters["source"]
                 and row.sent_by == filters["sent_by"] and row.company == filters["company"]]
 
