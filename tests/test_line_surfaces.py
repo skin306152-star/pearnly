@@ -163,14 +163,21 @@ class Surfaces(unittest.TestCase):
                 patch.stopall()
                 self.reconciled.clear()
 
-    def test_never_published_counts_as_missing(self):
+    def test_never_published_is_left_to_onboarding(self):
+        """开户没发布过的站点部署不抢先发（DMS 会换官方号默认菜单）；缺几个键（加了语言 / 组合）照常发。"""
         for product in MODULES:
             with self.subTest(product):
                 channel = Channel()
                 module = self.stage(product, channel)
                 self.conf.pop(module.CONFIG, None)
-                state = module.drift()
-                self.assertEqual(len(state["missing"]), len(module.wanted()))
+                self.assertEqual(len(module.drift()["missing"]), len(module.wanted()))
+                rows = line_surfaces.sync_site(product, emit=lambda text: None)
+                self.assertEqual(rows, {"rich_menu": {"skip": line_surfaces.NEVER_PUBLISHED}})
+                self.assertEqual(channel.created, 0)
+                config = channel.seed(module, module.wanted())
+                config.pop(sorted(k for k in config if ":" in k)[0])
+                self.conf[module.CONFIG] = config
+                self.assertTrue(line_surfaces.sync_site(product, emit=lambda text: None)["rich_menu"]["published"])
                 patch.stopall()
 
     def test_publish_that_does_not_land_fails_the_deploy(self):
@@ -265,11 +272,12 @@ class Runner(unittest.TestCase):
             "c.test": {"pearnly_product": "erp", "__rows": {"rich_menu": {"ok": False}}},
             "d.test": {"pearnly_product": "cowork", "__broken": True},
             "e.test": {"pearnly_product": "cowork", "__rows": {"rich_menu": {"behind": [], "missing": [], "ok": True}}},
+            "f.test": {"pearnly_product": "cowork", "__rows": {}},
         })
         self.assertEqual(code, 1)
         self.assertEqual(summary["drift"], ["a.test rich_menu"])
         self.assertEqual(summary["skipped"], {"b.test rich_menu": "no LINE channel credentials"})
-        self.assertEqual(list(summary["failed"]), ["d.test"])
+        self.assertEqual(list(summary["failed"]), ["d.test", "f.test"])
         self.assertEqual(summary["ok"], ["e.test rich_menu"])
 
     def test_all_clean_exits_zero(self):

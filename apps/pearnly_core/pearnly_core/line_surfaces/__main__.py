@@ -64,7 +64,8 @@ def main(argv=None) -> int:
                 else:
                     summary["drift"].append(label)
             if not rows:
-                summary["skipped"][site] = "no surface declared for this product"
+                # 三个产品都声明了富菜单：一条都没有说明声明丢了（hooks 改坏 / 被删），不能当跳过让回读静默通过
+                summary["failed"][site] = f"no {line_surfaces.HOOK} declared for {args.product}"
         except Exception as exc:
             frappe.db.rollback()
             summary["failed"][site] = repr(exc)[:400]

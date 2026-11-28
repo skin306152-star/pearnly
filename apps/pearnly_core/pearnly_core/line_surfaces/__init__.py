@@ -28,6 +28,9 @@ import json
 import frappe
 
 HOOK = "pearnly_line_surfaces"
+# 从没发布过（站点配置里没有这个表面的键）：开户 ``set_line`` 才是第一次发布的地方；部署不替开户做第一次——
+# DMS 的发布会换官方号默认菜单，开户没走完时不能被部署抢先换掉。部分键缺（加了语言 / 组合）照常算漂移、照常发布。
+NEVER_PUBLISHED = "never published (onboarding set_line publishes first)"
 
 
 def declared(product: str) -> list:
@@ -45,11 +48,15 @@ def clean(state: dict) -> bool:
     return not state.get("behind") and not state.get("missing") and state.get("default", True) is not False
 
 
+def _skip(module) -> str:
+    return module.ready() or ("" if frappe.conf.get(module.CONFIG) else NEVER_PUBLISHED)
+
+
 def check_site(product: str) -> dict:
     """当前站点（已 init / connect）每个表面的只读对照。"""
     rows = {}
     for module in declared(product):
-        reason = module.ready()
+        reason = _skip(module)
         if reason:
             rows[module.SURFACE] = {"skip": reason}
             continue
@@ -62,7 +69,7 @@ def sync_site(product: str, emit=print) -> dict:
     """当前站点每个表面：有漂移才发布，发布后回读；回读仍不一致抛错（部署失败）。"""
     rows = {}
     for module in declared(product):
-        reason = module.ready()
+        reason = _skip(module)
         if reason:
             rows[module.SURFACE] = {"skip": reason}
             continue
