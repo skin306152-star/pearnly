@@ -39,6 +39,8 @@ def local(monkeypatch):
     monkeypatch.setenv(runtime_mode.VIA_ENV, "")
     monkeypatch.delenv(runtime_mode.CLOUD_ENV)
     monkeypatch.delenv(runtime_mode.VIA_ENV)
+    # 跑测试的机器可能就在远程桌面会话里：默认不认会话客户端名，要测它的用例自己放回
+    monkeypatch.setattr(runtime_mode, "_session_client_name", lambda: "")
     return monkeypatch
 
 
@@ -64,6 +66,25 @@ def test_enable_without_a_bridge_name_keeps_the_one_from_the_environment(local):
     local.setenv(runtime_mode.VIA_ENV, "OFFICE-PC")
     runtime_mode.enable(None)
     assert runtime_mode.link()["via"] == "OFFICE-PC"
+
+
+def test_without_a_bridge_name_the_remote_session_client_name_is_the_bridge(cloud):
+    # 11-28 真机：安装脚本、启动项、会话文件都不带桥名，云端 CC 心跳一直不带 link → 站点把它当本地 Express
+    cloud.setattr(runtime_mode, "_session_client_name", lambda: "DESKTOP-BRIDGE1")
+    assert runtime_mode.link()["via"] == "DESKTOP-BRIDGE1"
+    cloud.setenv(runtime_mode.VIA_ENV, "OFFICE-PC")   # 显式给的桥名优先
+    assert runtime_mode.link()["via"] == "OFFICE-PC"
+
+
+def test_session_client_name_comes_from_the_environment_off_windows_and_console_does_not_count(local):
+    local.undo()   # 去掉 fixture 对 _session_client_name 的替身，测真函数
+    local.setattr(runtime_mode.os, "name", "posix")
+    local.setenv("CLIENTNAME", "  DESKTOP-BRIDGE1\x07 ")
+    assert runtime_mode._session_client_name() == "DESKTOP-BRIDGE1"
+    local.setenv("CLIENTNAME", "Console")
+    assert runtime_mode._session_client_name() == ""
+    local.delenv("CLIENTNAME")
+    assert runtime_mode._session_client_name() == ""
 
 
 # ── 启动：不起托盘，只跑直写 + 按需请求（MR.ERP 成员去掉） ──────────────

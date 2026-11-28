@@ -6,8 +6,11 @@
 不起；找 Express 数据根不碰映射进来的 ``\\\\tsclient\\*``（客户电脑的盘）与局域网共享。只跑直写循环、按需请求与代录宿主。
 
 判断只看这里（:func:`cloud`），各处不另判；值只来自启动参数或环境：``main.py`` 收到 ``--cloud`` 时调 :func:`enable`，
-写进本进程环境变量 :data:`CLOUD_ENV`（子进程照样继承）。桥启动云端 CC 时把自己的显示名放进 :data:`VIA_ENV`
-（或 ``--cloud-via``），心跳据此带 ``link``（:func:`link`）；没有就不带。
+写进本进程环境变量 :data:`CLOUD_ENV`（子进程照样继承）。桥电脑名（心跳 ``link.via``，:func:`link`）先看 :data:`VIA_ENV`
+（或 ``--cloud-via``），没有就取远程桌面会话的客户端名 ``CLIENTNAME``（桥就是连进这个会话的那台电脑；11-28 真机：安装脚本、
+启动项、会话文件都不带桥名，心跳因此一直不带 ``link``，站点把云端电脑当成本地 Express）。``CLIENTNAME`` 先读
+``HKCU\\Volatile Environment\\<会话号>``（桥换一台电脑重连时 Windows 会改写），读不到再用进程环境变量；控制台会话的
+``Console`` 不算。都没有就不带。
 """
 
 from __future__ import annotations
@@ -40,11 +43,34 @@ def _text(value) -> str:
     return clean[:TEXT_MAX]
 
 
+# 远程桌面会话外（本机控制台）Windows 给的客户端名，不是桥
+_CONSOLE = "console"
+
+
+def _session_client_name() -> str:
+    """本进程所在远程桌面会话的客户端电脑名；读不到或不在远程会话里回空串。"""
+    value = ""
+    if os.name == "nt":
+        try:
+            import ctypes
+            import winreg
+
+            session = ctypes.c_ulong(0)
+            if ctypes.windll.kernel32.ProcessIdToSessionId(os.getpid(), ctypes.byref(session)):
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Volatile Environment\\{session.value}") as key:
+                    value = str(winreg.QueryValueEx(key, "CLIENTNAME")[0] or "")
+        except (OSError, AttributeError, ValueError):
+            value = ""
+    value = _text(value or os.environ.get("CLIENTNAME", ""))
+    return "" if value.lower() == _CONSOLE else value
+
+
 def link() -> Optional[dict]:
-    """心跳带的 ``link``：云端模式且知道桥电脑名时 ``{"kind": "cloud", "via": <桥电脑名>, "host": <本机主机名>}``，否则 None（不带）。"""
+    """心跳带的 ``link``：云端模式且知道桥电脑名（:data:`VIA_ENV`，否则远程桌面会话的客户端名）时
+    ``{"kind": "cloud", "via": <桥电脑名>, "host": <本机主机名>}``，否则 None（不带）。"""
     if not cloud():
         return None
-    via = _text(os.environ.get(VIA_ENV, ""))
+    via = _text(os.environ.get(VIA_ENV, "")) or _session_client_name()
     if not via:
         return None
     from .queue_client import _device_name
