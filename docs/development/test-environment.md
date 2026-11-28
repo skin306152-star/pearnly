@@ -88,6 +88,11 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 登录做回读与补救，菜单、同步和并发的测试结果因此不是被测代码的。`lab-stop` 没跑完（中断、断网）时，
 用 `bench --site <测试租户> scheduler status` 在线上核对，必要时手动 `scheduler resume`。
 
+**测试环境里副本的定时任务默认暂停**（2026-11-28 起）：副本与线上那份共用同一个 LINE 频道和线上 Keycloak，副本的定时任务
+会拿副本里导入时的**旧**配置写真实官方号（11-28 `up dms` 后 1 分钟内，副本的菜单对账按旧菜单编号给测试官方号上两位绑定用户重挂了菜单）。
+所以 `up` / `live` / 导入在容器起来前给每个 `*.pearnly.com` 副本写 `pause_scheduler: 1`；要测定时任务时显式打开：
+`PEARNLY_TESTENV_SCHEDULER=on bash scripts/testenv.sh lab-start <产品>`（`up` / `live` 同样认它），测完不带它再 `live` 一次就回到暂停。
+
 ## 复用：同一套环境反复用（每次只需挑一条）
 
 环境是**一次性配好、之后重复用**的：站点、测试租户数据、产品与镜像都落在各产品自己的
