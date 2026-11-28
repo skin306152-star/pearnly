@@ -276,7 +276,8 @@ def _remember_party_account(doctype, row, value):
 
 
 api = _module("pearnly_erp_portal.express.api", CAPABILITIES=CAPABILITIES, _document=_document, _view=_view,
-              retry=_retry, answer=_answer, remember_party_account=_remember_party_account)
+              retry=_retry, answer=_answer, remember_party_account=_remember_party_account,
+              resolve_unknown=lambda doctype, name, entered, docnum=None: CALLS.append(("resolve_unknown", doctype, name, entered, docnum)))
 _module("pearnly_erp_portal.inventory.warehouses",
         names_of=lambda company=None: [name for name, owner in WAREHOUSES.items() if owner == company])
 
@@ -1015,6 +1016,22 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(CALLS, [("retry", PURCHASE, "PUR-7")])
         self.assertEqual(call(tools.resolve_push_result, document="P:NOPE", entered=True),
                          direct_push.not_found("P:NOPE"))
+
+    def test_an_mrerp_unknown_is_recorded_as_the_user_found_it(self):
+        """11-28 用户批准：账本是 MR.ERP 的结果不明，MR.ERP 不能按号查重——照用户在 MR.ERP 看到的记下（同单据弹窗「已在 MR.ERP 核对」），
+        只在同意了的写入计划里；entered 不是布尔不收。"""
+        with mock.patch.object(tools.mrerp_push, "handles", lambda company: company == "CO-1"):
+            doc(PURCHASE, "PUR-8", reason=tools.mrerp_contracts.UNKNOWN + ": ERR_TECHNICAL")
+            out = call(tools.resolve_push_result, document="P:PUR-8", entered="yes")
+            self.assertEqual(out["status"], "not_saved")
+            self.assertEqual(CALLS, [])
+            out = call(tools.resolve_push_result, document="P:PUR-8", entered=True, docnum="PG691128-1")
+            self.assertEqual(out["status"], "saved")
+            self.assertEqual(CALLS, [("resolve_unknown", PURCHASE, "PUR-8", "1", "PG691128-1")])
+            self.permit["allowed"] = False
+            out = call(tools.resolve_push_result, document="P:PUR-8", entered=False)
+            self.assertEqual((out["status"], out["reason"]), ("not_pushed", "not_started"))
+            self.assertEqual(len(CALLS), 1)
 
 
 class PushAgainTests(unittest.TestCase):

@@ -62,7 +62,7 @@
 			// 账本是 MR.ERP 的、已写入的也能撤回：MR.ERP 没有删除导入，撤回后转人工、单号留着（`collection.mrerp.withdraw`）
 			// 写进 Express 结果不明的不撤回（Express 里可能已有），只给「重试」：钉回原电脑、按参照号查重再写（`collection.service.retry`）
 			const can_retry = Boolean(data.retryable);
-			const can_withdraw = !can_retry && (["queued", "failed"].includes(data.status)
+			const can_withdraw = !can_retry && !data.checkable && (["queued", "failed"].includes(data.status)
 				|| (data.ledger === "mrerp" && data.status === "written"));
 			const voided = data.mrerp_voided;
 			const dialog = new frappe.ui.Dialog({title: data.name, size: "large", fields: [
@@ -99,7 +99,10 @@
 						label: item.name || item.prefix, click: () => void viewer.show(item.file)})),
 					{fieldtype: "HTML", fieldname: "voucher_preview"}] : []),
 			]});
-			if (can_retry) {
+			if (data.checkable) {
+				// 写进 MR.ERP 结果不明：人去 MR.ERP 看过后记下（同单据弹窗「已在 MR.ERP 核对」）；不给撤回
+				dialog.set_primary_action(__("mrerp.unknown.check"), () => check(data.name, dialog));
+			} else if (can_retry) {
 				dialog.set_primary_action(__("Retry"), () => void settle(retry(data.name, dialog)));
 			} else if (can_withdraw) {
 				dialog.set_primary_action(__("Withdraw"), () => void settle(withdraw(data.name, dialog)));
@@ -211,6 +214,23 @@
 			shown?.hide();
 			void list?.reload();
 			if (view?.mrerp_voided) ask_again(view.mrerp_voided);
+		}
+
+		function check(name, shown) {
+			frappe.prompt([
+				{fieldtype: "Select", fieldname: "outcome", label: __("mrerp.unknown.outcome"), reqd: 1,
+					options: [{value: "entered", label: __("mrerp.unknown.entered")},
+						{value: "not_entered", label: __("mrerp.unknown.not_entered")}]},
+				{fieldtype: "Data", fieldname: "docnum", label: __("MR.ERP No."), depends_on: "eval:doc.outcome==='entered'"},
+			], values => void settle((async () => {
+				const entered = values.outcome === "entered";
+				await p.call(api + "api_collection_check", {name, entered: entered ? 1 : 0, docnum: entered ? values.docnum || "" : ""},
+					"POST");
+				frappe.utils.play_sound("click");
+				frappe.show_alert({message: __("Saved"), indicator: "green"});
+				shown?.hide();
+				void list?.reload();
+			})()), __("mrerp.unknown.check"));
 		}
 
 		async function retry(name, shown) {

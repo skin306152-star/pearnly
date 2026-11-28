@@ -113,7 +113,13 @@ def _mrerp_view(doctype, row):
             if reason == contracts.NO_BOOK and row.get("day") else "",
             "void": "", "needed": needed, "can_answer": bool(needed) and writer,
             "can_retry": _mrerp_retryable(row) and not needed and writer, "can_mark_handled": False,
+            # 结果不明（可能已写进 MR.ERP）：不再推，人去 MR.ERP 核对后在这里记下（:func:`resolve_unknown`）
+            "can_check": _mrerp_unknown(row) and writer,
             "vat_whole": False, "waiting": ""}
+
+
+def _mrerp_unknown(row) -> bool:
+    return row.ledger_state == contracts.HELD and str(row.ledger_reason or "").startswith(mrerp_contracts.UNKNOWN)
 
 
 def _mrerp_retryable(row) -> bool:
@@ -385,6 +391,22 @@ def remember_party_account(doctype, row, value) -> dict:
     frappe.db.commit()
     return {"status": "saved", "company": row.company, "party": party.get("name") or party.get("tax_id") or "",
             "subject": subject, "account": value, "account_name": label}
+
+
+ENTERED_VALUES = {"1": True, "true": True, "0": False, "false": False}  # 网页 / CC 交来的「已入账」
+
+
+@frappe.whitelist(methods=["POST"])
+def resolve_unknown(doctype, name, entered, docnum=None):
+    """账本是 MR.ERP、停在结果不明的单：人去 MR.ERP 核对后记下（「已在 MR.ERP 核对」）。``entered``：已入账（带 MR.ERP 单号）记已写入，
+    没有入账回到可「重试」。权限同「重试」（这张单的写权限）；别的状态、别的账本拒。"""
+    row = _document(doctype, name, write=True)
+    found = ENTERED_VALUES.get(str(entered).strip().lower())
+    if doc_ledger(row) != LEDGER_MRERP or not _mrerp_unknown(row) or found is None:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    if not mrerp_push.resolve_unknown(doctype, name, found, docnum):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return _view(doctype, _document(doctype, name))
 
 
 @frappe.whitelist(methods=["POST"])

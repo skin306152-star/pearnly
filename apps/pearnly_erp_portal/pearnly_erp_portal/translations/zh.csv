@@ -280,9 +280,11 @@ Check sheet,核对表
 Check the opening stock row,请检查此期初明细
 Checkbox,勾选
 Checked a collection,查看了收款结果
+Checked in MR.ERP,已在 MR.ERP 核对
 Checked pending items,查看了待处理
 Checked push choices,查看了推送前要选的项
 Checked push results,查看了推送结果
+"Checked, not entered",已核对，未入账
 Checking a collection,正在查看收款结果
 Checking pending items,正在查看待处理
 Checking push choices,正在查看推送前要选的项
@@ -383,7 +385,9 @@ Confirm and record,确定入账
 Confirm collection,确认收款
 Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
+Confirmed a collection result,确认了收款结果
 Confirmed a push result,确认了推送结果
+Confirming a collection result,正在确认收款结果
 Confirming a push result,正在确认推送结果
 Contact Details,联系方式
 Contact Person,联系人
@@ -797,6 +801,8 @@ Issue Value,发出金额
 Issue documents and deduct stock,开单并出库
 Issued,出库数量
 Issues,发出
+It was entered,已入账
+It was not entered,未入账
 Item,物料
 Item / Description,品名/说明
 Item Cart,购物车
@@ -1326,6 +1332,7 @@ Requested By,申请人
 Reset,重置
 Reset Password,重置密码
 Restore,恢复
+Result in MR.ERP,MR.ERP 里的结果
 Retry,重试
 Return,退货退款
 Return to stock,退库
@@ -2775,11 +2782,16 @@ mrerp.menu.sales_cash,现金销售
 mrerp.menu.sales_credit,赊销
 mrerp.menu.title,MR.ERP 导入菜单
 mrerp.reason.accountBusy,此 MR.ERP 账号正在代录
+mrerp.reason.checkedNotEntered,已核对，未入账
 mrerp.reason.importing,正在导入 MR.ERP
 mrerp.reason.loginMissing,MR.ERP 登录未授权
 mrerp.reason.notConfigured,公司未设置 MR.ERP 账套
 mrerp.reason.purchaseCash,MR.ERP 的进项只能按赊购录入。
 mrerp.reason.resultUnknown,结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送
+mrerp.unknown.check,已在 MR.ERP 核对
+mrerp.unknown.entered,已入账
+mrerp.unknown.not_entered,未入账
+mrerp.unknown.outcome,MR.ERP 里的结果
 nav.posReceipts,收银记录
 nav.posShifts,班次记录
 nav.stockAdjust,物料调整

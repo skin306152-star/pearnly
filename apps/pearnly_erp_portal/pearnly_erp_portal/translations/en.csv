@@ -280,9 +280,11 @@ Check sheet,Check sheet
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
 Checked a collection,Checked a collection
+Checked in MR.ERP,Checked in MR.ERP
 Checked pending items,Checked pending items
 Checked push choices,Checked push choices
 Checked push results,Checked push results
+"Checked, not entered","Checked, not entered"
 Checking a collection,Checking a collection
 Checking pending items,Checking pending items
 Checking push choices,Checking push choices
@@ -383,7 +385,9 @@ Confirm and record,Confirm and record
 Confirm collection,Confirm collection
 Confirm opening stock,Confirm opening stock
 Confirm the document before recording a payment,Confirm the document before recording a payment
+Confirmed a collection result,Confirmed a collection result
 Confirmed a push result,Confirmed a push result
+Confirming a collection result,Confirming a collection result
 Confirming a push result,Confirming a push result
 Contact Details,Contact Details
 Contact Person,Contact Person
@@ -797,6 +801,8 @@ Issue Value,Issue Value
 Issue documents and deduct stock,Issue documents and deduct stock
 Issued,Issued
 Issues,Issues
+It was entered,It was entered
+It was not entered,It was not entered
 Item,Item
 Item / Description,Item / Description
 Item Cart,Item Cart
@@ -1326,6 +1332,7 @@ Requested By,Requested By
 Reset,Reset
 Reset Password,Reset Password
 Restore,Restore
+Result in MR.ERP,Result in MR.ERP
 Retry,Retry
 Return,Return
 Return to stock,Return to stock
@@ -2775,11 +2782,16 @@ mrerp.menu.sales_cash,Cash sales
 mrerp.menu.sales_credit,Credit sales
 mrerp.menu.title,MR.ERP import menu
 mrerp.reason.accountBusy,This MR.ERP account is in an operator entry
+mrerp.reason.checkedNotEntered,"Checked, not entered"
 mrerp.reason.importing,Importing into MR.ERP
 mrerp.reason.loginMissing,MR.ERP sign-in is not authorized
 mrerp.reason.notConfigured,The company has no MR.ERP account set
 mrerp.reason.purchaseCash,MR.ERP purchases can only be entered on credit.
 mrerp.reason.resultUnknown,The result is not confirmed. Check in MR.ERP before sending again
+mrerp.unknown.check,Checked in MR.ERP
+mrerp.unknown.entered,It was entered
+mrerp.unknown.not_entered,It was not entered
+mrerp.unknown.outcome,Result in MR.ERP
 nav.posReceipts,Cashier Records
 nav.posShifts,Shift Records
 nav.stockAdjust,Product Adjustment

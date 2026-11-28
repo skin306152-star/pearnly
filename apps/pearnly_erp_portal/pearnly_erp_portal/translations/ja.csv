@@ -280,9 +280,11 @@ Check sheet,照合表
 Check the opening stock row,この期首明細を確認してください
 Checkbox,チェックボックス
 Checked a collection,入金の結果を確認しました
+Checked in MR.ERP,MR.ERP で確認済み
 Checked pending items,処理待ちの項目を確認しました
 Checked push choices,送信前の選択項目を確認しました
 Checked push results,送信結果を確認しました
+"Checked, not entered",確認済み・未計上
 Checking a collection,入金の結果を確認しています
 Checking pending items,処理待ちの項目を確認しています
 Checking push choices,送信前の選択項目を確認しています
@@ -383,7 +385,9 @@ Confirm and record,確定して記録
 Confirm collection,入金の確認
 Confirm opening stock,期首在庫を確定
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
+Confirmed a collection result,入金結果を確定しました
 Confirmed a push result,送信結果を確定しました
+Confirming a collection result,入金結果を確定しています
 Confirming a push result,送信結果を確定しています
 Contact Details,連絡先
 Contact Person,担当者
@@ -797,6 +801,8 @@ Issue Value,払出金額
 Issue documents and deduct stock,伝票を登録して出庫
 Issued,出庫数量
 Issues,払出
+It was entered,計上されている
+It was not entered,計上されていない
 Item,品目
 Item / Description,品名・説明
 Item Cart,カート
@@ -1326,6 +1332,7 @@ Requested By,申請者
 Reset,リセット
 Reset Password,パスワードを再設定
 Restore,復元
+Result in MR.ERP,MR.ERP での結果
 Retry,再試行
 Return,返品・返金
 Return to stock,戻り入庫
@@ -2775,11 +2782,16 @@ mrerp.menu.sales_cash,現金売上
 mrerp.menu.sales_credit,掛売上
 mrerp.menu.title,MR.ERP 取込メニュー
 mrerp.reason.accountBusy,この MR.ERP アカウントは代行入力中です
+mrerp.reason.checkedNotEntered,確認済み・未計上
 mrerp.reason.importing,MR.ERP に取込中
 mrerp.reason.loginMissing,MR.ERP のログインが未許可です
 mrerp.reason.notConfigured,会社に MR.ERP の会計データが設定されていません
 mrerp.reason.purchaseCash,MR.ERP の仕入は掛けでのみ登録できます。
 mrerp.reason.resultUnknown,結果は未確認です。再送信する前に MR.ERP で確認してください
+mrerp.unknown.check,MR.ERP で確認済み
+mrerp.unknown.entered,計上されている
+mrerp.unknown.not_entered,計上されていない
+mrerp.unknown.outcome,MR.ERP での結果
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録
 nav.stockAdjust,商品調整

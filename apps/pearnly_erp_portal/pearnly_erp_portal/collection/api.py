@@ -199,6 +199,15 @@ def api_collection_retry(name):
 
 
 @frappe.whitelist(methods=["POST"])
+def api_collection_check(name, entered, docnum=None):
+    """写进 MR.ERP 结果不明的一笔：人在 MR.ERP 核对后记下（本公司的，同撤回的权限；`service.check_unknown`）。"""
+    from pearnly_erp_portal.collection import service
+
+    found = {"1": True, "true": True, "0": False, "false": False}.get(str(entered).strip().lower())
+    return _explained(service.check_unknown, name, found, docnum)
+
+
+@frappe.whitelist(methods=["POST"])
 def api_collection_withdraw(name):
     """撤回一笔（本公司的，不分谁录的；草稿、待写入、失败的；电脑正在写、已写入的不行），同 LINE【撤回】（`service.withdraw`）。"""
     from pearnly_erp_portal.collection import service

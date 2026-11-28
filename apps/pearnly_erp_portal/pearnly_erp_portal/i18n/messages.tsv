@@ -1899,6 +1899,11 @@ This MR.ERP account is in an operator entry	此 MR.ERP 账号正在代录	บั
 Importing into MR.ERP	正在导入 MR.ERP	กำลังนำเข้า MR.ERP	MR.ERP に取込中	mrerp.reason.importing
 The result is not confirmed. Check in Express before sending again	结果未确认，请先在 Express 中核对，再决定是否重新推送	ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่	結果が確認できません。Express で確認してから再送信してください	express.reason.resultUnknown
 The result is not confirmed. Check in MR.ERP before sending again	结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送	ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่	結果は未確認です。再送信する前に MR.ERP で確認してください	mrerp.reason.resultUnknown
+Checked in MR.ERP	已在 MR.ERP 核对	ตรวจใน MR.ERP แล้ว	MR.ERP で確認済み	mrerp.unknown.check
+Result in MR.ERP	MR.ERP 里的结果	ผลใน MR.ERP	MR.ERP での結果	mrerp.unknown.outcome
+It was entered	已入账	ลงบัญชีแล้ว	計上されている	mrerp.unknown.entered
+It was not entered	未入账	ยังไม่ลงบัญชี	計上されていない	mrerp.unknown.not_entered
+Checked, not entered	已核对，未入账	ตรวจแล้ว ยังไม่ลงบัญชี	確認済み・未計上	mrerp.reason.checkedNotEntered
 An account used is not in the MR.ERP chart of accounts. Check the account settings	所用科目不在 MR.ERP 科目表中，请检查科目设置	รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี	使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください	mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW
 The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	mrerp.error.ERR_AMOUNTS_NOT_CLOSED
 Could not sign in to MR.ERP. Check the connection's username and password	MR.ERP 登录失败，请检查连接的账号和密码	เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ	MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください	mrerp.error.ERR_AUTH
@@ -2125,6 +2130,8 @@ Recorded a collection	录入了收款	บันทึกรับชำระแ
 Checked a collection	查看了收款结果	ดูผลการรับชำระแล้ว	入金の結果を確認しました
 Listed collections	查看了收款列表	ดูรายการรับชำระทั้งหมดแล้ว	入金の一覧を確認しました
 Withdrew a collection	撤回了收款	ถอนรายการรับชำระแล้ว	入金を取り下げました
+Confirmed a collection result	确认了收款结果	ยืนยันผลการรับชำระแล้ว	入金結果を確定しました
+Confirming a collection result	正在确认收款结果	กำลังยืนยันผลการรับชำระ	入金結果を確定しています
 Searching customers for a collection	正在查找收款客户	กำลังค้นหาลูกค้าสำหรับรับชำระ	入金の顧客を検索しています
 Listing open invoices	正在查看未收清的发票	กำลังดูใบแจ้งหนี้ค้างชำระ	未入金の請求書を確認しています
 Listing collection methods	正在查看收款方式	กำลังดูวิธีรับชำระ	入金方法を確認しています

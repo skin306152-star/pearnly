@@ -98,7 +98,8 @@ UNCONFIRMED_NOTE = ("unconfirmed: the result is not known (the write may or may 
                     "and do not record it again: on the ERP Collections page it has only Retry, which sends it to the "
                     "same computer, and that computer does not write it twice.")
 MRERP_UNCONFIRMED_NOTE = ("unconfirmed: the result is not known (MR.ERP took the import but it could not be read back). "
-                          "Say reason_text as given. Do not call it failed and do not record it again.")
+                          "Say reason_text as given. Do not call it failed and do not record it again: ask the user to check "
+                          "in MR.ERP, then record what they found with erp_collection_resolve_result.")
 
 
 def _result(view) -> str:
@@ -494,6 +495,28 @@ def withdraw(tool_input) -> str:
     return _json(out)
 
 
+def preview_check(tool_input) -> list:
+    """「已在 MR.ERP 核对」卡片上列的（只读）：客户、各张发票、金额，加用户说的结果与 MR.ERP 单号。"""
+    entered = tool_input.get("entered") is True
+    return [*preview_withdraw(tool_input),
+            {"field": _("mrerp.unknown.outcome"), "before": "",
+             "after": _("mrerp.unknown.entered") if entered else _("mrerp.unknown.not_entered")},
+            *([{"field": _("MR.ERP No."), "before": "", "after": str(tool_input.get("docnum") or "")}]
+              if entered and tool_input.get("docnum") else [])]
+
+
+def check(tool_input) -> str:
+    """写进 MR.ERP 结果不明的一笔：照用户在 MR.ERP 看到的记下（`service.check_unknown`，同收款页「已在 MR.ERP 核对」）。"""
+    entered = tool_input.get("entered")
+    if type(entered) is not bool:
+        return _json({"status": "not_saved", "reason": "entered_required: pass entered true or false from the user"})
+    found = _call(service.check_unknown, str(tool_input.get("collection") or ""), entered, tool_input.get("docnum"))
+    if "result" not in found:
+        return _json(found)
+    view = found["result"]
+    return _json({"status": "saved", "result": RESULT.get(view["status"], view["status"]), "collection": view})
+
+
 # ── 声明 ─────────────────────────────────────────────────────────────────────
 
 COLLECTION_PROP = {"type": "string", "description": "The collection's name (COL…) from an earlier result."}
@@ -605,6 +628,18 @@ TOOLS = [
      "note": "pearnly_erp_portal.collection.cc_tools.note_withdraw",
      "preview": "pearnly_erp_portal.collection.cc_tools.preview_withdraw",
      "handler": "pearnly_erp_portal.collection.cc_tools.withdraw"},
+    {"name": "erp_collection_resolve_result", "label": "Confirmed a collection result", "modes": ["chat"],
+     "description": "A collection written into MR.ERP whose result is unknown (status unconfirmed: MR.ERP may or may not "
+                    "have it): record what the user found after checking in MR.ERP: entered true (with its MR.ERP number "
+                    "if they have it) records it as written, false records it as not entered so it can be withdrawn and "
+                    "recorded again. Only with the user's own answer; never guess. The user sees Allow / Deny first.",
+     "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP, "entered": {"type": "boolean"},
+                                                       "docnum": {"type": "string"}}, "required": ["collection", "entered"]},
+     "approval": True,
+     "ask": "mrerp.unknown.check",
+     "note": "pearnly_erp_portal.collection.cc_tools.note_withdraw",
+     "preview": "pearnly_erp_portal.collection.cc_tools.preview_check",
+     "handler": "pearnly_erp_portal.collection.cc_tools.check"},
 ]
 
 STEP_NAMES = {
@@ -616,4 +651,5 @@ STEP_NAMES = {
     "erp_collection_status": "Checking a collection",
     "erp_collection_list": "Listing collections",
     "erp_collection_withdraw": "Withdrawing a collection",
+    "erp_collection_resolve_result": "Confirming a collection result",
 }

@@ -778,6 +778,8 @@ def _view(doc) -> dict:
             "reason_text": texts.reason(doc.reason) if doc.reason else "",
             "result_unknown": contracts.result_unknown(doc.status, doc.reason),
             "retryable": contracts.retryable(doc.status, doc.reason) and not ledger.handles(doc.company),
+            # 写进 MR.ERP 结果不明：人去 MR.ERP 核对后记下（「已在 MR.ERP 核对」，:func:`check_unknown`）
+            "checkable": ledger.handles(doc.company) and ledger.unknown(doc),
             "salesman": doc.salesman or "", "department": doc.department or "",
             "balances": frappe.parse_json(doc.balances) if doc.balances else {},
             # 写前被电脑拒、退回草稿（带原因，改了再放行；`push.job_changed`）
@@ -884,6 +886,16 @@ def retry(name) -> dict:
     if ledger.handles(doc.company) or not contracts.retryable(doc.status, doc.reason) or not push.retry(doc.job):
         raise contracts.CollectionError(contracts.NOT_RETRYABLE, {"status": doc.status})
     return _view(frappe.get_doc(DOCTYPE, name))  # 回执已在同一事务里记回（排队中）
+
+
+def check_unknown(name, entered, docnum=None) -> dict:
+    """写进 MR.ERP 结果不明的一笔：人在 MR.ERP 核对后记下（`collection.mrerp.resolve_unknown`）。权限同撤回；不是 MR.ERP、不是
+    结果不明的拒。``entered`` 只收布尔。"""
+    doc = _own(name, for_update=True)
+    if not ledger.handles(doc.company) or not ledger.unknown(doc) or type(entered) is not bool:
+        raise contracts.CollectionError(contracts.NOT_RETRYABLE, {"status": doc.status})
+    ledger.resolve_unknown(doc, entered, docnum)
+    return _view(frappe.get_doc(DOCTYPE, name))
 
 
 def discard_draft(name) -> bool:

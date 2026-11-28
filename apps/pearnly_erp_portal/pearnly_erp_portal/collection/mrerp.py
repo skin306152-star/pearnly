@@ -392,6 +392,37 @@ def run(name):
     push._tell(doc)
 
 
+def unknown(doc) -> bool:
+    """写进 MR.ERP 结果不明（导入发出后报错 / 查不到；可能已有）。"""
+    from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
+
+    return doc.get("status") == contracts.FAILED and str(doc.get("reason") or "").startswith(mrerp_contracts.UNKNOWN)
+
+
+def resolve_unknown(doc, entered, docnum=None) -> None:
+    """结果不明的收款由人在 MR.ERP 核对后记下（收款页「已在 MR.ERP 核对」、CC 收款核对；口径同单据 `mrerp.push.resolve_unknown`）：
+    已入账 = 已写入 + 人填的 MR.ERP 单号，发票余额等按客户再读一次未收清发票（不当场让人逐张填，用户 11-28）；没有入账 = 失败、原因
+    「已核对，未入账」（可撤回后重录）。调用方已核权限与 :func:`unknown`。谁何时判了什么记在收款记录的评论里。"""
+    from pearnly_erp_portal.collection import push
+    from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
+
+    values = mrerp_contracts.checked(entered, docnum)
+    before = doc.reason
+    if entered:
+        push._set(doc.name, {"status": contracts.WRITTEN, "docnum": values["ledger_docnum"][:40], "reason": "",
+                             "written_at": now_datetime()})
+    else:
+        push._set(doc.name, {"status": contracts.FAILED, "reason": mrerp_contracts.CONFIRMED_NOT_ENTERED})
+    frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": DOCTYPE, "reference_name": doc.name,
+                    "content": f"MR.ERP check by {frappe.session.user}: "
+                               + (f"entered {values['ledger_docnum']}".strip() if entered else "not entered")
+                               + f" (was {before})"}).insert(ignore_permissions=True)
+    if entered:
+        book = book_row(doc.company, doc.book_key)
+        if book:
+            request(doc.company, book, doc.customer)  # 写后余额：同导入写成后按这位客户再读一次未收发票
+
+
 def withdraw(doc) -> dict | None:
     """撤回的 MR.ERP 一半（`service.withdraw` 先问）：写入中的回 ``busy``（抛 `contracts.BUSY`）；已写进 MR.ERP 的不撤导入（MR.ERP
     没有删除导入），标「已撤回」、转人工、单号留着（``express.voided_after_write``）回 True；其余照通常的撤回回 None。"""

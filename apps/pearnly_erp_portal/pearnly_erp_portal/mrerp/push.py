@@ -313,6 +313,33 @@ def run(doctype, name, document):
         masters.after_write(company.name)
 
 
+def resolve_unknown(doctype, name, entered, docnum=None) -> bool:
+    """结果不明的单由人在 MR.ERP 核对后记下（ERP 单据弹窗「已在 MR.ERP 核对」、CC `erp_resolve_push_result`）：已入账记已写入 + 单号、
+    排一次主档整读（同写成）；没有入账回到可再推（「重试」）。只收「账本是 MR.ERP + 停在结果不明」的单，别的回假。谁何时判了什么记在
+    单据的评论里。权限由调用方核（同 :func:`answer`）。"""
+    row = _row(doctype, name, ["company", "ledger_state", "ledger_reason"], for_update=True)
+    if not row or not handles(row.company) or row.ledger_state != express_contracts.HELD \
+            or not str(row.ledger_reason or "").startswith(contracts.UNKNOWN):
+        return False
+    values = contracts.checked(entered, docnum)
+    _set(doctype, name, {**values, "ledger_needed": None})
+    _audit(doctype, name, row.ledger_reason, values)
+    frappe.db.commit()
+    if entered:
+        from pearnly_erp_portal.mrerp import masters  # 同 :func:`run`
+
+        masters.after_write(row.company)
+    return True
+
+
+def _audit(doctype, name, before, values):
+    """核对记录（谁、何时、判了什么、原来的原因）：单据评论，内部记录不经翻译。"""
+    frappe.get_doc({"doctype": "Comment", "comment_type": "Info", "reference_doctype": doctype, "reference_name": name,
+                    "content": f"MR.ERP check by {frappe.session.user}: "
+                               + (f"entered {values.get('ledger_docnum') or ''}".strip() if values["ledger_state"] == "written"
+                                  else "not entered") + f" (was {before})"}).insert(ignore_permissions=True)
+
+
 def answer(doctype, name, answers) -> bool:
     """单据上选要人选的 MR.ERP 项（``[{kind, subject, value}]``，只认停在单据上的那几项、这一项能选的值）：记在公司上后再排。
     权限由调用方核（同 `express.api.answer`）。全部认得回真。"""

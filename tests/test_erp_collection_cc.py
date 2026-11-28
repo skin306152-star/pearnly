@@ -125,12 +125,12 @@ class Declarations(unittest.TestCase):
         for line in (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(
                 encoding="utf-8").splitlines()[1:]:
             cells = line.split("\t")
-            words.setdefault(cells[0], cells[1:4])
+            words.setdefault(cells[4] if len(cells) > 4 and cells[4].strip() else cells[0], cells[1:4])  # 带键的按键查
         for tool in cc_tools.TOOLS:
             self.assertTrue(tool["name"].startswith("erp_collection_"), tool["name"])
             self.assertEqual(tool.get("modes"), ["chat"], tool["name"])  # 只在直写对话（用户 11-11：代录不做收款）
-            if tool["name"] == "erp_collection_withdraw":
-                # 撤回先出「允许」卡片（用户 11-12：删除、撤回类在对话里点一次「允许」）
+            if tool["name"] in ("erp_collection_withdraw", "erp_collection_resolve_result"):
+                # 撤回先出「允许」卡片（用户 11-12：删除、撤回类在对话里点一次「允许」）；MR.ERP 结果不明的核对同样（11-28）
                 self.assertIs(tool["approval"], True)
                 self.assertEqual(len([cell for cell in words.get(tool["ask"], []) if cell.strip()]), 3, tool["ask"])
             else:
@@ -144,7 +144,7 @@ class Declarations(unittest.TestCase):
         self.assertIn('"pearnly_erp_portal.collection.cc_tools.TOOLS"]', hooks)
         self.assertIn('"pearnly_erp_portal.collection.cc_tools.STEP_NAMES"]', hooks)
 
-    def test_an_operator_conversation_has_no_collection_tool_and_a_direct_one_has_all_eight(self):
+    def test_an_operator_conversation_has_no_collection_tool_and_a_direct_one_has_all_nine(self):
         # 用户 11-11：代录不做收款。各模式只用自己的工具：代录会话给模型的工具表里一个 erp_collection_* 都没有（共用层
         # `tools.mode_allowed`，同 `definition.brief` 按模式整组换上）
         from pearnly_core.assistant import tools
@@ -152,7 +152,7 @@ class Declarations(unittest.TestCase):
         with mock.patch.object(tools, "declared", lambda: list(cc_tools.TOOLS)):
             chat = [t["name"] for t in tools.declared() if tools.mode_allowed(t["name"], "chat")]
             operator = [t["name"] for t in tools.declared() if tools.mode_allowed(t["name"], "operator")]
-        self.assertEqual(len(chat), 8)
+        self.assertEqual(len(chat), 9)
         self.assertEqual(chat, [t["name"] for t in cc_tools.TOOLS])
         self.assertEqual([name for name in operator if name.startswith("erp_collection_")], [])
 

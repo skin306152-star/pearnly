@@ -138,6 +138,7 @@
 		"mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
 		"mrerp.account_busy": "mrerp.reason.accountBusy",
 		"mrerp.importing": "mrerp.reason.importing",
+		"mrerp.confirmed_not_entered": "mrerp.reason.checkedNotEntered",
 		"cancelled": "Cancelled", "replaced": "Cancelled", "voided": "Cancelled",
 		"disconnected": "express.state.detached", "express.disconnected": "express.state.detached",
 	};
@@ -275,6 +276,13 @@
 			...(info.vat_whole ? [{fieldtype: "Check", fieldname: "vat_whole", label: __("Whole document taxed"),
 				read_only: 1, default: 1}] : []),
 			...needed_fields(info.needed, direction),
+			// MR.ERP 结果不明：人去 MR.ERP 看过后记下（同 Cowork 复核页「核对」那张：结果 + 单号）
+			...(info.can_check ? [
+				{fieldtype: "Select", fieldname: "outcome", label: __("mrerp.unknown.outcome"), reqd: 1,
+					options: [{value: "entered", label: __("mrerp.unknown.entered")},
+						{value: "not_entered", label: __("mrerp.unknown.not_entered")}]},
+				{fieldtype: "Data", fieldname: "check_docnum", label: __("MR.ERP No."), depends_on: "eval:doc.outcome==='entered'"},
+			] : []),
 			// 收银日汇总 / 退货单停住时的出口：人在 Express 里手工处理好了，标一下就不再写（主会话 10-26）
 			...(info.can_mark_handled ? [{fieldtype: "Button", fieldname: "mark_handled", label: __("express.action.markHandled"),
 				click: () => frappe.prompt([{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), reqd: 1}], async values => {
@@ -284,17 +292,23 @@
 					await reload?.();
 				}, __("express.action.markHandled"))}] : []),
 		];
-		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
+		const action = info.can_answer ? __("Save") : info.can_check ? __("mrerp.unknown.check")
+			: info.can_retry ? __("Retry") : __("Close");
 		p.dialog(mrerp_ledger ? "MR.ERP" : __("Express"), fields, action, async (values, dialog) => {
 			if (info.can_answer) {
 				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(answers_of(info.needed, values))}, "POST");
+				p.success(__("Saved"), "click");
+			} else if (info.can_check) {
+				const entered = values.outcome === "entered";
+				await p.call(api + "resolve_unknown", {doctype, name, entered: entered ? 1 : 0,
+					docnum: entered ? values.check_docnum || "" : ""}, "POST");
 				p.success(__("Saved"), "click");
 			} else if (info.can_retry) {
 				await p.call(api + "retry", {doctype, name}, "POST");
 				p.success(__("Entering"), "submit");
 			}
 			dialog.hide();
-			if (info.can_answer || info.can_retry) await reload?.();
+			if (info.can_answer || info.can_check || info.can_retry) await reload?.();
 		});
 	};
 	p.trade = {

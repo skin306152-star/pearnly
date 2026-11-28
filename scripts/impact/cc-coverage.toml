@@ -285,7 +285,7 @@ page_flows = ["erp.cc.guide.pending"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
-basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）；没有 MR.ERP 公司上的流程"
+basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）；待处理引导本身没有 MR.ERP 公司上的流程。11-28 用户批准 MR.ERP 结果不明的「核对」出口（单据弹窗、收款页、CC erp_resolve_push_result / erp_collection_resolve_result，同 Cowork 核对口径：已入账记单号、没有入账回到可再推），页面流程 erp.mrerp.unknown-check / .collection、erp.cc.mrerp-unknown-check"
 
 [[row]]
 id = "folder_task"

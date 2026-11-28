@@ -521,6 +521,32 @@ class SwitchedOn(unittest.TestCase):
         ledger.poll()
         self.assertEqual(ENQUEUED, [])  # 失败的（含结果不明）不自动重排
 
+    def test_a_person_checks_an_unknown_collection_in_mrerp_and_records_it(self):
+        """11-28 用户批准：结果不明的收款人去 MR.ERP 核对后记下：已入账记已写入 + 单号、按客户再读一次未收发票（不当场逐张填）；
+        没有入账记失败「已核对，未入账」（可撤回重录）。"""
+        from unittest import mock
+
+        from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
+
+        comments = []
+        real = sys.modules["frappe"].get_doc
+        fake = lambda spec, *a, **k: (types.SimpleNamespace(insert=lambda **kw: comments.append(spec))  # noqa: E731
+                                      if isinstance(spec, dict) and spec.get("doctype") == "Comment" else real(spec, *a, **k))
+        with _network(), mock.patch.object(sys.modules["frappe"], "get_doc", fake):
+            doc = collection(cash="100.00", status=contracts.FAILED, reason=mrerp_contracts.UNKNOWN + ": ERR_TECHNICAL")
+            self.assertTrue(ledger.unknown(doc))
+            ENQUEUED.clear()
+            ledger.resolve_unknown(doc, True, "FR1128-COL1")
+            saved = DB.table("ERP Collection")["COL261116-AB12"]
+            self.assertEqual((saved["status"], saved["docnum"], saved["reason"]), (contracts.WRITTEN, "FR1128-COL1", ""))
+            self.assertEqual(ENQUEUED[-1][0], "pearnly_erp_portal.collection.mrerp.run_read")  # 写后按客户重读
+            doc = collection(name="COL6", cash="100.00", status=contracts.FAILED, reason=mrerp_contracts.UNKNOWN + ": X")
+            ledger.resolve_unknown(doc, False)
+            saved = DB.table("ERP Collection")["COL6"]
+            self.assertEqual((saved["status"], saved["reason"]), (contracts.FAILED, mrerp_contracts.CONFIRMED_NOT_ENTERED))
+            self.assertFalse(ledger.unknown(_get_doc("ERP Collection", "COL6")))
+        self.assertEqual(len(comments), 2)
+
     def test_a_menu_choice_from_the_import_is_menu_needed(self):
         self.assertEqual(ledger.settle({"status": "failed", "reason": "ERR_MRERP_MENU_CHOICE_REQUIRED"})["reason"],
                          ledger.MENU_NEEDED)

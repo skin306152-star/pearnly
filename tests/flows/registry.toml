@@ -3212,3 +3212,47 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/guide.py",
 ]
+
+[[flow]]
+id = "erp.mrerp.unknown-check"
+title = "ERP 单据写进 MR.ERP 结果不明：弹窗「已在 MR.ERP 核对」已入账 → 成功 + 单号；未入账 → 失败 · 已核对，未入账、可重试"
+module = "scripts/flows/erp_mrerp_unknown_check.py"
+product = "erp"
+start = "/desk/pearnly-purchase"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/contracts.py",
+]
+
+[[flow]]
+id = "erp.mrerp.unknown-check.collection"
+title = "ERP 收款写进 MR.ERP 结果不明：收款页「已在 MR.ERP 核对」已入账 → 已写入 + 填的单号（不给撤回）"
+module = "scripts/flows/erp_mrerp_unknown_collection.py"
+product = "erp"
+start = "/desk/pearnly-collections"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/mrerp.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/api.py",
+]
+
+[[flow]]
+id = "erp.cc.mrerp-unknown-check"
+title = "ERP 版 CC 核对 MR.ERP 结果不明：收款出允许卡、允许后记「已核对，未入账」；单据按工具函数核（只在同意了的计划里）"
+module = "scripts/flows/erp_cc_mrerp_unknown_check.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+]

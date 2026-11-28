@@ -620,7 +620,7 @@ desktop_version: 1.12.21
 | resolve | Cowork 代录 · MR.ERP | ◐ P2 | 只有服务端 | 同代录 · 本地那格的声明（面向 MR.ERP）；没有 MR.ERP 公司上的流程 |
 | resolve | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 pending（operator）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | resolve | ERP 直写 · 本地 | ✅ | 只有服务端 | ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是交出那张的「单号 · 对方」）；离线单测 test_erp_pending_guide，页面流程真点卡从题到结果（本地 Express）；页面流程 `erp.cc.guide.pending` |
-| resolve | ERP 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）；没有 MR.ERP 公司上的流程 |
+| resolve | ERP 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）；待处理引导本身没有 MR.ERP 公司上的流程。11-28 用户批准 MR.ERP 结果不明的「核对」出口（单据弹窗、收款页、CC erp_resolve_push_result / erp_collection_resolve_result，同 Cowork 核对口径：已入账记单号、没有入账回到可再推），页面流程 erp.mrerp.unknown-check / .collection、erp.cc.mrerp-unknown-check |
 | resolve | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 pending（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | resolve | ERP 代录 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 pending（operator）；打字路径能办，没有引导卡 |
 | resolve | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明 pending（operator）；等 MR.ERP（开着） |

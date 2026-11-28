@@ -23,6 +23,9 @@ NO_LOGIN = "mrerp.login_missing"               # 连接还没在 CC 桌面版里
 ACCOUNT_BUSY = "mrerp.account_busy"            # 这个 MR.ERP 账号正被代录占着：等账号（不算失败）
 IMPORTING = "mrerp.importing"                  # 已领、正在导入（进程死掉过期后转结果不明）
 UNKNOWN = "mrerp.result_unknown"               # 导入受理了却查不到 / 发出后出错：可能已落库，不自动重推
+# 结果不明由人去 MR.ERP 核对后说「没有入账」（同 Cowork 推送记录的 ``confirmed_not_entered``）：可以再推 / 撤回
+CONFIRMED_NOT_ENTERED = "mrerp.confirmed_not_entered"
+DOCNUM_MAX = 140
 CHOICE = "choice_needed:mrerp"                 # 要人选一次导入菜单 / 主档默认值（以 `express.contracts.CHOICE` 开头）
 # 每分钟会自己好的（代录放开账号）
 RETRY_REASONS = (ACCOUNT_BUSY,)
@@ -114,6 +117,17 @@ def settle(outcome: dict) -> dict:
     return {"ledger_state": "failed", "ledger_reason": reason[:500]}
 
 
+def checked(entered, docnum=None) -> dict:
+    """结果不明由人在 MR.ERP 核对后的结论 → 单据账本栏的值（口径同 Cowork 推送记录的核对 `push.native.service.resolve_unknown`）：
+    已入账 = 已写入 + 人填的 MR.ERP 单号（没填留空）；没有入账 = 停下、原因 :data:`CONFIRMED_NOT_ENTERED`（可以再推）。
+    ``entered`` 必须是布尔，别的拒（同 Cowork）。"""
+    if type(entered) is not bool:
+        raise ValueError("entered must be true or false")
+    if entered:
+        return {"ledger_state": "written", "ledger_docnum": " ".join(str(docnum or "").split())[:DOCNUM_MAX], "ledger_reason": ""}
+    return {"ledger_state": "held", "ledger_reason": CONFIRMED_NOT_ENTERED}
+
+
 def needed(menu_view: dict, master_view: dict, direction: str, kinds: tuple = None) -> list:
     """此刻要人选的项（单据上停下等人选，同 `express` 的 ``ledger_needed`` 形状 ``{kind, subject, options}``）：
     ``mrerp_menu`` / 单据类型、``mrerp_default`` / 主档字段；只看这个方向会用到的（`pearnly_core.mrerp.needs`）。``kinds``：这张单
@@ -133,5 +147,5 @@ def needed(menu_view: dict, master_view: dict, direction: str, kinds: tuple = No
     return out
 
 
-__all__ = ["ACCOUNT_BUSY", "CHOICE", "IMPORTING", "LEDGER_MRERP", "NOT_CONFIGURED", "NO_LOGIN",
-           "UNKNOWN", "history", "history_id", "needed", "payload", "products", "settle"]
+__all__ = ["ACCOUNT_BUSY", "CHOICE", "CONFIRMED_NOT_ENTERED", "DOCNUM_MAX", "IMPORTING", "LEDGER_MRERP", "NOT_CONFIGURED", "NO_LOGIN",
+           "UNKNOWN", "checked", "history", "history_id", "needed", "payload", "products", "settle"]

@@ -61,6 +61,7 @@ REASONS = {
     "express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
     "express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
     "cc_desktop.result_unknown": "express.reason.resultUnknown",
+    "mrerp.confirmed_not_entered": "mrerp.reason.checkedNotEntered",
     "express.account_period_mismatch": "express.reason.periodOutside",
     "express.stock_book_missing": "express.reason.noStockBook", "express.pos_net_negative": "express.reason.posNetNegative",
     "express.pos_refund_waiting": "express.reason.refundWaiting", "pos_refund_items_invalid": "express.reason.refundItems",

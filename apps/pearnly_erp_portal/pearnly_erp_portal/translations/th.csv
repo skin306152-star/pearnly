@@ -280,9 +280,11 @@ Check sheet,ใบตรวจสอบ
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
 Checked a collection,ดูผลการรับชำระแล้ว
+Checked in MR.ERP,ตรวจใน MR.ERP แล้ว
 Checked pending items,ตรวจสอบรายการรอดำเนินการแล้ว
 Checked push choices,ตรวจสอบสิ่งที่ต้องเลือกก่อนส่งแล้ว
 Checked push results,ตรวจสอบผลการส่งแล้ว
+"Checked, not entered",ตรวจแล้ว ยังไม่ลงบัญชี
 Checking a collection,กำลังดูผลการรับชำระ
 Checking pending items,กำลังตรวจสอบรายการรอดำเนินการ
 Checking push choices,กำลังตรวจสอบสิ่งที่ต้องเลือกก่อนส่ง
@@ -383,7 +385,9 @@ Confirm and record,ยืนยันบันทึก
 Confirm collection,ยืนยันการรับชำระ
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณายืนยันเอกสารก่อนบันทึกการชำระเงิน
+Confirmed a collection result,ยืนยันผลการรับชำระแล้ว
 Confirmed a push result,ยืนยันผลการส่งแล้ว
+Confirming a collection result,กำลังยืนยันผลการรับชำระ
 Confirming a push result,กำลังยืนยันผลการส่ง
 Contact Details,ข้อมูลติดต่อ
 Contact Person,ผู้ติดต่อ
@@ -797,6 +801,8 @@ Issue Value,มูลค่าจ่าย
 Issue documents and deduct stock,ออกเอกสารและตัดสินค้าออกจากสต็อก
 Issued,จ่ายออก
 Issues,รายการจ่าย
+It was entered,ลงบัญชีแล้ว
+It was not entered,ยังไม่ลงบัญชี
 Item,สินค้า
 Item / Description,ชื่อสินค้า/คำอธิบาย
 Item Cart,ตะกร้าสินค้า
@@ -1326,6 +1332,7 @@ Requested By,ผู้ขอ
 Reset,รีเซ็ต
 Reset Password,ตั้งรหัสผ่านใหม่
 Restore,กู้คืน
+Result in MR.ERP,ผลใน MR.ERP
 Retry,ลองใหม่
 Return,คืนสินค้า
 Return to stock,รับคืนเข้าคลัง
@@ -2775,11 +2782,16 @@ mrerp.menu.sales_cash,ขายเงินสด
 mrerp.menu.sales_credit,ขายเชื่อ
 mrerp.menu.title,เมนูนำเข้า MR.ERP
 mrerp.reason.accountBusy,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่
+mrerp.reason.checkedNotEntered,ตรวจแล้ว ยังไม่ลงบัญชี
 mrerp.reason.importing,กำลังนำเข้า MR.ERP
 mrerp.reason.loginMissing,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
 mrerp.reason.notConfigured,บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP
 mrerp.reason.purchaseCash,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
 mrerp.reason.resultUnknown,ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่
+mrerp.unknown.check,ตรวจใน MR.ERP แล้ว
+mrerp.unknown.entered,ลงบัญชีแล้ว
+mrerp.unknown.not_entered,ยังไม่ลงบัญชี
+mrerp.unknown.outcome,ผลใน MR.ERP
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
 nav.stockAdjust,ปรับปรุงสินค้า

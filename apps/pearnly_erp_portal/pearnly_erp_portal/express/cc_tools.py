@@ -768,11 +768,28 @@ def resolve_push_result(tool_input) -> str:
         if refused == OTHER_COMPANY:
             out.update(company=row.company, company_title=_company_title(row.company))
         return direct_push.dumps(out)
-    if row.ledger_state != contracts.HELD or not _unknown(_job(row)):
+    # 账本是 MR.ERP、停在结果不明（同 :func:`_outcome` 的判法；单据弹窗 `api._mrerp_unknown` 同一判据）
+    mrerp_unknown = row.ledger_state == contracts.HELD and mrerp_push.handles(row.company) \
+        and str(row.ledger_reason or "").startswith(mrerp_contracts.UNKNOWN)
+    if not mrerp_unknown and (row.ledger_state != contracts.HELD or not _unknown(_job(row))):
         return direct_push.dumps(direct_push.not_saved(document, direct_push.NO_PUSH_TO_CONFIRM))
     _allowed, held = direct_push.permitted([document])  # B4：「核了没有就写」也是写入，只在用户同意了的计划里
     if held:
         return direct_push.dumps(held[0])
+    if mrerp_unknown:
+        # 账本是 MR.ERP：MR.ERP 不能按号查重，照用户在 MR.ERP 看到的记下（同单据弹窗「已在 MR.ERP 核对」）：已入账记单号，
+        # 没有入账回到可再推
+        entered = tool_input.get("entered")
+        if type(entered) is not bool:
+            return direct_push.dumps(direct_push.not_saved(document, "entered_required: pass entered true or false from the user"))
+        try:
+            api.resolve_unknown(kind.doctype, name, "1" if entered else "0", tool_input.get("docnum"))
+        except (frappe.ValidationError, frappe.PermissionError) as error:
+            frappe.db.rollback()
+            frappe.clear_messages()
+            return direct_push.dumps(direct_push.not_saved(document, str(error)[:300] or NOT_PERMITTED))
+        outcome = _outcome(kind, name)
+        return direct_push.dumps(direct_push.resolved(document, {key: outcome.get(key) for key in ("status", "docnum", "reason")}))
     try:
         api.retry(kind.doctype, name)
     except (frappe.ValidationError, frappe.PermissionError) as error:
@@ -887,7 +904,8 @@ TOOLS = [
      "description": direct_push.resolve_description(
          PROGRAM, "and ERP sends it back to the computer that was writing it, which checks Express by the "
                   "document's number: it reports the number there if Express has it and writes it once if not (the "
-                  "same as Retry on the document)."),
+                  "same as Retry on the document). For a company whose books are MR.ERP, MR.ERP cannot be checked by "
+                  "number: entered true (with the MR.ERP number) records it as entered, false lets it be pushed again."),
      "input_schema": {**direct_push.RESOLVE_SCHEMA, "properties": {**direct_push.RESOLVE_SCHEMA["properties"],
                                                                    "company": COMPANY_PROP}},
      "handler": "pearnly_erp_portal.express.cc_tools.resolve_push_result"},

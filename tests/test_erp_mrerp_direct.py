@@ -511,6 +511,34 @@ class SwitchedOn(unittest.TestCase):
         self.assertTrue(saved["ledger_reason"].startswith(contracts.UNKNOWN))
         self.assertEqual(push.send(PURCHASE, "PUR-1"), {"status": "held", "reason": contracts.UNKNOWN})
 
+    def test_a_person_checks_an_unknown_result_in_mrerp_and_records_it(self):
+        """11-28 用户批准：结果不明的单人去 MR.ERP 核对后记下（同 Cowork 核对）：已入账记已写入 + 单号；没有入账回到可再推；
+        别的状态不收；记一笔核对评论。"""
+        from unittest import mock
+
+        audits, refreshed = [], []
+        masters = types.ModuleType("pearnly_erp_portal.mrerp.masters")
+        masters.after_write = refreshed.append
+        with mock.patch.object(push, "_audit", side_effect=lambda *a: audits.append(a)), \
+                mock.patch.dict(sys.modules, {"pearnly_erp_portal.mrerp.masters": masters}), \
+                mock.patch.object(sys.modules["pearnly_erp_portal.mrerp"], "masters", masters, create=True):
+            doc(ledger_state="held", ledger_target="mrerp", ledger_reason=contracts.UNKNOWN + ": ERR_TECHNICAL")
+            self.assertTrue(push.resolve_unknown(PURCHASE, "PUR-1", True, "  PG691128-000007 "))
+            saved = DB.table(PURCHASE)["PUR-1"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_docnum"], saved["ledger_reason"]),
+                             ("written", "PG691128-000007", ""))
+            self.assertEqual(refreshed, ["CO-1"])  # 同写成：排一次主档整读
+            self.assertFalse(push.resolve_unknown(PURCHASE, "PUR-1", False))  # 已不是结果不明：不收
+            doc(ledger_state="held", ledger_target="mrerp", ledger_reason=contracts.UNKNOWN + ": ERR_TECHNICAL")
+            self.assertTrue(push.resolve_unknown(PURCHASE, "PUR-1", False))
+            saved = DB.table(PURCHASE)["PUR-1"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("held", contracts.CONFIRMED_NOT_ENTERED))
+            self.assertEqual(push.send(PURCHASE, "PUR-1"), {"status": "sent"})  # 没有入账：照常再推
+            self.assertEqual(len(audits), 2)
+            doc(ledger_state="held", ledger_target="mrerp", ledger_reason=contracts.UNKNOWN)
+            with self.assertRaises(ValueError):
+                push.resolve_unknown(PURCHASE, "PUR-1", "yes")  # 只收布尔（同 Cowork）
+
     def test_a_second_run_does_not_import_twice(self):
         doc(ledger_state="queued", ledger_target="mrerp", ledger_reason=contracts.IMPORTING)
         with _Module({"status": "success"}):
