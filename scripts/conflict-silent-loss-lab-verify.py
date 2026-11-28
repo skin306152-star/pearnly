@@ -1621,6 +1621,7 @@ def cowork(site, rounds):
         guarded(results, "cowork.delete_drops_new_records", removal_drops_new_records, site, rounds, results, history)
         guarded(results, "cowork.folder_push_vs_human", folder_push_vs_human, site, rounds, results, workspace)
         guarded(results, "cowork.mrerp_ack_conflict", mrerp_ack_conflict, site, rounds, results, workspace)
+        guarded(results, "cowork.recon_result_conflict", recon_result_conflict, site, rounds, results, workspace)
     finally:
         frappe.db.sql("delete from `tabCowork Company Automation` where company = %s", (company,))
         frappe.db.sql("delete from `tabCowork Push Record` where history = %s", (history,))
@@ -1915,6 +1916,176 @@ def mrerp_ack_conflict(site, rounds, results, workspace):
         for name in ballast:
             frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (name,))
         frappe.db.sql("delete from `tabCowork ERP Connection` where name = %s", (connection,))
+        frappe.db.commit()
+
+
+# 收入对账的两份输入（合成数据，同 cowork-income-recon-lab-verify.py）：替身读完直接回这两份表格
+RECON_GL_SHEETS = [[
+    ["วันที่", "ใบสำคัญ", "คำอธิบาย", "เดบิต", "เครดิต", "รหัสบัญชี"],
+    ["01/06/2569", "GL-1", "sale", "0.00", "1,070.00", "4110-01"],
+    ["01/06/2569", "GL-1", "sale 2", "0.00", "30.00", "4110-01"],
+    ["02/06/2569", "GL-2", "credit note", "107.00", "0.00", "4110-01"],
+    ["03/06/2569", "GL-3", "no vat row", "0.00", "500.00", "4110-02"],
+]]
+RECON_VAT_CELLS = [
+    ["วันที่", "เลขที่ใบกำกับ", "ชื่อผู้ซื้อ", "เลขประจำตัวผู้เสียภาษี", "สาขา", "มูลค่า", "ภาษี", "ยอดรวม"],
+    ["01/06/2569", "GL-1", "ACME", "1234567890123", "00000", "1,100.00", "77.00", "1,177.00"],
+    ["02/06/2569", "GL-2", "ACME", "1234567890123", "00000", "(107.00)", "(7.49)", "0.00"],
+    ["05/06/2569", "INV-9", "BETA", "", "00000", "250.00", "17.50", "267.50"],
+]
+
+
+def recon_result_conflict(site, rounds, results, workspace):
+    """④ B7：Cowork 收入对账后台任务（`recon_center.jobs.run` → `_run`）出结果撞冲突。两份源文件是真的私有 File；识别换替身
+    （按「对账号 + 哪一份」记检查点：同一对账号再读取回已存结果、不再付费，同 `document_ocr.reader` 按对账号定识别任务名），
+    读出的总账 / 税报直接回合成表格；出结果走真的 `income_recon_service.create_from_parsed`。写结果行之前另一路（先改几张别的
+    票、再锁住结果行要落的主键空隙）去锁刚插入的任务行 → 结果行一插入就是真 1213，InnoDB 回滚较轻的出结果那笔。
+    判：这一轮挂起（记下的等待参数里冲突次数 = 1）、对账没判失败、两份源文件都在；按记下的参数再跑一轮（同每分钟的 tick 放回
+    队列）出了结果（任务、结果行都在），源文件这才删掉，识别全程只付 2 次（两份各一次）。修前：判「系统繁忙」失败、源文件当场
+    删掉，用户只能重交 → 新对账号 → 识别再付一次。死锁时被回滚的是另一路的那几轮不算（竞争不真实）。名额（slots）换替身；
+    记下等待用真的 `waiting.park`（队列 Redis），记下后马上取走（`waiting.drop`），不让实验站的每分钟 tick 把它放回真队列。"""
+    import threading
+    import time
+
+    from pearnly_cowork.recon_center import document_ocr, jobs, slots, sources, waiting
+    from pearnly_cowork.reconciliation import income_recon_service
+
+    task_doctype, row_doctype, cell_name = "Cowork Income Reconciliation", "Cowork Income Reconciliation Row", \
+        "cowork.recon_result_conflict"
+    ballast = [f"{TAG}-RB-{secrets.token_hex(4)}" for _ in range(8)]  # 另一路先改这几张：比出结果那笔重，死锁时回滚出结果那笔
+    for name in ballast:
+        raw_row("Cowork OCR History", name, {"workspace": workspace, "client": "", "record_version": 1, "source": "manual"})
+    frappe.db.commit()
+    state, made = {}, []
+
+    def reader(ocr_job, side, file_name, user):
+        def read(document_type, content, filename):
+            key = (ocr_job, side, document_type)
+            if key not in state["checkpoints"]:
+                state["checkpoints"].add(key)
+                state["paid"] += 1
+            return None  # 替身读完由下面直接回表格
+        return read
+
+    def ledger_source(content, filename, read=None):
+        read("general_ledger", content, filename)
+        return {"kind": "excel", "sheets": RECON_GL_SHEETS}
+
+    def report_source(content, filename, read=None):
+        read("vat_report", content, filename)
+        return {"kind": "excel", "cells": RECON_VAT_CELLS}
+
+    def other(locked, task_name):
+        try:
+            frappe.init(site=site, sites_path=SITES)
+            frappe.connect()
+            for name in ballast:
+                frappe.db.sql("update `tabCowork OCR History` set last_push_reason=%s where name=%s", (secrets.token_hex(4), name))
+            frappe.db.sql(f"select name from `tab{row_doctype}` where name=%s for update", (f"{task_name}-1",))  # 主键空隙锁
+            locked.set()
+            frappe.db.sql(f"select name from `tab{task_doctype}` where name=%s for update", (task_name,))  # 等出结果那笔刚插的任务行
+            frappe.db.commit()
+            state["other"] = "committed"
+        except Exception as error:  # noqa: BLE001
+            state["other"] = type(error).__name__
+            frappe.db.rollback()
+        finally:
+            frappe.destroy()
+
+    real_rows, real_park = income_recon_service._persist_rows, waiting.park
+
+    def persist_rows(task, rows):
+        if state.pop("collide", False):
+            locked = threading.Event()
+            state["thread"] = threading.Thread(target=other, args=(locked, task.name))
+            state["thread"].start()
+            locked.wait(20)
+            time.sleep(1.0)  # 另一路这时已锁住结果行的空隙、在等任务行
+        try:
+            return real_rows(task, rows)
+        except frappe.QueryDeadlockError:
+            state["deadlock"] = True
+            raise
+
+    def park(recon_job, arguments, pending):
+        outcome = real_park(recon_job, arguments, pending)
+        state["parked"] = waiting.record(recon_job)
+        waiting.drop(recon_job)  # 不让实验站的 tick 放回真队列：这里自己按记下的参数再跑一轮
+        state["outcomes"].append(outcome)
+        return "parked"
+
+    saved = [(module, key, getattr(module, key)) for module, key in (
+        (document_ocr, "reader"), (sources, "ledger_source"), (sources, "report_source"), (slots, "acquire"),
+        (slots, "release"), (income_recon_service, "_persist_rows"), (waiting, "park"))]
+    document_ocr.reader, sources.ledger_source, sources.report_source = reader, ledger_source, report_source
+    slots.acquire, slots.release = (lambda recon_job, arguments: True), (lambda recon_job: None)
+    income_recon_service._persist_rows, waiting.park = persist_rows, park
+    tried = 0
+    try:
+        while results.get(cell_name, {}).get("ok", 0) + results.get(cell_name, {}).get("bad", 0) < rounds and tried < rounds * 3:
+            tried += 1
+            recon_job = secrets.token_hex(16)
+            files = {"left": [_private_file("recon-gl").name], "right": [_private_file("recon-vat").name]}
+            made.append((recon_job, files))
+            state.clear()
+            state.update(checkpoints=set(), paid=0, outcomes=[], collide=True)
+            arguments = {"recon_job": recon_job, "kind": "income", "workspace": workspace, "title": f"{TAG} recon",
+                         "files": files, "options": json.dumps({"lang": "zh"})}
+            frappe.set_user("Administrator")
+            error = None
+            try:
+                jobs.run(**arguments)
+            except Exception as exc:  # noqa: BLE001
+                error = exc
+            frappe.db.rollback()
+            if state.get("thread"):
+                state["thread"].join(60)
+            if not state.get("deadlock"):
+                cell = results.setdefault(cell_name, {"ok": 0, "bad": 0})
+                cell["not_real"] = cell.get("not_real", 0) + 1  # 死锁回滚的是另一路（或没撞上）：这一轮不算
+                cell.setdefault("not_real_detail", {"other": state.get("other"), "error": repr(error)[:160] if error else None})
+                continue
+            first = jobs.pearnly_state.store().get_value(jobs._key(recon_job)) or {}
+            kept = sum(1 for side in ("left", "right") for name in files[side] if frappe.db.exists("File", name))
+            parked = state.get("parked") or {}
+            retries = json.loads((parked.get("arguments") or {}).get("options") or "{}").get("conflict_retries")
+            paid_first = state["paid"]
+            second = None
+            if parked:
+                frappe.set_user(parked.get("user") or "Administrator")
+                try:
+                    jobs.run(**parked["arguments"])  # 同 tick → wake → requeue：按记下的参数再跑一轮
+                except Exception as exc:  # noqa: BLE001
+                    error = exc
+                frappe.db.rollback()
+                frappe.set_user("Administrator")
+                second = jobs.pearnly_state.store().get_value(jobs._key(recon_job)) or {}
+            task = (second or {}).get("task")
+            rows = frappe.db.count(row_doctype, {"task": task}) if task else 0
+            left = sum(1 for side in ("left", "right") for name in files[side] if frappe.db.exists("File", name))
+            tally(results, cell_name,
+                  error is None and first.get("state") != "failed" and kept == 2 and retries == 1 and paid_first == 2
+                  and (second or {}).get("state") == "done" and bool(task) and rows > 0 and left == 0 and state["paid"] == 2,
+                  {"error": repr(error)[:160] if error else None, "first": {k: first.get(k) for k in ("state", "stage", "error")},
+                   "kept_after_conflict": kept, "retries": retries, "outcomes": state["outcomes"],
+                   "second": {k: (second or {}).get(k) for k in ("state", "task", "error")}, "rows": rows, "files_left": left,
+                   "paid": state["paid"], "other": state.get("other")})
+    finally:
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+        for recon_job, files in made:
+            waiting.finish(recon_job)
+            name = income_recon_service.TASKS.identity(recon_job)[0]
+            frappe.db.sql(f"delete from `tab{row_doctype}` where task = %s", (name,))
+            frappe.db.sql(f"delete from `tab{task_doctype}` where name = %s", (name,))
+            for side in ("left", "right"):
+                for file in files[side]:
+                    if frappe.db.exists("File", file):
+                        frappe.delete_doc("File", file, ignore_permissions=True, force=True)
+        for name in ballast:
+            frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (name,))
         frappe.db.commit()
 
 

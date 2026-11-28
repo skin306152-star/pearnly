@@ -377,3 +377,16 @@
 | `erp.mrerp_collection_conclusion_conflict`（收款导入替身回已写入 + FR 单号；记结论写下收款行后与另一路交叉锁公司行，真 1213 回滚本连接） | 0/10（抛 QueryDeadlockError，这笔停在「写入中」、没有单号，导入已发 1 次） | 10/10（已写入、单号在、导入 1 次；10 轮都是本连接被回滚） |
 
 同一次对比里 `erp.mrerp_conclusion_conflict`、`erp.mrerp_poll_stale` 修前仍各 0/10、修后（含 ERP 单据收紧）各 10/10。实验格换的替身：账本判定 `handles`（建草稿时照实验站原样、领取起按 MR.ERP）、准备、凭据、账号占用、共用层收款导入、写后按客户重读、告诉录入的人。撤回 / 结果不明那几种只在离线验（实验格没造巡检超时）。跑完 ERP 栈挂在本工作树（与 HEAD 同一份应用代码）。
+
+### B7 Cowork 对账出结果撞冲突：判失败、删源文件，重交要再付识别费（`recon_center/jobs._run`）
+
+- **现象**：对账后台任务读两边文件时，识别按页存检查点、每次自己提交，识别任务名由对账号定（`document_ocr.reader`）。出结果那段（`create_from_documents` / `create_from_parsed` / `vat_check.run` 落任务与结果行）撞死锁或保存前比对时进 `except Exception`：回滚、记「系统繁忙」、对账判失败，`finally` 里 `_cleanup` 删掉两边源文件。用户只能重新上传 → 新对账号 → 新识别任务名 → 识别再付一次。
+- **改法**：`except Exception` 回滚后先判 `conflicts.is_conflict(error)`：是冲突且参数里的挂起次数（`options.conflict_retries`）没到 `CONFLICT_RETRIES`（5）就抛 `_Conflicted`（`waiting.Pending` 的子类，`due` = 现在 + 5 秒），`parked` 置真挡住 `_cleanup`：源文件、进行中清单、页面「进行中」都留着。`run` 接到 `_Conflicted` 先把参数里的次数加一，再走现有 `waiting.park`（记下的参数就是放回队列用的参数，次数跟着走）；每分钟的 `waiting.tick` 到时按原参数放回队列，下一轮从头跑，识别按对账号找回已存的结果、不再付费，结果按对账号幂等（`TASKS.identity` / `vat_check_service.create` 同号回放），不会建两份。次数用尽照原来失败（记日志、「系统繁忙」、删源文件）。答预设问题要用的 `rerun.keep` 参数里不带这个次数。非冲突错误照旧当场失败。
+- **核实**：挂起路径 `parked = True` 后 `finally` 不跑 `_cleanup`（与等识别的挂起同一条路）；`waiting.park` 存的 `arguments` 原样交给 `jobs.requeue` → `run(**arguments)`，`options` 里多一个键不改签名；已记下的旧等待没有这个键按 0 算。实际再跑的间隔由 tick 决定（最长约 1 分钟），5 次约 5 分钟内用尽。
+- **离线**：新增 `tests/test_cowork_recon_result_conflict.py` 5 条（真 `jobs.run` / `_run`，识别、存储、状态缓存、名额、`waiting.park` 换替身）：出结果撞一次 QueryDeadlockError → 挂起、次数 1、源文件不删、不判失败、不记日志；按记下的参数再跑 → 出结果、源文件删、识别仍只付 2 次；次数用尽 → 照旧失败、删文件、记日志；连撞到上限每次加一、识别全程 2 次；数据问题当场失败；预设重跑参数不带次数。修前（b4-before）关键那条红（`0 != 1`，没挂起、判失败），另外 4 条因没有新常量 / 预设参数带次数报错或断言不过。已接进 `scripts/ci-candidate-checks.sh` 的离线清单。修后同镜像里 test_cowork_recon_waiting 21、test_cowork_recon_failure_text 3、test_cowork_recon_resume 13、test_cowork_recon_slots 6、test_cowork_recon_presets 41、test_cowork_recon_scanned_docs 125 过；check-architecture、check-unbounded-queries、check-conflict-catch、check-test-coverage、check-unlocked-overwrite --extended（新增 0）过。`jobs.py` 新调 `conflicts`，登记进 transaction 件的入口 `cowork.recon.upload`（并把 `jobs.py` 记进该入口的文件），`check-impact.py` 登记表完整。基线里没有这一处的行，未删行。
+
+| 格 | 修前（b4-before = 24e3f1e3f） | 修后（本节提交） |
+|---|---|---|
+| `cowork.recon_result_conflict`（收入对账真跑 `jobs.run`；两份真私有 File；识别替身按「对账号 + 哪一份」记检查点；写结果行前另一路先改 8 张别的票、锁住结果行主键空隙、再去锁刚插入的任务行，结果行一插入就是真 1213，回滚出结果那笔） | 0/10（判「系统繁忙，对账未完成，请稍后重试。」，两份源文件当场删掉，识别已付 2 次） | 10/10（挂起、次数 1、源文件都在；按记下的参数再跑一轮出结果、结果行在、源文件这才删，识别全程 2 次；10 轮都是出结果那笔被回滚，竞争真实） |
+
+实验格换的替身：识别读取（不调真识别、不花钱）、读出的总账 / 税报直接回合成表格、名额（slots）；记下等待用真的 `waiting.park`（队列 Redis），记下后格里马上取走（`waiting.drop`），不让实验站的 tick 把它放回真队列，再由格里按记下的参数自己跑下一轮（代替 tick → wake → 队列）。没在实验栈验 tick 真放回队列、long 进程接着跑这一段（`test_cowork_recon_waiting` 离线守着）；银行、销项核查两种对账走同一个 `except`，只在收入对账上造了冲突。跑完测试数据（任务、结果行、File、压舱行、等待记录）为 0。
