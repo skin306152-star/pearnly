@@ -463,9 +463,10 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
         state = ledger.request(company, book, customer) if refresh else ""  # 后台登录 MR.ERP 按客户读
         docnums = ()  # 按单号查状态只有 CC 桌面版读 Express 时有
     else:
-        if refresh:
-            snapshot.land_ready(company, book)  # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出
-        state = snapshot.request(company, book, customer, docnums) if refresh else ""
+        # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出；这本账套一直在别处落（等不到串行锁）时
+        # 这次就说「正在读取」，不再进 `snapshot.request` 再等一遍
+        busy = snapshot.land_ready(company, book) == snapshot.READING if refresh else False
+        state = (snapshot.READING if busy else snapshot.request(company, book, customer, docnums)) if refresh else ""
     rows = _open_rows(book["key"], customer, exclude=exclude)
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",
                                                                        "available")}}

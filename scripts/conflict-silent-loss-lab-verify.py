@@ -82,6 +82,10 @@ def tally(results, name, good, detail):
     else:
         cell["bad"] += 1
         cell.setdefault("detail", detail)
+        way = detail.get("way") if isinstance(detail, dict) else None
+        if way:  # 一格里有几种做法时，记下每种各错了几轮、各自第一轮的样子
+            ways = cell.setdefault("bad_ways", {})
+            ways.setdefault(way, {"bad": 0, "detail": detail})["bad"] += 1
 
 
 # ── ERP 站：销售单同号、代录资料清单、看板拖卡 ─────────────────────────────────────────────────────
@@ -933,6 +937,97 @@ def snapshot_balances_stale(site, rounds, results):
             frappe.db.commit()
 
 
+def _drop_reads(book_key):
+    """删掉这本账套的按需读取（读好的连结果文件一起取走）与发起记录。"""
+    from pearnly_core.cc_desktop import documents, requests
+    from pearnly_erp_portal.collection import snapshot
+
+    for name in frappe.get_all(documents.REQUEST, filters={"book_key": book_key}, pluck="name"):
+        if requests.take(name) is None:
+            frappe.db.delete(documents.REQUEST, {"name": name})
+    frappe.db.commit()
+    frappe.cache.delete_value(snapshot.PENDING)
+
+
+def snapshot_busy_book(site, rounds, results):
+    """④ code-review 1：拿着这本账套快照串行锁的那路一直没提交（进程被杀，锁 120 秒才过期；本格在本进程里直接拿住同一把
+    Redis 锁、不放，等锁时间改成 2 秒）。两种各半：
+    (a) CC 交写后回执（共用机器通道 `cc_desktop.machine._run`，请求体换成本格的回执；回执里每张发票的余额要改快照）：
+        判机器通道回「忙」（503，CC 退避后再交同一份），不是「请求无效」（400，CC 不重来、收款停在写入中）；锁放了再交一次记成已写入。
+    (b) 网页 / LINE / CC 列这位客户的发票（`service.open_invoices`），整本那次与按客户那次都已读好：判只等一次锁（不是两次）、
+        说「正在读取」、两件读回都还在（下一次问时再落）。修前 (a) 回 400，(b) 等两次。"""
+    import time
+
+    from pearnly_core.cc_desktop import http_auth, machine, products
+    from pearnly_erp_portal.collection import contracts, service, snapshot
+
+    wait, saved_wait, saved_request = 2, snapshot.SERIAL_WAIT, http_auth.current_request
+    snapshot.SERIAL_WAIT = wait
+    try:
+        for index in range(rounds):
+            co, collector, book_key, customer, docnum = _collection_seed()
+            _drop_reads(book_key)  # 整本那件按账套只有一个请求号：先清掉别的流程留下的
+            store = snapshot._state()
+            stuck = store.lock(store.make_key(snapshot.SERIAL + book_key), timeout=60, blocking_timeout=1)
+            try:
+                frappe.set_user(collector)
+                if index % 2 == 0:
+                    made = service.create_draft(co, customer, [{"docnum": docnum, "amount": "400"}], cash="400")
+                    service.release(made["name"], made["version"], f"line:{TAG}-busy-{index}")
+                    frappe.db.commit()
+                    job = frappe.db.get_value("ERP Collection", made["name"], "job")
+                    view = {"job": job, "source_doctype": "ERP Collection", "source_name": made["name"], "status": "success",
+                            "docnum": f"RE{secrets.randbelow(10 ** 7):07d}",
+                            "receipt": {"invoices": [{"docnum": docnum, "remaining_after": "600.00"}]}}
+                    http_auth.current_request = lambda operation: (None, {})
+                    stuck.acquire()
+                    answer = None
+                    try:
+                        machine._run("acknowledge", lambda context, body: products.job_changed(dict(view)))
+                        answer = 200
+                    except Exception as error:  # noqa: BLE001
+                        answer = getattr(error, "http_status_code", type(error).__name__)
+                    frappe.db.rollback()  # 同机器请求出错：整笔回滚
+                    stuck.release()
+                    frappe.set_user(collector)
+                    machine._run("acknowledge", lambda context, body: products.job_changed(dict(view)))  # CC 下一轮再交
+                    frappe.db.commit()
+                    status = frappe.db.get_value("ERP Collection", made["name"], "status")
+                    frappe.db.delete("Pearnly CC Job", {"name": job})  # 实验站没有电脑：这件不留在写账队列里
+                    frappe.db.commit()
+                    tally(results, "erp.snapshot_busy_book", answer == 503 and status == contracts.WRITTEN,
+                          {"way": "write receipt", "answer": answer, "status": status})
+                else:
+                    co_row, book = _snapshot_book()
+                    line = {"docnum": docnum, "rectyp": "3", "docdat": frappe.utils.nowdate(), "customer": customer,
+                            "salesman": "", "department": "", "net": "1000.00", "received": "0.00", "remaining": "900.00"}
+                    whole = _finished_read(co, book, "", [line], frappe.utils.now_datetime().isoformat())
+                    mine = _finished_read(co, book, customer, [line], frappe.utils.now_datetime().isoformat())
+                    frappe.set_user(collector)
+                    stuck.acquire()
+                    started = time.monotonic()
+                    found = service.open_invoices(co, customer)
+                    spent = time.monotonic() - started
+                    frappe.db.commit()
+                    stuck.release()
+                    left = [bool(frappe.db.exists("Pearnly CC Request", name)) for name in (whole, mine)]
+                    tally(results, "erp.snapshot_busy_book", found["refresh"] == snapshot.READING and spent < wait * 1.6
+                          and all(left), {"way": "list invoices", "refresh": found["refresh"], "seconds": round(spent, 1),
+                                          "reads_left": left})
+            finally:
+                http_auth.current_request = saved_request
+                try:
+                    stuck.release()
+                except Exception:  # noqa: BLE001  已放
+                    pass
+                frappe.db.rollback()
+                _drop_reads(book_key)
+                _collection_cleanup(collector, book_key, customer)
+    finally:
+        snapshot.SERIAL_WAIT = saved_wait
+        http_auth.current_request = saved_request
+
+
 def file_delete_rolled_back(site, rounds, results):
     """删 File 后事务被回滚（整笔重来、用尽回「请稍后重试」）：File 记录回来了，盘上那份也还在；删了并提交：两样都没了。
     修前 Frappe 在 on_trash 当场删盘，回滚后记录在、盘上没了（附件打不开）。"""
@@ -1567,6 +1662,7 @@ def erp(site, rounds):
     guarded(results, "erp.collection_offset_shapes", collection_offset_shapes, site, rounds, results)
     guarded(results, "erp.snapshot_double_land", snapshot_double_land, site, rounds, results)
     guarded(results, "erp.snapshot_balances_stale", snapshot_balances_stale, site, rounds, results)
+    guarded(results, "erp.snapshot_busy_book", snapshot_busy_book, site, rounds, results)
     guarded(results, "erp.mrerp_conclusion_conflict", mrerp_conclusion_conflict, site, rounds, results)
     guarded(results, "erp.mrerp_poll_stale", mrerp_poll_stale, site, rounds, results)
     guarded(results, "erp.mrerp_collection_conclusion_conflict", mrerp_collection_conclusion_conflict, site, rounds, results)

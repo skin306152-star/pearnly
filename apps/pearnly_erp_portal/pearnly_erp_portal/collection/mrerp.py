@@ -231,7 +231,10 @@ def run_read(company, book_key, customer):
     except Exception:  # noqa: BLE001 — 读不到只记日志，收款流程照旧给上次的快照
         frappe.db.rollback()
         frappe.log_error(title="ERP MR.ERP receivables read failed")
-    frappe.cache.set_value(key, {"state": state}, expires_in_sec=READ_SECONDS)
+    # 这本账套一直在别处落、这次读到的没落进去（`_read` 回「正在读取」）：只记 :data:`snapshot.SERIAL_WAIT` 秒，过后再问就重读，
+    # 不让「正在读取」挂满 :data:`READ_SECONDS` 又没有读取在跑
+    seconds = snapshot.SERIAL_WAIT if state == snapshot.READING else READ_SECONDS
+    frappe.cache.set_value(key, {"state": state}, expires_in_sec=seconds)
     from pearnly_core.line_ui import receipt as line_receipt
 
     line_receipt.wake_topic("erp:mrerp-ar:" + key)  # LINE 上在等这位客户的发票（用户 11-22）
@@ -258,7 +261,12 @@ def _read(company, book_key, customer) -> str:
         frappe.db.commit()
     if found.get("items") is None:
         return snapshot.FAILED
-    snapshot.replace(company, book_key, [{**item, "customer": customer} for item in found["items"]], None, customer)
+    try:
+        snapshot.replace(company, book_key, [{**item, "customer": customer} for item in found["items"]], None, customer)
+    except snapshot.Busy:
+        # 等不到这本账套的串行锁（另一路一直没提交）：不是读失败，什么都还没落（`snapshot.replace` 先拿锁），当成还在读
+        frappe.db.rollback()
+        return snapshot.READING
     frappe.db.commit()
     return snapshot.READY
 

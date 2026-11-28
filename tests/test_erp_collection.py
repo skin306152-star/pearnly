@@ -1648,6 +1648,53 @@ class SnapshotConcurrency(Base):
         self.assertEqual((row["remaining"], row["received"]), (Decimal("700"), Decimal("500.00")))
         self.assertEqual(self.rows_of("IV2"), [])
 
+    def stuck(self):
+        """拿着这本账套串行锁的那路一直没提交（进程被杀，锁 120 秒才过期）：这一路每次拿锁都等满 30 秒、拿不到。回记下的拿锁次数。"""
+        tries = []
+
+        class Stuck(FakeLock):
+            def acquire(self):
+                tries.append(self.key)
+                return False
+
+        self.enterContext(mock.patch.object(snapshot, "_state", return_value=types.SimpleNamespace(
+            make_key=lambda key: key, lock=lambda key, **kw: Stuck(key))))
+        return tries
+
+    def test_a_write_receipt_on_a_busy_book_is_busy_for_the_machine_channel_not_an_invalid_request(self):
+        """④ code-review 1：写后回执在 CC 桌面版的机器通道里改快照；等不到账套锁若是 ValidationError，机器通道回「请求无效」（400），
+        CC 不退避重来、收款停在写入中。要是「用尽」那一类：机器通道照已有约定回「忙」（503），CC 下一轮再交同一份回执。"""
+        from pearnly_core.transaction import conflicts
+
+        made = self.draft("600")
+        service.release(made["name"], made["version"], "line:evt-1")
+        frappe.db.commit()  # 放行那笔已提交（放掉它拿过的账套锁）；回执是 CC 的另一笔事务
+        self.stuck()
+        with self.assertRaises(conflicts.Exhausted) as caught:
+            self.jobs.report("J-" + made["name"], "success", docnum="RE2403080",
+                             meta={"invoices": [{"docnum": "IV1", "remaining_after": "400.00"}]})
+        self.assertNotIsInstance(caught.exception, frappe.ValidationError)
+        self.assertIsInstance(caught.exception, snapshot.Busy)
+
+    def test_listing_invoices_on_a_busy_book_waits_for_the_book_lock_once(self):
+        """④ code-review 1：列发票先落预热的整本读回、再按客户读一次；账套锁一直被占时只等一次（不是两个 30 秒），说「正在读取」。"""
+        self.as_user("a@x")
+        key = snapshot.request_key(BOOK["key"])
+        mine = snapshot.request_key(BOOK["key"], "2100900")
+        snapshot.request("CO-1", BOOK)
+        snapshot.request("CO-1", BOOK, "2100900")
+        self.requests.finish(key, [{"docnum": "IV9", "customer": "2100900", "net": "70", "received": "0",
+                                    "remaining": "70"}], "2026-11-11T05:00:00+00:00")
+        self.requests.finish(mine, [], "2026-11-11T05:00:00+00:00")  # 按客户那次也读好了：修前两处各等一次
+        frappe.db.commit()
+        tries = self.stuck()
+        found = service.open_invoices("CO-1", "2100900")
+        self.assertEqual(found["refresh"], snapshot.READING)
+        self.assertEqual(len(tries), 1)
+        self.assertIn(key, self.requests.made)  # 读好的两件都还在，下一次问时再落
+        self.assertIn(mine, self.requests.made)
+
+
 
 class SnapshotUniquePatch(unittest.TestCase):
     """补丁 `v1_35_receivable_snapshot_unique`：建唯一索引前每组重复留读取时刻最新的一行，删其余并记日志；可重复执行。"""

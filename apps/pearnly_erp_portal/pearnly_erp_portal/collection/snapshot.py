@@ -141,13 +141,18 @@ def _looked(key, data):
 
 
 def land_ready(company, book):
-    """整本那次读回（不分客户）已经读好就落库，不新发请求（列发票前叫：LINE 选公司时预热的那次，`service.warm`）。"""
+    """整本那次读回（不分客户）已经读好就落库，不新发请求（列发票前叫：LINE 选公司时预热的那次，`service.warm`）。
+    等不到这本账套的串行锁（:class:`Busy`）回 ``reading``：调用方这次不再去 :func:`request` 里再等一遍（不然最长等两个
+    :data:`SERIAL_WAIT`），下一次问时再落；别的情况回 None。"""
     try:
         made = requests.find(KIND, request_key(book["key"]))
         if made is not None and made["status"] == "done":
             land(company, book["key"], made)
+    except Busy:
+        return READING
     except (frappe.ValidationError, KeyError, ValueError):
         pass
+    return None
 
 
 def _remember(key, company, book_key, customer):
@@ -218,8 +223,13 @@ SERIAL_SECONDS = 120          # 一笔事务落完一本账套用不了这么久
 SERIAL_WAIT = 30              # 等前一路提交
 
 
-class Busy(frappe.ValidationError):
-    """等了 :data:`SERIAL_WAIT` 秒仍拿不到这本账套的串行锁（另一路一直没提交）。按需读取当成还在读（:func:`request`）。"""
+class Busy(conflicts.Exhausted):
+    """等了 :data:`SERIAL_WAIT` 秒仍拿不到这本账套的串行锁（另一路一直没提交，如拿着锁的进程被杀、锁 :data:`SERIAL_SECONDS` 秒才过期）。
+
+    按需读取当成还在读（:func:`request`、:func:`land_ready`、MR.ERP 读回 `collection.mrerp._read`）。是「忙、稍后再来」，不是请求有错：
+    继承 `conflicts.Exhausted` 而不是 ``ValidationError``（11-28 ④ code-review）。写后回执（`push.job_changed` → :func:`apply_balances`）
+    在 CC 桌面版的机器通道里，``ValidationError`` 会被当成「请求无效」（400），CC 不退避重来，收款停在写入中；当成用尽，机器通道照
+    已有的约定回「忙」（503），CC 下一轮再交同一份回执。网页入口（`conflicts.attempt`）同样回「请稍后重试」。"""
 
 
 def _state():

@@ -350,6 +350,7 @@ mrerp_catalog.pick = fake_pick
 SNAPSHOT, PUSHED, TOLD = [], [], []
 _snapshot = types.ModuleType("pearnly_erp_portal.collection.snapshot")
 _snapshot.READY, _snapshot.READING, _snapshot.FAILED = "ready", "reading", "failed"
+_snapshot.Busy, _snapshot.SERIAL_WAIT = type("Busy", (Exception,), {}), 30  # 等不到这本账套的串行锁（`snapshot._hold`）
 _snapshot.request_key = lambda book_key, customer="", docnums=(): f"erp_ar_open:{book_key}:{customer}"
 _snapshot.replace = lambda company, book_key, items, read_at=None, customer="": SNAPSHOT.append(
     (company, book_key, customer, items)) or len(items)
@@ -507,6 +508,22 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual([(i["docnum"], i["rectyp"], i["remaining"], i["customer"]) for i in SNAPSHOT[0][3]],
                          [("SI000001-1", "2", "870.00", "C0001")])  # 减债本批不列（receivables.OFFSETS_RELEASED）
         self.assertEqual(ledger.request("CO-1", dict(BOOK), "C0001"), "ready")
+
+    def test_a_read_that_cannot_get_the_book_lock_is_still_reading_and_reads_again_soon(self):
+        """④ code-review 1：读回来了、但这本账套一直在别处落（串行锁等不到）：不是读失败（不说「读不到」），当成还在读；
+        「正在读取」只记一会儿（等锁那么久），过后再问就重读，不挂满 5 分钟又没有读取在跑。"""
+        ledger.request("CO-1", dict(BOOK), "C0001")
+        read = lambda lease, key, customer, menu="": {"items": receivables.parse_bills(SELBILL), "menus": {}, "error": None}  # noqa: E731
+
+        def busy(*args, **kwargs):
+            raise _snapshot.Busy("Please try again later")
+
+        with _network(), patch.object(receivables, "read", read), patch.object(_snapshot, "replace", busy), \
+                patch.object(CACHE, "set_value", wraps=CACHE.set_value) as stored:
+            ledger.run_read("CO-1", "15:1", "C0001")
+        self.assertEqual(stored.call_args.args[1], {"state": "reading"})
+        self.assertEqual(stored.call_args.kwargs["expires_in_sec"], _snapshot.SERIAL_WAIT)
+        self.assertEqual(ERRORS, [])
 
     def test_prepare_full_partial_two_invoices_transfer_discount(self):
         doc = collection(cash="100.00")
