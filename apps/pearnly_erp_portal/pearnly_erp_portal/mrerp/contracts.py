@@ -29,6 +29,9 @@ DOCNUM_MAX = 140
 CHOICE = "choice_needed:mrerp"                 # 要人选一次导入菜单 / 主档默认值（以 `express.contracts.CHOICE` 开头）
 # 每分钟会自己好的（代录放开账号）
 RETRY_REASONS = (ACCOUNT_BUSY,)
+# 导入发出之后、记结论时这张已被别的路径改成意外的状态（不是本次领取、不是作废、不是巡检转的结果不明）：结果不明的码
+# （停在结果不明、单号留着，`push._conclude`；收款同用，`collection.mrerp._conclude`）
+MOVED_DURING_IMPORT = "ERR_MOVED_DURING_IMPORT"
 IMPORTING_MINUTES = 15  # 导入任务最多 600 秒；超过这么久还在「正在导入」就是进程死了
 KINDS = ("purchase", "sales")
 EXPENSE_KINDS = ("expense", "service")  # 采购单种类 → 赊购费用（其余赊购货品）
@@ -147,5 +150,5 @@ def needed(menu_view: dict, master_view: dict, direction: str, kinds: tuple = No
     return out
 
 
-__all__ = ["ACCOUNT_BUSY", "CHOICE", "CONFIRMED_NOT_ENTERED", "DOCNUM_MAX", "IMPORTING", "LEDGER_MRERP", "NOT_CONFIGURED", "NO_LOGIN",
-           "UNKNOWN", "checked", "history", "history_id", "needed", "payload", "products", "settle"]
+__all__ = ["ACCOUNT_BUSY", "CHOICE", "CONFIRMED_NOT_ENTERED", "DOCNUM_MAX", "IMPORTING", "LEDGER_MRERP", "MOVED_DURING_IMPORT",
+           "NOT_CONFIGURED", "NO_LOGIN", "UNKNOWN", "checked", "history", "history_id", "needed", "payload", "products", "settle"]

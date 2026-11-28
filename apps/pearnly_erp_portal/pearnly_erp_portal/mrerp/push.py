@@ -306,9 +306,11 @@ def _conclude(doctype, name, values, prepared, book, company):
     - 导入期间在 ERP 作废了（11-13）：导入成的不记成干净的「已写入」，转人工、单号如实留着（同 Express 已领走的）；没导入成的清账本栏；
       结果不明的照旧交人核。作废会清掉账本栏（`express.push.void`），所以先于「还是不是本次领取」判。
     - 仍是本次领取（排队中 + 正在导入）：按导入结果写。
-    - 已被别的路径改过：被巡检转成结果不明、导入其实写进了 MR.ERP 的，照实记已写入与单号（导入结果是事实，「结果不明」只是猜测）；
-      别的状态不盖（写进了的记一条日志带单号，人工核时对得上）；没写进的以别人的结论为准。"""
-    row = _row(doctype, name, ["status", "ledger_state", "ledger_reason"], for_update=True)
+    - 已被别的路径改过（主会话 11-28 定的口径）：现值是结果不明（巡检转的）、导入其实写进了的，照实记已写入与单号（导入结果是事实，
+      「结果不明」只是猜测）；导入写进了或结果不明（可能写进了）、而现值是别的意外状态的，转人工：停在结果不明（同巡检转的那种，
+      `send` / 再写一次 / 巡检 / 选一次都不再导入，防 MR.ERP 里再多一张），写进了的单号记在单据上，另记一条错误日志带原状态与单号；
+      确定没写进去的以别人的结论为准。"""
+    row = _row(doctype, name, ["status", "ledger_state", "ledger_reason", "ledger_docnum"], for_update=True)
     if not row:
         return None
     values = dict(values)
@@ -325,19 +327,27 @@ def _conclude(doctype, name, values, prepared, book, company):
     else:
         values["ledger_needed"] = None
     written = values["ledger_state"] in (express_contracts.WRITTEN, express_contracts.MISMATCH)
+    landed = written or values["ledger_reason"].startswith(contracts.UNKNOWN)  # 写进了，或可能写进了
+    unknown_now = str(row.ledger_reason or "").startswith(contracts.UNKNOWN)
     if row.status == "void":
         if values["ledger_state"] == express_contracts.WRITTEN:
             values.update(ledger_state=express_contracts.HELD, ledger_reason=express_contracts.VOIDED_AFTER_WRITE,
                           ledger_needed=None)
         elif not values["ledger_reason"].startswith(contracts.UNKNOWN):
             values = {"ledger_state": None, "ledger_reason": "", "ledger_needed": None}
-    elif not (row.ledger_state == express_contracts.QUEUED and row.ledger_reason == contracts.IMPORTING) \
-            and not (written and str(row.ledger_reason or "").startswith(contracts.UNKNOWN)):
-        if written:
-            frappe.log_error(title="ERP MR.ERP import written after the document moved on",
-                             message=f"{doctype} {name}: {row.ledger_state} {row.ledger_reason}; MR.ERP {values.get('ledger_docnum')}")
-        frappe.db.commit()  # 不是本次领取了：别人的结论为准；这笔只加锁读过（与上面那条日志），提交只是放掉行锁
+    elif row.ledger_state == express_contracts.QUEUED and row.ledger_reason == contracts.IMPORTING:
+        pass  # 仍是本次领取：照导入结果写
+    elif written and unknown_now:
+        pass  # 巡检转成结果不明、其实写进了：照实记已写入
+    elif not landed or unknown_now:
+        frappe.db.commit()  # 确定没写进去、或已经停在结果不明：别人的结论为准；这笔只加锁读过，提交只是放掉行锁
         return None
+    else:
+        frappe.log_error(title="ERP MR.ERP import landed after the document moved on",
+                         message=f"{doctype} {name}: {row.ledger_state} {row.ledger_reason}; "
+                                 f"MR.ERP {values.get('ledger_docnum') or values['ledger_reason']}")
+        values = {"ledger_state": express_contracts.HELD, "ledger_reason": f"{contracts.UNKNOWN}: {contracts.MOVED_DURING_IMPORT}",
+                  "ledger_needed": None, "ledger_docnum": (values.get("ledger_docnum") if written else row.ledger_docnum) or ""}
     _set(doctype, name, values)
     frappe.db.commit()
     return values

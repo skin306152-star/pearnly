@@ -726,12 +726,29 @@ class ConclusionConflict(unittest.TestCase):
                 self.assertEqual((saved["status"], saved["reason"], saved["docnum"]), expected)
                 self.assertEqual(len(calls), 1)
 
-    def test_written_while_it_moved_elsewhere_is_logged_not_overwritten(self):
-        collection(cash="100.00")
-        calls, saved = self.run_with({"status": "success", "docnum": "FR3"},
-                                     lambda row: row.update(status=contracts.QUEUED, reason=""))
-        self.assertEqual((saved["status"], saved["docnum"]), (contracts.QUEUED, ""))
-        self.assertEqual(len(ERRORS), 1)
+    def test_landed_while_it_moved_to_another_state_goes_to_a_person_and_is_not_imported_again(self):
+        """主会话 11-28 口径：导入写进了（或结果不明）、记结论时这笔已被改成意外状态（这里是回到待写入）：停在失败 + 结果不明转人工，
+        写进了的 FR 单号留在这笔上，记一条错误日志；之后巡检不再排、任务领不到、不再导入；撤回照「写进去后撤回」、单号留着。"""
+        for outcome, docnum in (({"status": "success", "docnum": "FR3"}, "FR3"),
+                                ({"status": "unknown", "reason": "ERR_MRERP_READBACK_NOT_FOUND"}, "")):
+            with self.subTest(status=outcome["status"]):
+                reset()
+                collection(cash="100.00")
+                calls, saved = self.run_with(outcome, lambda row: row.update(status=contracts.QUEUED, reason=""))
+                self.assertEqual((saved["status"], saved["reason"], saved["docnum"]),
+                                 (contracts.FAILED, "mrerp.result_unknown: ERR_MOVED_DURING_IMPORT", docnum))
+                self.assertEqual([a[0] if a else k.get("title") for a, k in ERRORS],
+                                 ["ERP MR.ERP receipt landed after the collection moved on"])
+                ENQUEUED.clear()
+                ledger.poll()
+                self.assertEqual(ENQUEUED, [])
+                again, _saved = self.run_with({"status": "success", "docnum": "FR-SECOND"})
+                self.assertEqual((len(calls), again), (1, []))
+                if docnum:
+                    self.assertTrue(ledger.withdraw(_get_doc("ERP Collection", "COL261116-AB12")))
+                    saved = DB.table("ERP Collection")["COL261116-AB12"]
+                    self.assertEqual((saved["status"], saved["reason"], saved["docnum"]),
+                                     (contracts.WITHDRAWN, "express.voided_after_write", docnum))
 
     def test_the_poll_rechecks_under_the_lock_before_turning_a_write_unknown(self):
         """巡检普通读列出一笔超时的「写入中」，此间导入刚记成已写入：修前盖成结果不明；修后加锁按现值复核、不动。仍超时的照旧改。"""

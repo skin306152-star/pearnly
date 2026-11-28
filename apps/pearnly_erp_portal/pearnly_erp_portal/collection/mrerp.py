@@ -440,27 +440,36 @@ def _conclude(name, values):
 
     先加锁读这笔的状态与原因（导入那几十秒本事务提交过，普通读可能是旧的）：
     - 仍是本次领取（写入中 + 正在导入）：按导入结果写。
-    - 已被别的路径改过、导入却写进了 MR.ERP：这笔已撤回的，按「写进去后撤回」的规则（同 :func:`withdraw`）留在已撤回、转人工、
-      单号留着；被巡检转成结果不明的，照实记已写入与单号（导入结果是事实，「结果不明」只是猜测）；别的状态不盖，记一条日志带单号。
-    - 已被别的路径改过、也没写进去：别人的结论为准。"""
+    - 已被别的路径改过（主会话 11-28 定的口径，同 `mrerp.push._conclude`）：导入写进了、这笔已撤回的，按「写进去后撤回」的规则
+      （同 :func:`withdraw`）留在已撤回、转人工、单号留着；现值是结果不明（巡检转的）、其实写进了的，照实记已写入与单号；导入写进了
+      或结果不明（可能写进了）、而现值是别的意外状态的，转人工：停在失败 + 结果不明（同巡检转的那种，不再自动导入；之后撤回照
+      「写进去后撤回」），写进了的单号记在这笔上，另记一条错误日志；确定没写进去的、已撤回或已停在结果不明的，以别人的结论为准。"""
     from pearnly_erp_portal.collection import push
     from pearnly_erp_portal.express import contracts as express_contracts
     from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
 
-    row = frappe.db.get_value(DOCTYPE, name, ["status", "reason"], as_dict=True, for_update=True)
+    row = frappe.db.get_value(DOCTYPE, name, ["status", "reason", "docnum"], as_dict=True, for_update=True)
     if not row:
         return None
-    if not (row.status == contracts.WRITING and row.reason == mrerp_contracts.IMPORTING):
-        written = values["status"] == contracts.WRITTEN
-        if written and row.status == contracts.WITHDRAWN:
-            values = {"reason": express_contracts.VOIDED_AFTER_WRITE, "docnum": values["docnum"],
-                      "written_at": values["written_at"]}
-        elif not (written and str(row.reason or "").startswith(mrerp_contracts.UNKNOWN)):
-            if written:
-                frappe.log_error(title="ERP MR.ERP receipt written after the collection moved on",
-                                 message=f"{name}: {row.status} {row.reason}; MR.ERP {values['docnum']}")
-            frappe.db.commit()  # 这笔只加锁读过（与上面那条日志）：提交放锁
-            return None
+    written = values["status"] == contracts.WRITTEN
+    landed = written or str(values.get("reason") or "").startswith(mrerp_contracts.UNKNOWN)  # 写进了，或可能写进了
+    unknown_now = str(row.reason or "").startswith(mrerp_contracts.UNKNOWN)
+    if row.status == contracts.WRITING and row.reason == mrerp_contracts.IMPORTING:
+        pass  # 仍是本次领取：照导入结果写
+    elif written and row.status == contracts.WITHDRAWN:
+        values = {"reason": express_contracts.VOIDED_AFTER_WRITE, "docnum": values["docnum"], "written_at": values["written_at"]}
+    elif written and unknown_now:
+        pass  # 巡检转成结果不明、其实写进了：照实记已写入
+    elif not landed or unknown_now or row.status == contracts.WITHDRAWN:
+        frappe.db.commit()  # 别人的结论为准；这笔只加锁读过，提交只是放掉行锁
+        return None
+    else:
+        frappe.log_error(title="ERP MR.ERP receipt landed after the collection moved on",
+                         message=f"{name}: {row.status} {row.reason}; MR.ERP {values.get('docnum') or values.get('reason')}")
+        values = {"status": contracts.FAILED, "reason": f"{mrerp_contracts.UNKNOWN}: {mrerp_contracts.MOVED_DURING_IMPORT}",
+                  "docnum": (values.get("docnum") if written else row.docnum) or ""}
+        if written:
+            values["written_at"] = now_datetime()
     push._set(name, values)
     frappe.db.commit()
     return values
@@ -473,7 +482,8 @@ def withdraw(doc) -> dict | None:
 
     if doc.status == contracts.WRITING:
         raise contracts.CollectionError(contracts.BUSY)
-    if doc.status == contracts.WRITTEN:
+    # 停在失败、却记着 MR.ERP 单号的（导入写进去时这笔已被改成意外状态，`_conclude`，11-28）同样算写进去了：撤回时照「写进去后撤回」
+    if doc.status == contracts.WRITTEN or (doc.status == contracts.FAILED and doc.get("docnum")):
         doc.update({"status": contracts.WITHDRAWN, "reason": express_contracts.VOIDED_AFTER_WRITE,
                     "withdrawn_by": frappe.session.user, "withdrawn_at": now_datetime()})
         doc.save(ignore_permissions=True)
