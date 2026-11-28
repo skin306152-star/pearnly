@@ -42,3 +42,36 @@ Cowork 识别记录 posting_kind 已一致；DMS 推送记录页头自己的 Sel
 ## 已知、没改
 
 - 销售来源 web 与 manual 格子里都叫「手动」，cc 格子没有词（显示 cc）：沿用格子现状，下拉同样。
+
+## 单据作废统一「已作废」（用户 11-28 原话：「统一已作废」）
+
+主会话转达用户定词：单据作废（原码 void）统一用 POS 那套 `trade.state.void`——zh「已作废」、en「Voided」，th「ยกเลิกแล้ว」/ ja「取消済み」本来一致不变。只改单据作废这一个状态；收款「已取消」（withdrawn，撤回）与盘点调整单「已撤销」是别的状态，不动。
+
+定词前的对照（同一状态 void 各处叫法）：
+
+| 位置 | 来源 | zh | th | en | ja |
+|---|---|---|---|---|---|
+| 采购单列表格子 | purchase-fields.js `__("Cancelled")` | 已取消 | ยกเลิกแล้ว | Cancelled | 取消済み |
+| 采购单筛选下拉 | 元数据原码 `__("void")` | 已作废 | ยกเลิกแล้ว | void | 取消済み |
+| 销售单列表格子 | sales-fields.js `__("Cancelled")` | 已取消 | ยกเลิกแล้ว | Cancelled | 取消済み |
+| POS 收据格子 + 筛选 | `trade.state.void`「Voided」 | 已作废 | ยกเลิกแล้ว | Voided | 取消済み |
+| 作废按钮 / 提示 | `trade.void`、`trade.voidNotice` | 作废 / 已作废 | ยกเลิก | Void / Voided | 取消 |
+| 收款撤回（另一状态） | `erp.collection.status.withdrawn` | 已取消 | ยกเลิกแล้ว | Cancelled | 取消済み |
+| 盘点调整单被撤（另一状态） | `stock.count.entryVoided` | 已撤销 | ยกเลิกแล้ว | Voided | 取消済み |
+
+### 改动清单（全仓查过）
+
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| 销售单列表格子、详情状态（`sales-fields.js` u.labels.void） | `__("Cancelled")` 已取消 / Cancelled | `__("Voided")` 已作废 / Voided |
+| 采购单列表格子、详情状态（`purchase-fields.js` u.labels.void） | 同上 | 同上 |
+| 采购单「状态」筛选下拉（本分支 labels） | 已作废 / void（原码） | 已作废 / Voided（同格子） |
+| 销售单导出（`sales/output.py` ENUM_LABELS.void） | Cancelled → 已取消 | Voided → 已作废 |
+| 采购单导出（`purchasing/output.py` ENUM_LABELS.void） | 同上 | 同上 |
+| 单据详情「Express 作废进度」（`transactions.js`，Express 里的原单已作废） | Cancelled → 已取消 | Voided → 已作废 |
+| 打印作废章（`printing/templates/trade.html`、`goods_receipt.html`、`goods_issue.html`、`thermal.html`） | ยกเลิก / CANCELLED | ยกเลิก / VOIDED |
+
+查过、不改（不是单据作废这个状态）：收款 withdrawn「已取消」；盘点调整单「已撤销」；写账件被撤下的原因（`express/pending.py` / `transactions.js` 的 cancelled / replaced / voided → 已取消，是写账任务被撤，不是单据状态）；LINE / CC 里「Cancelled」都是操作被取消的回复；CC 结果卡没有单据作废状态词。
+**留给主会话定**：销售单 / 采购单详情菜单里作废动作叫「Cancel（取消）」、确认框标题「Cancel」、完成提示「Cancelled（已取消）」——是动作名与操作提示，POS 那边叫「作废」。要不要一起改成作废，本分支没动。
+
+改的都是代码里引用哪条已有词条（Cancelled → Voided），词条本身一字没改，`check-copy.py` 记为「代码引用新增 2」、改动 0、拦截 0；打印章是模板里的固定字。

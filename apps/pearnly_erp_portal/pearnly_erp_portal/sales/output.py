@@ -13,7 +13,7 @@ ENUM_FIELDS = {"doc_kind", "status", "payment_status", "payment_method", "source
                "party_type"}
 ENUM_LABELS = {
     "receipt": "Receipt", "quotation": "Quotation", "draft": "Draft", "submitted": "Submitted",
-    "void": "Cancelled", "unpaid": "Unpaid", "partial": "Partly Paid", "paid": "Paid",
+    "void": "Voided", "unpaid": "Unpaid", "partial": "Partly Paid", "paid": "Paid",
     "cash": "Cash", "transfer": "Bank Transfer", "promptpay": "PromptPay", "other": "Other",
     "bill": "Document", "payment_proof": "Payment Receipt", "web": "Manual", "manual": "Manual",
     "ocr": "OCR", "line": "LINE", "company": "Company", "person": "Person",

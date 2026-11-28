@@ -83,7 +83,7 @@ console.log('desk list filter: ok');
   const pages = [
     ['apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js', 'erp_collection', ['status', 'source']],
     ['apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js', 'erp_sales_document', ['doc_kind', 'payment_status', 'source']],
-    ['apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js', 'purchase_document', ['doc_kind', 'payment_status']],
+    ['apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js', 'purchase_document', ['doc_kind', 'payment_status', 'status']],
     ['apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos-receipts.js', 'erp_sale', ['sale_type', 'status']],
   ];
   for (const [page, doctype, fields] of pages) {
@@ -104,8 +104,6 @@ console.log('desk list filter: ok');
       }
     }
   }
-  // 采购「状态」的 void 叫法（已作废 / 已取消）待定：这一项先不加 labels
-  assert.doesNotMatch(fs.readFileSync(pages[2][0], 'utf8'), /fieldname: "status"[^}]*labels:/);
   console.log('desk list filter labels per page: ok');
 }
 

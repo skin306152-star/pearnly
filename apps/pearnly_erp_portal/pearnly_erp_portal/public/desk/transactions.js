@@ -265,7 +265,7 @@
 				read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
-				default: __({queued: "Entering", voided: "Cancelled", held: "Failed"}[info.void] || info.void)}] : []),
+				default: __({queued: "Entering", voided: "Voided", held: "Failed"}[info.void] || info.void)}] : []),
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
 			// 按账套设置整张计税（账套没开逐行 VAT、公司选了整张计税）：税额与收银小票逐行拆出的不同，标明
 			...(info.vat_whole ? [{fieldtype: "Check", fieldname: "vat_whole", label: __("Whole document taxed"),

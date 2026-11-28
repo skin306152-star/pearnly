@@ -38,7 +38,7 @@
 <div class="tp">
   {{ company_block(ctx.company) }}
   <div class="tp-title"><b>{{ TITLES[ctx.title][0] }}</b><br>{{ TITLES[ctx.title][1] }}</div>
-  {% if ctx.void %}<div class="tp-void">ยกเลิก / CANCELLED</div>{% endif %}
+  {% if ctx.void %}<div class="tp-void">ยกเลิก / VOIDED</div>{% endif %}
   {% if ctx.kind == "pos" %}
   <table>
     <tr><td>เลขที่ / No.</td><td class="tp-r">{{ ctx.number | e }}</td></tr>

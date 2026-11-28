@@ -15,7 +15,7 @@
 		head_office: __("Head Office"), head: __("Head Office"), branch: __("Branch"), none: __("None"),
 		exclusive: __("Tax Exclusive"), inclusive: __("Tax Inclusive"),
 		cash: __("Cash"), transfer: __("Bank Transfer"), promptpay: __("PromptPay"), bank: __("Bank"), cheque: __("Cheque"),
-		draft: __("Draft"), submitted: __("Submitted"), void: __("Cancelled"),
+		draft: __("Draft"), submitted: __("Submitted"), void: __("Voided"),
 		unpaid: __("Unpaid"), partial: __("Partly Paid"), paid: __("Paid"),
 		bill: __("Invoice"), payment_proof: __("Payment Receipt"), wht_cert: __("Withholding Tax Certificate"),
 		web: __("Manual"), manual: __("Manual"), ocr: __("OCR"), line: __("LINE"),

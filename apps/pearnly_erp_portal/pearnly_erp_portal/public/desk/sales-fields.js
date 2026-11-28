@@ -9,7 +9,7 @@
 		express_mismatch: p.ledger_word("mismatch"), express_detached: p.ledger_word("detached"),
 		express_written: p.ledger_word("written"), express_handled: p.ledger_word("handled"),
 		receipt: __("Receipt"), quotation: __("Quotation"),
-		draft: __("Draft"), submitted: __("Submitted"), void: __("Cancelled"),
+		draft: __("Draft"), submitted: __("Submitted"), void: __("Voided"),
 		unpaid: __("Unpaid"), partial: __("Partly Paid"), paid: __("Paid"),
 		cash: __("Cash"), transfer: __("Bank Transfer"), promptpay: __("PromptPay"), other: __("Other"),
 		company: __("Company"), person: __("Person"), foreign: __("Foreigner"), anonymous: __("Anonymous"),

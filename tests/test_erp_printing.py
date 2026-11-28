@@ -104,8 +104,8 @@ class Layout(unittest.TestCase):
                      "จำนวนที่ขอเบิก", "Request Qty", "ผู้เบิก", "Requested by", "ผู้รับสินค้า", "Received by", "P2", "บริษัท ตัวอย่าง จำกัด"):
             self.assertIn(text, html)
         self.assertEqual(html.count("&#10003;"), 1)  # 只勾「ใช้งานภายใน」
-        self.assertNotIn("CANCELLED", html)
-        self.assertIn("CANCELLED", self.issue(void=True))
+        self.assertNotIn("VOIDED", html)
+        self.assertIn("ยกเลิก / VOIDED", self.issue(void=True))  # 用户 11-28「统一已作废」
         self.assertIn("@font-face", self.issue(fonts_css="@font-face {}"))
 
     def test_more_than_ten_lines_continue_on_the_next_page(self):
@@ -213,7 +213,7 @@ class SecondBatchLayouts(unittest.TestCase):
         self.assertNotIn("ใบกำกับภาษี", html)
         self.assertIn("ใบส่งของ", self.trade(title="delivery"))
         self.assertNotIn("order", C.TITLE_KEYS)  # 采购订单 10-28 删掉（用户：「采购订单删掉吧」）
-        self.assertIn("CANCELLED", self.trade(void=True))
+        self.assertIn("ยกเลิก / VOIDED", self.trade(void=True))
 
     def thermal(self, **over):
         ctx = {"kind": "pos", "company": {**COMPANY, "branch": {"head": True}, "tax_id": "0115"}, "fonts_css": "",

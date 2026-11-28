@@ -16,7 +16,7 @@
 <div class="pp">
 {% for page in ctx.pages %}
 <div class="pp-page{{ ' pp-last' if loop.last else '' }}">
-  {% if ctx.void %}<div class="pp-void">ยกเลิก / CANCELLED</div>{% endif %}
+  {% if ctx.void %}<div class="pp-void">ยกเลิก / VOIDED</div>{% endif %}
   {{ head(ctx, loop.index, {"title_th": "ใบรับสินค้า", "title_en": "GOODS RECEIPT NOTE", "date": "วันที่รับสินค้า"}) }}
   <table style="margin-top: 8.5px"><tr>
     <td style="width: 48%; border: 1px solid #cfe1d4; border-radius: 5.5px">

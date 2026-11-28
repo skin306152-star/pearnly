@@ -17,7 +17,7 @@ ENUM_LABELS = {
     "substitute_receipt": "Substitute Receipt", "other": "Other", "head_office": "Head Office",
     "head": "Head Office", "branch": "Branch", "none": "None", "exclusive": "Tax Exclusive",
     "inclusive": "Tax Inclusive", "cash": "Cash", "transfer": "Bank Transfer", "promptpay": "PromptPay",
-    "bank": "Bank", "cheque": "Cheque", "draft": "Draft", "submitted": "Submitted", "void": "Cancelled",
+    "bank": "Bank", "cheque": "Cheque", "draft": "Draft", "submitted": "Submitted", "void": "Voided",
     "unpaid": "Unpaid", "partial": "Partly Paid", "paid": "Paid", "bill": "Invoice",
     "payment_proof": "Payment Receipt", "wht_cert": "Withholding Tax Certificate",
     "web": "Manual", "manual": "Manual", "ocr": "OCR", "line": "LINE",

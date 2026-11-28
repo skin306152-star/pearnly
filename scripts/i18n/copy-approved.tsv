@@ -275,3 +275,4 @@ assistant:OPERATOR.doc.saved	zh	成功	2026-11-24	docs/work/2026-11-25-cc-status
 pearnly_core:operator.end.not_done	zh	失败 {0} 张：{1}	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
 pearnly_core:operator.report.state.notDone	zh	失败	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
 pearnly_core:operator.report.state.saved	zh	成功	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
+pearnly_erp_portal:trade.state.void	zh	已作废	2026-11-28	docs/work/2026-11-28-list-status-filter-labels.md（用户 11-28「统一已作废」：销售 / 采购单据作废的格子、筛选、导出、Express 作废进度改用这条，原用 Cancelled「已取消」）
