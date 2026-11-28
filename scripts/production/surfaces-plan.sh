@@ -6,6 +6,8 @@
 # deploy-run.sh 激活前的 plan 步骤调用它；deploy.sh --dry-run 经一次 SSH 也跑它（镜像要已放上生产机）。
 # 每个产品起一个一次性容器（新镜像、--rm、--memory 2g），--volumes-from 该产品网页容器且**只读**（站点配置、密钥），
 # 网络同网页容器（连得上数据库，只读站点配置与绑定）。不进数据库容器、不写库、不发布，只发 LINE 的 GET。
+# 日志不落盘：挂载都是只读，Frappe 默认往 bench/logs 写日志文件会直接 Read-only file system 退出（11-28 测试机实测），
+# 所以带 FRAPPE_STREAM_LOGGING=1 让它写到容器输出。
 # 缓存隔开：一次性容器的 common_site_config.json 换成一份副本，所有 redis:// 地址指向连不上的 127.0.0.1:9——
 # Frappe 的缓存连不上就只用进程内缓存，新代码的 hooks / 译文不会写进旧版本正在读的线上缓存。
 # 输出：每个产品的 SITE / SUMMARY 行（SUMMARY.changes 逐套写改了哪些文字字段、图变没变）。
@@ -55,7 +57,7 @@ PY
   [[ -z "${PEARNLY_PLAN_MOUNTS:-}" ]] || mounts=($PEARNLY_PLAN_MOUNTS)
   started=$(date +%s)
   timeout 900 docker run --rm --name "$name" --memory 2g --network "$network" "${mounts[@]}" \
-    -v "$work/common.json:$SITES/common_site_config.json:ro" --env-file "$work/env" -w "$SITES" \
+    -v "$work/common.json:$SITES/common_site_config.json:ro" --env-file "$work/env" -e FRAPPE_STREAM_LOGGING=1 -w "$SITES" \
     --entrypoint /home/frappe/frappe-bench/env/bin/python "$image" -m pearnly_core.line_surfaces check --product "$product" \
     </dev/null > "$work/out" 2>&1
   rc=$?
