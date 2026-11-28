@@ -98,3 +98,8 @@
 | `test_unlink_with_a_row_outside_the_locks_asks_to_retry`：同上，解绑 | 红：照常解绑 | 绿：回 unavailable、不删行不摘关联；重发解绑 |
 
 另过：test_repool、TestPools、test_line_login、tests/test_teardown_members.py；`--extended` 新增 0，check-architecture、check-unbounded-queries 通过。
+
+## 待办（主会话 11-28 记）
+
+- 流程在一次性实验室跑：等主会话通知「这一批已部署」后，另起一次性 colima 实例跑 `scripts/line-login-lab.sh all`（跨两租户绑定 / 解绑 / 改绑，真 Keycloak + 假 LINE）与 `tests/test_release_member_identity.py`（换池 / 注销，`unified-release-lab.yml`），跑完连同镜像一起删。不用长期控制面样板 `pearnly-sample-control`：只读核过（只数行数）有 13 个租户、13 条开户记录，是在用的本机管理后台。
+- 本机管理后台没迁到当前版本（样板库里没有 `Pearnly Line Login Link` 表）。这条修复合进 main 后，本机管理后台要迁移才生效；迁移属于「动在用的管理后台」，由主会话问用户后再做。
