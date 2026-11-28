@@ -116,7 +116,10 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn("const chosen = open?.business ?? (current && list.includes(current) ? current : \"\");", body)
         # 前 4 项摆出、其余进「更多」（标准下拉菜单）；一行放不下少摆（量宽度）、不换行
         self.assertIn("const MENU_FIRST = 4;", thread)
-        self.assertIn("const fit = useMenuFit(row, measure, list, MENU_FIRST);", body)
+        self.assertIn("const fit = useMenuFit(row, measure, list, MENU_FIRST, shown);", body)
+        # 这一排重新摆出来（回复结束、录音结束、取消选中）时重量一次，不沿用没量过的「前 4 项」（11-28 Flows：手机对话区被撑宽）
+        self.assertIn("const shown = !(record || running || !list.length) && !chosen;", body)
+        self.assertIn("}, [key, first, shown]);", thread)
         self.assertIn('<DropdownMenuTrigger asChild>{more}</DropdownMenuTrigger>', body)
         self.assertIn('{t("more")}', body)
         self.assertIn('aria-hidden inert className="cc-business-measure"', body)

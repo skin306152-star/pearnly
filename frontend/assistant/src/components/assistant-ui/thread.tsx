@@ -500,9 +500,12 @@ const BusinessMenu: FC = () => {
   const list = menuOf(offered, mode);
   const row = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
-  const fit = useMenuFit(row, measure, list, MENU_FIRST);
-  if (record || running || !list.length) return null;
   const chosen = open?.business ?? (current && list.includes(current) ? current : "");
+  // 这一排此刻摆没摆出来（回复中、录音中、已选中一项时不摆）：摆出来那一刻要重量一次，不然沿用没量过的「前 4 项」，
+  // 一排塞不下把对话区撑宽、整页能左滑（11-28 Flows：回复后、删对话后 434 / 451 > 388）
+  const shown = !(record || running || !list.length) && !chosen;
+  const fit = useMenuFit(row, measure, list, MENU_FIRST, shown);
+  if (record || running || !list.length) return null;
   if (chosen) {
     const clear = open
       ? () => void cancelGuide(open.run).then((view) => sessionId && noteRunView(sessionId, view)).catch(withReport(() => undefined, "guide-cancel"))
@@ -563,7 +566,8 @@ const BusinessMenu: FC = () => {
 };
 
 /** 业务菜单这一行摆几项：最多 first 项；放不下就少摆（剩下的进「更多」，「更多」自己也要放得下）。量的是看不见的那一排里每颗的宽度。 */
-function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HTMLDivElement | null>, list: readonly string[], first: number): number {
+function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HTMLDivElement | null>, list: readonly string[], first: number,
+  shown: boolean): number {
   const [fit, setFit] = useState(Math.min(first, list.length));
   const key = list.join("\n");
   useLayoutEffect(() => {
@@ -589,7 +593,7 @@ function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HT
     for (const el of ruler.children) watch.observe(el);
     return () => watch.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, first]);
+  }, [key, first, shown]);
   return fit;
 }
 
