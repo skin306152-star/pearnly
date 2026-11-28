@@ -244,6 +244,16 @@
     两笔同时放行各拿一半互等，数据库报 1213，LINE【确认】、CC 引导的放行没有整笔重来，用户看到出错（钱没错：输的那笔回滚、仍是草稿）。
     改：`release` 最先按 `name` 顺序锁这位客户在这本账套的全部快照行（`snapshot.lock_customer`，发票与抵减单一起），再锁这一笔、
     再判余额与预留——同一位客户的放行在第一把锁上排队；离线测试守着锁的顺序。
+  - 放行入口整笔重来（11-28 晚，并发窗口审 18cf18641 后补）：LINE【确认】、CC「写入」（`cc_tools.push`）、CC 对话引导「确定」原来不包冲突重试，
+    撞 1213 直接把错误交给用户；改为三处都经 `service.release_retried`（共用 `transaction.conflicts.retried`，同网页 `api._fresh`）。
+    被回滚的那次不留写账件、导入任务与刷新通知（都排在提交后；`push._live` 的「已通知」标记每次重来前清掉），回复只发一次；
+    LINE 先提交已消费的确认号再放行，用尽重出确认卡（新确认号）带「请稍后重试」，CC 与引导回同一句。离线三入口各一格「注入一次死锁 →
+    自动重来、一件写账件、一次回复」，改回直调 `service.release` 时全红。实验格 `erp.collection_same_customer_via_line`（经 LINE 入口）：
+    现码 10/10；把锁序改回 ② 原样只靠重来也 10/10（同条件直调 `service.release` 9/10 报 1213），即锁序与重来两层各自都挡得住。
+  - 改草稿的非网页入口（CC 改草稿 `cc_tools.draft`、CC 补凭证 `cc_tools.voucher`、LINE 补凭证）同样经整笔重来
+    （`service.update_draft_retried` / `set_voucher_retried`，凭证文件先提交）；离线各一格注入死锁，改回原写法全红。
+    实验格（并发窗口脚本的经入口版，各 10 轮）：同账套不同客户同时放行 10/10（入口内重来接住 8 次 1213）；别笔草稿改 × 放行
+    10/10（接住 5 次 1213）。EXPLAIN：`snapshot.lock` 按单号锁走全表（type ALL，401 行），`lock_customer` 走 customer 索引——锁序本身留给 ④。
 - 未做 / 待定：
   - MR.ERP 减债：见上，本批不放。
   - MR.ERP 预收：不做（§1.5）。
