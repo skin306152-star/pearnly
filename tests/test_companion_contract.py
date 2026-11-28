@@ -947,7 +947,13 @@ class Release1122Edges(unittest.TestCase):
         minimum = number_constants(WIRE / "request_contracts.py", ("PARAM_MIN_COMPANION",))["PARAM_MIN_COMPANION"]
         floor = tuple(int(part) for part in minimum["express_ar_open"]["offsets"].split("."))
         optional = number_constants(COMPANION / "express_receivables.py", ("OPTIONAL_KEYS",))["OPTIONAL_KEYS"]
-        self.assertEqual("offsets" in optional, self.version() >= floor)
+        # 版本号发版时由主会话统一改（11-28）：仓库里这版 CC 认了 ``offsets`` 时，最低版本要么就是它、要么是下一个补丁号（还没发版，
+        # 服务端此刻不派给任何已装的版本，旧版照旧只列发票）；不认时最低版本必须高于它
+        major, minor, patch = self.version()
+        if "offsets" in optional:
+            self.assertIn(floor, {self.version(), (major, minor, patch + 1)})
+        else:
+            self.assertGreater(floor, self.version())
         server = number_constants(self.ERP / "collection" / "contracts.py", ("OFFSETS_PAYLOAD_VERSION", "OFFSET_RECTYPS"))
         if "offsets" in optional:
             self.assertEqual(_literal(COMPANION / "payload_contract.py", "RECEIPT_OFFSETS_PAYLOAD_VERSION"),
