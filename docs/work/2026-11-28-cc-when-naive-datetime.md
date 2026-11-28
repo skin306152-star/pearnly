@@ -22,7 +22,7 @@
 服务端给带时区的时间，页面再兜底：
 
 - ERP `mrerp/connection.py`：`credential.at` 经 `_when` → RFC3339 UTC（records 两处、login_store 一处）。
-- Cowork `folder_intake/rules.runs`：`started_at`、`scanned_at` → RFC3339 UTC；交给模型的 `folder_task_runs` 点名这两个字段按 UTC 换回当地时间（模型看到的仍是「2026-10-13 09:00」）。
+- Cowork `folder_intake/rules.runs` 不改：Cowork Desk 的文件夹任务页（`public/desk/intake-folders.js`，`frappe.datetime.str_to_user`）也读这个接口、要的是站点时区裸时间（code-review 发现，先改了又退回）。CC 页面靠下面的前端兜底：照钟点写到时分，站点时区的钟点即当地时间。
 - 前端 `lib/when.ts` 新增 `serverTime`：只有日期的按日期；带时区的按设备时区；**不带时区的 Frappe 时间照它的钟点**（不猜时区，同 10 月「补 Z 晚 7 小时」的教训），一律写到「日期 + 时:分」，不出秒和小数。`formatWhen`、月结卡 `dayShort` / `dayTime` 共用它；定时任务运行记录改用 `formatWhen`。四语同一套（泰文佛历）：en「Nov 28, 2026, 11:08 AM」、zh「2026年11月28日 11:08」、th「28 พ.ย. 2569 11:08」、ja「2026/11/28 11:08」。
 
 全仓查同类（直接把服务端时间字符串丢到界面上）：前端只有定时任务运行记录一处 `toLocaleString`，已改；其余 `new Date(...)` 都是排序比较，不显示。
@@ -32,7 +32,6 @@
 - `tests/test_assistant_ui.py` `ServerTimeTests`：四语 × 四种裸时间写法都是「日期 + 时:分」；页面里不许再有 `toLocaleString` 类直出。原有「不带时区原样」断言改为照钟点到时分。
 - `tests/test_cc_month_ledger.py`：`dayTime` / `dayShort` 吃裸时间。
 - `tests/test_erp_mrerp_direct.py`：ERP 授权时刻（datetime 或字符串）→ `2026-11-28T04:08:35.095638Z`（站点 Asia/Bangkok）。
-- `tests/test_cowork_folder_intake.py` `RunTimes`、`tests/test_cowork_assistant_tools.py`：运行记录给 UTC、模型那份换回当地时间。
 
 ## 没测到
 

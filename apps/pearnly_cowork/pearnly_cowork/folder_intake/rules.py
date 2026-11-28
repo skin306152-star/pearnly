@@ -800,21 +800,7 @@ def runs(name):
     for row in rows:
         row["states"] = counts(rule.name, row.name)
         row["results"] = results(rule.name, row.name)
-        # 站点时区的裸时间 → RFC3339 UTC：页面按设备时区写到时分（原先给裸时间，页面带秒、按设备语言另排，11-28）
-        for key in ("started_at", "scanned_at"):
-            row[key] = _when(row.get(key))
     return {"rule": project(rule), "runs": rows, "pos_layout_needed": pos_waiting(rule.name)}
-
-
-def _when(value) -> str:
-    from pearnly_core.assistant import contracts as shared
-
-    if not value:
-        return ""
-    try:
-        return shared.utc_iso(value, frappe.utils.get_system_timezone())
-    except (TypeError, ValueError):
-        return str(value)
 
 
 POS_WAITING_SHOWN = 10

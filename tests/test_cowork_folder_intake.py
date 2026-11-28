@@ -486,18 +486,6 @@ class FolderCounts(unittest.TestCase):
             self.assertFalse(contracts.moving(state, now, now))
 
 
-class RunTimes(unittest.TestCase):
-    """11-28：运行记录的时刻给页面 RFC3339 UTC（原先给站点时区的裸时间，页面带秒、按设备语言另排）；交给模型的那份换回当地时间。"""
-
-    def test_runs_give_utc_times_and_the_tool_turns_them_back_to_local(self):
-        source = (APP / "folder_intake/rules.py").read_text(encoding="utf-8")
-        body = source[source.index("def runs(name):"):source.index("def pos_waiting(")]
-        self.assertIn('for key in ("started_at", "scanned_at"):\n            row[key] = _when(row.get(key))', body)
-        self.assertIn("shared.utc_iso(value, frappe.utils.get_system_timezone())", body)
-        tools = (APP / "assistant/tools.py").read_text(encoding="utf-8")
-        self.assertIn('return _json(out, utc=("started_at", "scanned_at"))', tools)
-
-
 class PosExports(unittest.TestCase):
     """L9（2026-10-13）：推往 Express 的销售任务另收 POS 导出（Excel / CSV），不交识别、按天建票；列认不准时停下待人。"""
 

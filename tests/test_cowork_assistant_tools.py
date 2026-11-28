@@ -4255,9 +4255,8 @@ class LocalTimeTests(unittest.TestCase):
         self.assertEqual(out["deadlines"], {"paper": "2026-10-15"})
 
     def test_times_stored_in_site_time_are_only_reformatted(self):
-        # 运行记录的两个时刻 rules.runs 已给成 RFC3339 UTC（页面用，11-28），交给模型时换回站点时区
-        run = {"name": "RUN1", "trigger": "schedule", "started_at": "2026-10-13T02:00:04.000005Z",
-               "scanned_at": "2026-10-13T02:01:30Z"}
+        run = {"name": "RUN1", "trigger": "schedule", "started_at": datetime(2026, 10, 13, 9, 0, 4, 5),
+               "scanned_at": datetime(2026, 10, 13, 9, 1, 30)}
         rule = {"name": "R1", "active_since": datetime(2026, 10, 1, 8, 15, 59)}
         task = {"name": "R1", "last_run": {"started_at": datetime(2026, 10, 13, 9, 0, 4), "found": 3}}
         with mock.patch.object(tools.rules, "runs", lambda name: {"rule": dict(rule), "runs": [run]}), \
