@@ -798,6 +798,120 @@ def collection_offset_shapes(site, rounds, results):
                 _collection_cleanup(collector, book_key, customer)
 
 
+def _snapshot_book():
+    """应收快照格的账套：实验栈当前公司按今天定的那本（同收款流程 `service.book_for`）。"""
+    from pearnly_erp_portal.collection import service
+    from pearnly_erp_portal.masters import company as companies
+
+    frappe.set_user(erp_user())
+    co = companies.active_company() or frappe.db.get_value("ERP Company", {}, "name")
+    row = frappe.db.get_value("ERP Company", co, ["name", "company_name", "tax_id", "branch"], as_dict=True)
+    return co, service.book_for(row, frappe.utils.nowdate())
+
+
+def _snapshot_rows(book_key, docnum):
+    return frappe.db.sql("select name, customer, net, remaining, read_at from `tabERP Receivable Snapshot`"
+                         " where book_key = %s and docnum = %s", (book_key, docnum), as_dict=True)
+
+
+def _finished_read(co, book, customer, items, read_at):
+    """造一件电脑已读好的 ``express_ar_open``（请求行 done + 结果文件），并记进每分钟落库的发起记录。回请求号。"""
+    from pearnly_core.cc_desktop import documents, requests, store
+    from pearnly_erp_portal.collection import snapshot
+
+    key = snapshot.request_key(book["key"], customer)
+    made = requests.create(snapshot.KIND, key, snapshot._params(book, customer), book_key=book["key"], actor=erp_user())
+    content = json.dumps({"read_at": read_at, "items": items}).encode()
+    store.write(made["request"], 0, content)
+    frappe.db.set_value(documents.REQUEST, made["request"], {"status": "done", "received_bytes": len(content),
+                                                             "result_bytes": len(content), "meta_json": "{}"},
+                        update_modified=False)
+    snapshot._remember(key, co, book["key"], customer)
+    frappe.db.commit()
+    return made["request"]
+
+
+def snapshot_double_land(site, rounds, results):
+    """④ C1：同一张发票两路同时落进应收快照，读视图都早于对方提交。两种各半：
+    (a) 同一件读好的读回，网页 / LINE / CC 当场落（`snapshot.request`）与每分钟落（`snapshot.advance`）同时到；
+    (b) 同一位客户两份读回（先后两次读、晚到的是新的）同时 `snapshot.replace`（只按客户读：整本读会删掉这本账套别的行）。
+    判：这张发票只有一行、是读取时刻新的那一份；(a) 另判请求行已删、结果文件已删。修前两行。"""
+    from datetime import timedelta
+
+    from pearnly_core.cc_desktop import documents, store
+    from pearnly_erp_portal.collection import snapshot
+
+    co, book = _snapshot_book()
+    user = erp_user()
+    for index in range(rounds):
+        customer = ("CS" + secrets.token_hex(3)).upper()
+        docnum = ("IV" + secrets.token_hex(3)).upper()
+        early = frappe.utils.now_datetime().isoformat()
+        line = {"docnum": docnum, "rectyp": "3", "docdat": frappe.utils.nowdate(), "customer": customer, "salesman": "",
+                "department": "", "net": "1000.00", "received": "0.00"}
+        try:
+            if index % 2 == 0:
+                name = _finished_read(co, book, customer, [{**line, "remaining": "1000.00"}], early)
+                box = _threads(site, user, [
+                    ("request", _stale_then(0.3, lambda: snapshot.request(co, book, customer))),
+                    ("advance", _stale_then(0.3, snapshot.advance))])
+                frappe.db.rollback()
+                rows = _snapshot_rows(book["key"], docnum)
+                left = bool(frappe.db.exists(documents.REQUEST, name)) or store.read(name) is not None
+                good = len(rows) == 1 and not left
+                detail = {"way": "request + advance", "rows": rows, "request_left": left, "box": box}
+            else:
+                late = (frappe.utils.now_datetime() + timedelta(seconds=5)).isoformat()
+                box = _threads(site, user, [
+                    ("earlier", _stale_then(0.3, lambda: snapshot.replace(co, book["key"], [{**line, "remaining": "1000.00"}],
+                                                                          early, customer=customer))),
+                    ("later", _stale_then(0.3, lambda: snapshot.replace(co, book["key"], [{**line, "remaining": "600.00"}],
+                                                                        late, customer=customer)))])
+                frappe.db.rollback()
+                rows = _snapshot_rows(book["key"], docnum)
+                good = len(rows) == 1 and str(rows[0].remaining) in ("600", "600.0", "600.00", "600.000000000")
+                detail = {"way": "replace x2 (same customer)", "rows": rows, "box": box}
+            leaked = {k: v["error"] for k, v in box.items() if "error" in v}
+            tally(results, "erp.snapshot_double_land", good and not leaked, {**detail, "leaked": leaked})
+        finally:
+            frappe.db.rollback()
+            frappe.db.delete("ERP Receivable Snapshot", {"book_key": book["key"], "customer": customer})
+            frappe.db.commit()
+
+
+def snapshot_balances_stale(site, rounds, results):
+    """④ A2 #7：写后回执改余额（`snapshot.apply_balances`）在 CC 的事务里、读视图早就建了；另一路刚把这张的 net 从 1000 改成 1200
+    并提交。判：已收按新 net 算（1200 - 700 = 500）。修前按读视图里的旧 net 算成 300。"""
+    from decimal import Decimal
+
+    from pearnly_erp_portal.collection import snapshot
+
+    co, book = _snapshot_book()
+    user = erp_user()
+    for _ in range(rounds):
+        customer = ("CB" + secrets.token_hex(3)).upper()
+        docnum = ("IV" + secrets.token_hex(3)).upper()
+        try:
+            snapshot.replace(co, book["key"], [{"docnum": docnum, "rectyp": "3", "docdat": frappe.utils.nowdate(),
+                                                "customer": customer, "net": "1000.00", "received": "0.00",
+                                                "remaining": "1000.00"}], frappe.utils.now_datetime().isoformat(),
+                             customer=customer)
+            frappe.db.commit()
+            read_view("ERP Receivable Snapshot")
+            elsewhere(site, user, lambda: frappe.db.sql("update `tabERP Receivable Snapshot` set net = 1200 where"
+                                                        " book_key = %s and docnum = %s", (book["key"], docnum)))
+            snapshot.apply_balances(book["key"], {docnum: Decimal("700")})
+            frappe.db.commit()
+            rows = _snapshot_rows(book["key"], docnum)
+            received = frappe.db.get_value("ERP Receivable Snapshot", rows[0].name, "received") if rows else None
+            tally(results, "erp.snapshot_balances_stale", rows and Decimal(str(received)) == Decimal("500"),
+                  {"rows": rows, "received": received})
+        finally:
+            frappe.db.rollback()
+            frappe.db.delete("ERP Receivable Snapshot", {"book_key": book["key"], "customer": customer})
+            frappe.db.commit()
+
+
 def file_delete_rolled_back(site, rounds, results):
     """删 File 后事务被回滚（整笔重来、用尽回「请稍后重试」）：File 记录回来了，盘上那份也还在；删了并提交：两样都没了。
     修前 Frappe 在 on_trash 当场删盘，回滚后记录在、盘上没了（附件打不开）。"""
@@ -906,6 +1020,8 @@ def erp(site, rounds):
     guarded(results, "erp.collection_same_customer_releases", collection_same_customer_releases, site, rounds, results)
     guarded(results, "erp.collection_same_customer_via_line", collection_same_customer_via_line, site, rounds, results)
     guarded(results, "erp.collection_offset_shapes", collection_offset_shapes, site, rounds, results)
+    guarded(results, "erp.snapshot_double_land", snapshot_double_land, site, rounds, results)
+    guarded(results, "erp.snapshot_balances_stale", snapshot_balances_stale, site, rounds, results)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
