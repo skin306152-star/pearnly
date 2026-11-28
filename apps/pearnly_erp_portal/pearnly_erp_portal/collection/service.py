@@ -383,23 +383,28 @@ def reading_text(company) -> str:
 # ── 未收清发票与预留 ─────────────────────────────────────────────────────────
 
 
-def reserved(book_key, docnums, exclude=None) -> dict:
+def _rows(doctype, filters, fields, limit, locked=False) -> list:
+    """``locked``：加锁读（放行判预留用，:func:`release`）。关快照隔离后普通读走这笔事务早先建的读视图，看不到别人刚放行的那笔。"""
+    if not locked:
+        return frappe.get_all(doctype, filters=filters, fields=fields, limit_page_length=limit)
+    return frappe.qb.get_query(doctype, fields=fields, filters=filters, limit=limit, for_update=True).run(as_dict=True)
+
+
+def reserved(book_key, docnums, exclude=None, locked=False) -> dict:
     """别的收款记录占着的金额 ``{docnum: Decimal}``：已放行还没写完的（待写入、写入中），与已写入、但快照还没读到写后余额的
-    （写入时刻晚于那张发票的读取时刻）。``exclude``：正在改的这一笔。"""
+    （写入时刻晚于那张发票的读取时刻）。``exclude``：正在改的这一笔。``locked``：加锁读（:func:`_rows`）。"""
     if not docnums:
         return {}
-    lines = frappe.get_all(INVOICE, filters={"parenttype": DOCTYPE, "docnum": ["in", list(docnums)]},
-                           fields=["parent", "docnum", "amount"], limit_page_length=contracts.MAX_INVOICES * 200)
+    lines = _rows(INVOICE, {"parenttype": DOCTYPE, "docnum": ["in", list(docnums)]}, ["parent", "docnum", "amount"],
+                  contracts.MAX_INVOICES * 200, locked)
     parents = {row.parent for row in lines if row.parent != exclude}
     if not parents:
         return {}
-    heads = {row.name: row for row in frappe.get_all(
-        DOCTYPE, filters={"name": ["in", list(parents)], "book_key": book_key,
-                          "status": ["in", [*contracts.RESERVING, contracts.WRITTEN]]},
-        fields=["name", "status", "written_at"], limit_page_length=len(parents))}
-    read = {row.docnum: row.read_at for row in frappe.get_all(
-        snapshot.DOCTYPE, filters={"book_key": book_key, "docnum": ["in", list(docnums)]}, fields=["docnum", "read_at"],
-        limit_page_length=len(docnums))}
+    heads = {row.name: row for row in _rows(
+        DOCTYPE, {"name": ["in", list(parents)], "book_key": book_key, "status": ["in", [*contracts.RESERVING, contracts.WRITTEN]]},
+        ["name", "status", "written_at"], len(parents), locked)}
+    read = {row.docnum: row.read_at for row in _rows(
+        snapshot.DOCTYPE, {"book_key": book_key, "docnum": ["in", list(docnums)]}, ["docnum", "read_at"], len(docnums), locked)}
     out = {}
     for row in lines:
         head = heads.get(row.parent)
@@ -413,9 +418,9 @@ def reserved(book_key, docnums, exclude=None) -> dict:
     return out
 
 
-def _open_rows(book_key, customer, exclude=None) -> dict:
-    found = snapshot.rows(book_key, customer)
-    held = reserved(book_key, [row.docnum for row in found], exclude=exclude)
+def _open_rows(book_key, customer, exclude=None, locked=False) -> dict:
+    found = snapshot.rows(book_key, customer, locked=locked)
+    held = reserved(book_key, [row.docnum for row in found], exclude=exclude, locked=locked)
     out = {}
     for row in found:
         remaining = contracts.money(row.remaining or 0)
@@ -511,8 +516,8 @@ def _vouchers_ok(methods_value, record=None):
             raise contracts.CollectionError(VOUCHER_INVALID, {"voucher": file})
 
 
-def _checked(company, book, customer, draft, record=None, *, require_vouchers=False):
-    open_rows = _open_rows(book["key"], customer, exclude=record)
+def _checked(company, book, customer, draft, record=None, *, require_vouchers=False, locked=False):
+    open_rows = _open_rows(book["key"], customer, exclude=record, locked=locked)
     checked = contracts.check(draft, open_rows, _catalog(company, book), require_vouchers=require_vouchers)
     if ledger.handles(company):
         ledger.check_methods(checked)  # MR.ERP 收款单只有一格记收到的钱
@@ -831,7 +836,9 @@ def release(name, version, consent) -> dict:
     snapshot.lock(doc.book_key, [row.docnum for row in doc.invoices])  # 两人同时放行同一张：排队判，后到的看到前一笔的预留
     book = {"key": doc.book_key, **_book_row(doc)}
     try:
-        checked = _checked(doc.company, book, doc.customer, _draft_of(doc), record=doc.name, require_vouchers=True)
+        # 余额、预留按加锁读算（11-28 B ②）：读视图在拿发票锁之前就建了（核权限、读这一笔），普通读看不到前一笔刚放行的预留，
+        # 两笔会把同一张发票收两遍
+        checked = _checked(doc.company, book, doc.customer, _draft_of(doc), record=doc.name, require_vouchers=True, locked=True)
     except contracts.CollectionError as error:
         return {"status": "invalid", "code": error.code, "detail": error.detail}
     _fill(doc, checked, {"salesman": doc.salesman or "", "department": doc.department or contracts.staff(

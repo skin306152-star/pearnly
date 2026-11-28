@@ -69,6 +69,15 @@ def _explained(function, *args, **kwargs):
         frappe.throw(texts.explain(error))
 
 
+def _fresh(function, *args, **kwargs):
+    """改动一笔收款的网页入口（11-28 B ②，同采购 / 销售）：先结束请求开头的读视图（到这里还没写过），再整笔重来地调——
+    被调的函数先锁这一笔再读；撞上死锁 / 保存前比对整笔回滚重来，用尽回「请稍后重试」。业务拒绝（版本已变等）照原样。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()
+    return _explained(conflicts.attempt, function, *args, **kwargs)
+
+
 @frappe.whitelist(methods=["POST"])
 def api_collection_card(name):
     """一笔收款（本公司的，不分谁录的）：确认卡内容；草稿另带可改的范围（各张此刻能收多少、这本账套的收款方式）。POST：主档还没读过时
@@ -87,7 +96,7 @@ def api_collection_save(name, version, invoices, cash=0, methods=None, salesman=
     from pearnly_erp_portal.collection import service
 
     invoices, methods = _payload(invoices), _payload(methods) or []
-    return _explained(service.update_draft, name, version, invoices if isinstance(invoices, list) else [], cash,
+    return _fresh(service.update_draft, name, version, invoices if isinstance(invoices, list) else [], cash,
                       methods if isinstance(methods, list) else [], salesman=salesman, department=department,
                       doc_date=doc_date or None)
 
@@ -176,7 +185,7 @@ def api_collection_submit(company, customer, invoices, request, cash=0, methods=
     from pearnly_erp_portal.collection import service
 
     invoices, methods = _payload(invoices), _payload(methods) or []
-    return _explained(service.submit_web, company, customer, invoices if isinstance(invoices, list) else [], cash,
+    return _fresh(service.submit_web, company, customer, invoices if isinstance(invoices, list) else [], cash,
                       methods if isinstance(methods, list) else [], salesman=salesman, department=department,
                       request=request, doc_date=doc_date or None)
 
@@ -186,4 +195,4 @@ def api_collection_withdraw(name):
     """撤回一笔（本公司的，不分谁录的；草稿、待写入、失败的；电脑正在写、已写入的不行），同 LINE【撤回】（`service.withdraw`）。"""
     from pearnly_erp_portal.collection import service
 
-    return _explained(service.withdraw, name)
+    return _fresh(service.withdraw, name)
