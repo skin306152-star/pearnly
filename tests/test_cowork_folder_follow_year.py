@@ -108,8 +108,9 @@ class Push:
                 "checked_at": None, "automation": {"class": "A", "tier": "L0", "trigger": "task", "reasons": []}}
 
     def submit(self, history, connection, key, version, revision, account_set, *args, fixed=None, route_device="",
-               automation=None):
+               automation=None, unattended=False):
         self.submitted.append((history, account_set, fixed))
+        self.unattended = getattr(self, "unattended", []) + [unattended]
         self.routes = getattr(self, "routes", []) + [route_device]
         return {"status": "prepared", "name": f"CWP-{len(self.submitted)}", "revision": 1}
 
