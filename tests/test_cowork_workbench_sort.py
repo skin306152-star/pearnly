@@ -92,7 +92,9 @@ class Workbench(unittest.TestCase):
 
     def test_the_mark_is_registered_to_the_push_ledger_query(self):
         hooks = (ROOT / "apps/pearnly_cowork/pearnly_cowork/hooks.py").read_text(encoding="utf-8")
-        self.assertIn('cowork_history_push_marks = ["pearnly_cowork.push.express_wait.mark"]', hooks)
+        # 两个只读标记：在等 Express 关闭、结果不明（11-25，`push.unknown.mark`）；筛选另登记一项
+        self.assertIn('cowork_history_push_marks = ["pearnly_cowork.push.express_wait.mark", "pearnly_cowork.push.unknown.mark"]', hooks)
+        self.assertIn('cowork_history_push_filters = ["pearnly_cowork.push.unknown.list_filters"]', hooks)
 
 
 if __name__ == "__main__":
