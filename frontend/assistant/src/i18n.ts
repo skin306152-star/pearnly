@@ -602,6 +602,7 @@ const SETTINGS = {
     mrerpAuthorized: (detail: string) => `Authorized: ${detail}`, mrerpNotAuthorized: "Not authorized",
     username: "Username", password: "Password", mrerpAuthorizeFailed: "Authorization failed", // 界面标签，不是密钥 scan: fake
     cloudExpress: "Cloud Express", address: "Address", account: "Account",
+    cloudStep: { preparing: "Preparing install files", installing: "Installing", pairing: "Pairing", finding: "Finding account sets" },
     installCommand: "Cloud install command", expired: "Expired", regenerate: "Regenerate",
     cloudPackageFailed: "Could not prepare the cloud install files",
     groupSite: "Site", groupLedgers: "Ledgers", localExpress: "Local Express",
@@ -641,6 +642,7 @@ const SETTINGS = {
     mrerpAuthorized: (detail: string) => `已授权：${detail}`, mrerpNotAuthorized: "未授权",
     username: "用户名", password: "密码", mrerpAuthorizeFailed: "授权失败",
     cloudExpress: "云端 Express", address: "地址", account: "账号",
+    cloudStep: { preparing: "准备安装文件", installing: "安装中", pairing: "配对中", finding: "查找账套" },
     installCommand: "云端安装命令", expired: "已过期", regenerate: "重新生成",
     cloudPackageFailed: "无法准备云端安装文件",
     groupSite: "站点", groupLedgers: "账本", localExpress: "本地 Express",
@@ -680,6 +682,7 @@ const SETTINGS = {
     mrerpAuthorized: (detail: string) => `อนุญาตแล้ว: ${detail}`, mrerpNotAuthorized: "ยังไม่ได้อนุญาต",
     username: "ชื่อผู้ใช้", password: "รหัสผ่าน", mrerpAuthorizeFailed: "อนุญาตไม่สำเร็จ", // 界面标签，不是密钥 scan: fake
     cloudExpress: "Express บนคลาวด์", address: "ที่อยู่", account: "บัญชี",
+    cloudStep: { preparing: "กำลังเตรียมไฟล์ติดตั้ง", installing: "กำลังติดตั้ง", pairing: "กำลังจับคู่", finding: "กำลังค้นหาชุดบัญชี" },
     installCommand: "คำสั่งติดตั้งบนคลาวด์", expired: "หมดอายุแล้ว", regenerate: "สร้างใหม่",
     cloudPackageFailed: "เตรียมไฟล์ติดตั้งบนคลาวด์ไม่สำเร็จ",
     groupSite: "ไซต์", groupLedgers: "สมุดบัญชี", localExpress: "Express ในเครื่อง",
@@ -719,6 +722,7 @@ const SETTINGS = {
     mrerpAuthorized: (detail: string) => `許可済み：${detail}`, mrerpNotAuthorized: "未許可",
     username: "ユーザー名", password: "パスワード", mrerpAuthorizeFailed: "許可できませんでした",
     cloudExpress: "クラウド Express", address: "アドレス", account: "アカウント",
+    cloudStep: { preparing: "インストールファイルを準備中", installing: "インストール中", pairing: "ペアリング中", finding: "会計データを検索中" },
     installCommand: "クラウドのインストールコマンド", expired: "期限切れ", regenerate: "再生成",
     cloudPackageFailed: "クラウドのインストールファイルを準備できませんでした",
     groupSite: "サイト", groupLedgers: "帳簿", localExpress: "ローカル Express",

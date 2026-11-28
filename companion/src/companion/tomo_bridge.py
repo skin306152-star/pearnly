@@ -176,6 +176,8 @@ class TomoBridge(QObject):
         # 段 ③ a 首次自动安装：每台云端主机本进程只试一次；进行中的主机名（cloud_status 回 installing，页面不自己发令牌）
         self._auto_install_tried: set = set()
         self._auto_installing = ""
+        # 自动安装走到哪一步（⑥，11-28 用户：等待时显示在做哪一步）：preparing / installing / pairing / finding；空 = 不在装
+        self._cloud_step = ""
         self._later = _later
 
     @Slot(result=str)
@@ -565,6 +567,7 @@ class TomoBridge(QObject):
                 if time.monotonic() < deadline:
                     return self._later(AUTO_INSTALL_TICK_MS, tick)
                 return self._end_auto_install(host, "not_connected")
+            self._set_cloud_step("preparing")
             self._job(lambda: self._package_step(self._cloud_prepare, host.root, name) or {"ok": True},
                       after=lambda result: self._auto_install_send(host, result))
 
@@ -586,6 +589,8 @@ class TomoBridge(QObject):
             self._end_auto_install(host, "not_running")
             return result
 
+        self._set_cloud_step("installing")
+
         def send() -> dict:
             from .cloud_link import auto_install
 
@@ -600,6 +605,7 @@ class TomoBridge(QObject):
             self._end_auto_install(host, "send_failed")
             return sent
         deadline = time.monotonic() + AUTO_INSTALL_PAIR_WAIT
+        self._set_cloud_step("pairing")
 
         def check() -> None:
             if self._cloud_host is not host:
@@ -614,9 +620,15 @@ class TomoBridge(QObject):
         check()
         return sent
 
+    def _set_cloud_step(self, step: str) -> None:
+        self._cloud_step = step
+        self.changed.emit()
+
     def _end_auto_install(self, host, outcome: str) -> None:
         log.info("云端自动安装 · 结束 · 主机=%s 结果=%s", getattr(host, "host", ""), outcome)
         self._auto_installing = ""
+        # 配好了：云端 CC 起来后去找账套，直到它报来状态（cloud_status 里清掉）；没成就不显示步骤（页面出安装命令兜底）
+        self._cloud_step = "finding" if outcome == "paired" else ""
         if outcome == "paired":
             try:
                 host.minimize_window()
@@ -710,6 +722,10 @@ class TomoBridge(QObject):
             result["operator_remembered"] = self._cloud_operator_saved()
             if self._auto_installing:
                 result["installing"] = True   # 桥在替人装云端 CC：页面别自己点 cloud_pair_begin（会让桥的令牌作废）
+            if self._cloud_step == "finding" and host is not None and getattr(host, "cloud_state", None) is not None:
+                self._cloud_step = ""   # 云端 CC 报来状态（账套已找过）：这一步完了
+            if self._cloud_step:
+                result["step"] = self._cloud_step
             return result
         if method in ("cloud_disconnect", "cloud_forget"):
             # 「断开」只停连接、留着连接记录与已存密码（重新登录免输，启动不自动连）；「删除连接」（cloud_forget）停了再删连接记录、

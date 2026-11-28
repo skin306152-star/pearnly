@@ -46,6 +46,8 @@ export type CloudStatus = {
   installing: boolean;
   /** 桥上存着实操登录（云端 Express 账号）：弹窗里那两格显示圆点 */
   operatorRemembered: boolean;
+  /** 桥替人装云端 CC 走到哪一步（preparing / installing / pairing / finding）；空 = 不在装 */
+  step: string;
 };
 
 const DEFAULT_PORT = 3389;
@@ -55,7 +57,7 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
   const value = (raw ?? {}) as {
     ok?: boolean; state?: string; link?: CloudStatus["link"]; places?: unknown; remembered?: unknown; reason?: unknown;
     cloud?: Partial<CloudSummary> | null; forget?: unknown; installing?: unknown;
-    operator_remembered?: unknown;
+    operator_remembered?: unknown; step?: unknown;
   };
   if (!value.ok) return null;
   const states: CloudState[] = ["idle", "connecting", "connected", "login_failed", "replaced"];
@@ -73,6 +75,7 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
     forget: value.forget === true,
     installing: value.installing === true,
     operatorRemembered: value.operator_remembered === true,
+    step: typeof value.step === "string" ? value.step : "",
   };
 }
 
@@ -238,6 +241,13 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
           </DropdownMenu>
         )}
       </div>
+      {/* 桥替人装云端 CC 时显示在做哪一步（11-28 用户：等待时要知道在做什么），只用官方 Spinner + 一行字 */}
+      {status.step && (st.cloudStep as Record<string, string>)[status.step] && (
+        <div className="cc-settings-row text-muted-foreground text-body" data-slot="cc-cloud-express-step">
+          <Spinner />
+          {(st.cloudStep as Record<string, string>)[status.step]}
+        </div>
+      )}
       {pairing !== null && <CloudPairing key={pairing} api={api} onDone={() => setPairing(null)} />}
       {/* 展开：云端那份 CC 报上来的数据文件夹（小字账套数）+「重新查找」「添加文件夹…」，同本地 Express 展开后的样子 */}
       {open && link && (

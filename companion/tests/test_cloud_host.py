@@ -798,7 +798,9 @@ def _auto(tmp_path, monkeypatch, host, sent_ok=True):
     monkeypatch.setattr(auto_install, "run", lambda command, sender: sent.append((command, sender)) or sent_ok)
     seen = []
     bridge._start_auto_install(host)
-    seen.append(json.loads(bridge.call("cloud_status", "{}")).get("installing"))
+    first = json.loads(bridge.call("cloud_status", "{}"))
+    seen.append(first.get("installing"))
+    seen.append(first.get("step"))
     from PySide6.QtWidgets import QApplication
     deadline = time.monotonic() + 5
     while bridge._auto_installing and time.monotonic() < deadline:
@@ -810,11 +812,14 @@ def _auto(tmp_path, monkeypatch, host, sent_ok=True):
 def test_the_bridge_installs_the_cloud_cc_once_by_itself_and_minimizes_the_window(tmp_path, monkeypatch):
     host = _InstallHost()
     bridge, sent, seen = _auto(tmp_path, monkeypatch, host)
-    assert seen == [True]   # 进行中页面看到 installing，不自己发令牌
+    assert seen[0] is True and seen[1] in ("preparing", "installing", "pairing")   # 进行中：installing + 在做哪一步
     [(command, sender)] = sent
     assert command.endswith("cloud_install.ps1 -Token 7K3M-Q9TB-ABCD-EFGH-JKMN-PQRS-TVXX") and sender == ("sender", 4242)
     assert bridge._auto_installing == "" and host.minimized == 1
-    assert "installing" not in json.loads(bridge.call("cloud_status", "{}"))
+    done = json.loads(bridge.call("cloud_status", "{}"))
+    assert "installing" not in done and done["step"] == "finding"   # 配好了：云端 CC 去找账套，直到它报来状态
+    host.cloud_state = {"version": "1.12.26"}
+    assert "step" not in json.loads(bridge.call("cloud_status", "{}"))
     bridge._start_auto_install(host)   # 同一台主机本进程不再试
     assert len(sent) == 1
     bridge.shutdown()
@@ -835,5 +840,5 @@ def test_a_host_the_cloud_cc_already_reports_from_is_not_installed_again(tmp_pat
     host = _InstallHost()
     host.cloud_state = {"version": "1.12.26"}
     bridge, sent, seen = _auto(tmp_path, monkeypatch, host)
-    assert sent == [] and seen == [None]
+    assert sent == [] and seen == [None, None]
     bridge.shutdown()
