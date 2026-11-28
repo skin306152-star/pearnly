@@ -73,5 +73,26 @@
 
 - 两连接实验格没做：控制面没有本机实验栈（按任务书不用实验栈）。真实 MariaDB 上的锁行为（`for update` 走 `line_user_id` 索引只锁同一个 LINE、命名锁可重入）按 MariaDB 文档写，没在库上跑。
 - `link_line` 先外部 `ensure_line_person` 再写行，提交失败时身份服务里多一个挂着 LINE 的专用身份、库里没行；站点重发会补行。站点若在那之后撤掉了绑定，这个身份不会被删（与本条之前一样，没改）。
-- 管理通道 `purge_members` / `move_members` 仍是「先删行、再拿命名锁」的老顺序（判断已是加锁读，结果对；最坏是 20 秒超时），不在 B8 范围。
 - 真机（LINE 登录三产品）没测，要排队。
+
+## 第二轮（主窗口 code-review 两处）
+
+1. **important：换池 / 注销先删行再拿命名锁**。`_release` 改成加锁读之后，`move_members`、`purge_members` 先删本租户关联行（拿着行锁、没提交）
+   再拿命名锁；另一租户 link / unlink 同一 LINE 先拿命名锁、再加锁读扫到这边删了没提交的行要等行锁，两边互等，数据库看不出，
+   换池 / 注销等满 20 秒回 unavailable。改法：两处都先读出要处理的 LINE，`_person_locks` 按顺序一次拿齐，再删行，再逐个 `_release`。
+2. **nit：加锁重读出的 LINE 不在已拿的命名锁里时补拿**（`link_line` 的 `previous`、`unlink_line` 的本站关联），补拿发生在锁着行之后，违反固定锁序。
+   选「回 unavailable 让站点重发」（新增 `_held_or_retry`），不选「回滚放行锁再补拿重读」。理由：这时还没写库、没调身份服务，回 unavailable 什么都不用撤；
+   在函数里回滚会连带放掉 `authorize` 拿的租户行锁，要重新锁租户、重走前面的判断，等于在服务里再写一遍入口；这种情况只在这笔事务的读视图早于租户行锁、
+   别的请求刚改过本站这一行时才有，极少；站点 `member_client` 对 unavailable 当场再发一次，之后每小时对账，重发是新事务，按新读到的拿锁。
+   `link_line` 原来改绑释放前补拿旧 LINE 命名锁的那一句随之删掉（旧 LINE 已在拿齐的锁里）。
+
+离线单测（`test_member_service` 52 条全过；修前 = 67ef933a2）：
+
+| 新增单测 | 修前 | 修后 |
+|---|---|---|
+| `test_move_takes_line_locks_before_deleting_rows`：换池两条旧池关联，记先后 | 红：删、锁、删、锁 | 绿：锁、锁、删、删 |
+| `test_purge_takes_line_locks_before_deleting_rows`：注销两条关联 | 红：删在锁前 | 绿：锁、锁、删 |
+| `test_link_with_a_previous_outside_the_locks_asks_to_retry`：本站旧绑定在读视图里看不到、加锁读看得到，改绑 | 红：锁着行之后补拿、照常改绑 | 绿：回 unavailable、没调身份服务、回滚后放锁；重发改绑并释放旧 LINE |
+| `test_unlink_with_a_row_outside_the_locks_asks_to_retry`：同上，解绑 | 红：照常解绑 | 绿：回 unavailable、不删行不摘关联；重发解绑 |
+
+另过：test_repool、TestPools、test_line_login、tests/test_teardown_members.py；`--extended` 新增 0，check-architecture、check-unbounded-queries 通过。
