@@ -8,11 +8,13 @@
 只有发起的人能查。对账结果本身落在各自的任务表里，缓存丢了也不影响结果。
 """
 import json
+import time
 import uuid
 
 import frappe
 from frappe import _
 from pearnly_core.execution import state as pearnly_state
+from pearnly_core.transaction import conflicts
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.recon_center import progress, rerun, slots, waiting
@@ -37,6 +39,16 @@ TIMEOUTS = {"vat": 5 * 3600, "bank": 3 * 3600, "income": 3 * 3600}
 # 页面上的阶段先后（三种对账各走其中几步）：等识别的对账每轮从头跑，阶段只往前走。
 STAGES = {"queued": 0, "reading": 1, "statement": 2, "ledger": 3, "report": 4, "invoice": 5, "matching": 6,
           "saving": 7, "done": 8}
+# 出结果撞数据库冲突（死锁 / 保存前比对，``conflicts.is_conflict``）：不判失败、不删源文件，挂起等下一轮按原参数从头再跑——
+# 读过的识别按对账号找回已存的结果，不再付费（④ B7，11-28：原来判「系统繁忙」并删源文件，用户只能重新提交，新对账号 →
+# 新识别任务 → 识别再付一次）。最多挂起这么多次（次数记在参数 options 里，跟着放回队列），用尽才按原来的失败处理；
+# 隔几秒再跑（实际由每分钟的 ``waiting.tick`` 放回队列）。
+CONFLICT_RETRIES = 5
+CONFLICT_RETRY_SECONDS = 5
+
+
+class _Conflicted(waiting.Pending):
+    """这一轮出结果撞上数据库冲突：已回滚，挂起等下一轮重跑（``run`` 把参数里的次数加一）。"""
 
 
 def _key(job_id):
@@ -412,6 +424,9 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
                 with waiting.parking(recon_job):
                     _run(recon_job, kind, workspace, title, files, options)
             except waiting.Pending as pending:
+                if isinstance(pending, _Conflicted):
+                    options = _count_conflict(options)
+                    arguments = {**arguments, "options": options}
                 outcome = waiting.park(recon_job, arguments, pending)
                 if outcome == "parked":
                     return
@@ -422,6 +437,12 @@ def run(recon_job, kind, workspace, title, files, options="{}"):
             return
     finally:
         slots.release(recon_job)
+
+
+def _count_conflict(options):
+    """参数里的冲突挂起次数加一（下一轮 ``_run`` 按它判还能不能再挂起）。"""
+    values = json.loads(options or "{}")
+    return json.dumps({**values, "conflict_retries": int(values.get("conflict_retries") or 0) + 1})
 
 
 def _shown_stage(recon_job):
@@ -550,7 +571,8 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
         if pending:
             # 结果页要问、答了要用原文件重跑的问题：原文件先留着（KEEP_DAYS 天没人答由每日清理删）。
             rerun.keep(workspace, kind, result["name"], ocr_job, title, files,
-                       {key: value for key, value in options.items() if key not in ("ocr_job", "replace_task")}, pending)
+                       {key: value for key, value in options.items()
+                        if key not in ("ocr_job", "replace_task", "conflict_retries")}, pending)
         frappe.db.commit()
         keep_files = bool(pending)
         _prepare_view(kind, result["name"], options.get("lang"))
@@ -567,6 +589,11 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
         _state(recon_job, state="failed", stage="failed", error=str(error)[:500])
     except Exception as error:
         frappe.db.rollback()
+        if conflicts.is_conflict(error) and int(options.get("conflict_retries") or 0) < CONFLICT_RETRIES:
+            # 出结果撞数据库冲突：库内这一轮已整笔回滚（结果按对账号幂等，下一轮再建不会重复），识别结果在各自的检查点里
+            # 已提交。挂起、源文件与进行中清单都留着（``parked`` 挡住下面的清理），下一轮按原参数重跑、不再付识别费。
+            parked = True
+            raise _Conflicted(due=time.time() + CONFLICT_RETRY_SECONDS)
         from pearnly_cowork.reconciliation.messages import error_text
 
         # 每次失败都记日志：共用一句提示的校验错误原来不记，压测时查不到真正原因（B01，2026-09-29）。数据库锁 / 超时
