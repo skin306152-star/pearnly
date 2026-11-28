@@ -16,9 +16,19 @@ def _payload(value):
 # ── 销售记录 ────────────────────────────────────────────────────────────────
 
 
+def _fresh(function, *args, **kwargs):
+    """同一张单的写入口（11-28 B ②，同作废入口）：先结束请求开头建的读视图（到这里还没写过），再整笔重来地调 ``function``——
+    被调的函数第一句就锁单据、之后才读（`access.get_document(lock=True)`），读到的是别人刚提交的最新值；撞上死锁或保存前比对
+    整笔回滚重来，用尽回「请稍后重试」。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()
+    return conflicts.attempt(function, *args, **kwargs)
+
+
 @frappe.whitelist(methods=["POST"])
 def api_post_sale(payload, request_id, name=None):
-    return entry.post(_payload(payload), request_id=request_id, name=name)
+    return _fresh(entry.post, _payload(payload), request_id=request_id, name=name, fresh=True)
 
 
 @frappe.whitelist()
@@ -63,19 +73,19 @@ def api_cancel_sale(name, reason=None):
 
 @frappe.whitelist(methods=["POST"])
 def api_sale_payment(name, payload):
-    return entry.payment(name, **_payload(payload))
+    return _fresh(entry.payment, name, **_payload(payload))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_delete_sale_drafts(names):
-    return entry.delete_drafts(frappe.parse_json(names))
+    return _fresh(entry.delete_drafts, frappe.parse_json(names))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_sale_attachments(name, attachments):
     from pearnly_erp_portal.sales import files
 
-    return files.add(name, frappe.parse_json(attachments))
+    return _fresh(files.add, name, frappe.parse_json(attachments))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -105,7 +115,7 @@ def api_sale_upload(request_key):
 def api_remove_sale_attachment(name, file):
     from pearnly_erp_portal.sales import files
 
-    return files.remove(name, file)
+    return _fresh(files.remove, name, file)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -9,11 +9,21 @@ def _payload(value):
     return frappe.parse_json(value) if isinstance(value, str) else (value or {})
 
 
+def _fresh(function, *args, **kwargs):
+    """同一张单的写入口（11-28 B ②，同作废入口）：先结束请求开头建的读视图（到这里还没写过），再整笔重来地调 ``function``——
+    被调的函数第一句就锁单据、之后才读（`access.get_document(lock=True)`），读到的是别人刚提交的最新值；撞上死锁或保存前比对
+    整笔回滚重来，用尽回「请稍后重试」。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()
+    return conflicts.attempt(function, *args, **kwargs)
+
+
 @frappe.whitelist(methods=["POST"])
 def api_post_purchase(payload, request_id, name=None, amended_from=None):
     from pearnly_erp_portal.purchasing import entry
 
-    return entry.post(_payload(payload), request_id=request_id, name=name, amended_from=amended_from)
+    return _fresh(entry.post, _payload(payload), request_id=request_id, name=name, amended_from=amended_from, fresh=True)
 
 
 @frappe.whitelist()
@@ -68,21 +78,21 @@ def api_cancel_purchase(name, reason=None):
 def api_purchase_payment(name, payload):
     from pearnly_erp_portal.purchasing import entry
 
-    return entry.payment(name, **_payload(payload))
+    return _fresh(entry.payment, name, **_payload(payload))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_delete_purchase_drafts(names):
     from pearnly_erp_portal.purchasing import entry
 
-    return entry.delete_drafts(frappe.parse_json(names))
+    return _fresh(entry.delete_drafts, frappe.parse_json(names))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_purchase_attachments(name, attachments):
     from pearnly_erp_portal.purchasing import files
 
-    return files.add(name, frappe.parse_json(attachments))
+    return _fresh(files.add, name, frappe.parse_json(attachments))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -112,7 +122,7 @@ def api_purchase_upload(request_key):
 def api_remove_purchase_attachment(name, file):
     from pearnly_erp_portal.purchasing import files
 
-    return files.remove(name, file)
+    return _fresh(files.remove, name, file)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -223,13 +233,13 @@ def api_void_purchase(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_pay_purchase(**kwargs):
     kwargs = _clean(kwargs)
-    return service.pay(kwargs.pop("name", None), **kwargs)
+    return _fresh(service.pay, kwargs.pop("name", None), **kwargs)
 
 
 @frappe.whitelist(methods=["POST"])
 def api_set_payment_status(**kwargs):
     kwargs = _clean(kwargs)
-    return service.set_payment_status(kwargs.pop("name", None), kwargs.get("status"))
+    return _fresh(service.set_payment_status, kwargs.pop("name", None), kwargs.get("status"))
 
 
 @frappe.whitelist()

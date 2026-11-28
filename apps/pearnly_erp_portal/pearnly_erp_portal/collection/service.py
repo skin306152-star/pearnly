@@ -485,7 +485,10 @@ def _new_name():
 
 def _own(name, for_update=False):
     """有「收款」权限的人能动的一笔：本人能用的公司里的，不分是谁录的（用户 11-14）；别家公司的、不存在的一律当没权限。
-    两个人同时改同一笔草稿由版本号拒后到的那个（:func:`update_draft` / :func:`release`）。"""
+    两个人同时改同一笔草稿由版本号拒后到的那个（:func:`update_draft` / :func:`release`）。``for_update``：先加锁、再做任何
+    普通读（11-28 B ②），版本号判断按别人刚提交的值走。"""
+    if for_update and name:
+        frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", (name,))
     guard.require(WRITE)
     if not name or not frappe.db.exists(DOCTYPE, name):
         _not_permitted()

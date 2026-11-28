@@ -300,6 +300,10 @@ def update_purchase(name, **changes):
     return {"name": doc.name}
 
 
+def _lock(name):
+    frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
+
+
 def set_status(name, target, reason=None, receive_stock=None):
     """流转：草稿→提交、草稿/提交→作废。非法流转一律拒绝。"""
     # 先加锁、再做任何普通读（11-28 B ③）：读视图从拿到锁之后才建，作废保存时不会用旧副本盖回别人刚写的账本栏
@@ -400,6 +404,7 @@ def _line_net_cost(row):
 
 def pay(name, *, amount, method=None, date=None, note=None):
     """登记一笔付款。多笔累加；超过净应付的付款被拒。"""
+    _lock(name)  # 先锁、再读（11-28 B ②）：关快照隔离后先普通读再锁，读到的是旧副本，保存报 417
     guard.require("purchase.write")
     doc = _get(name)
     if (doc.calculation_version or 0) >= 2:
@@ -435,6 +440,7 @@ def pay(name, *, amount, method=None, date=None, note=None):
 
 def set_payment_status(name, status):
     """直接把单据标成未付/已付（旧线上有这条快捷路径，用于线下已结清的单据）。"""
+    _lock(name)  # 同 :func:`pay`
     guard.require("purchase.write")
     doc = _get(name)
     if (doc.calculation_version or 0) >= 2:
