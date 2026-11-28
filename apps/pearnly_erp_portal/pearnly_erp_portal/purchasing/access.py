@@ -7,9 +7,11 @@ from pearnly_erp_portal.masters import company as companies
 
 
 def get_document(name, *, write=False, lock=False):
-    guard.require("purchase.write" if write else "purchase.read")
     if lock:
+        # 先加锁、再做任何普通读（11-28 B）：读视图从拿到锁之后才建，后面的 get_doc 读到的是别人刚提交的值；
+        # 先读（哪怕只是核权限）再锁，关快照隔离后 get_doc 是旧副本，保存时把别人刚写的账本栏盖回去
         frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
+    guard.require("purchase.write" if write else "purchase.read")
     doc = frappe.get_doc("Purchase Document", name)
     if document_permission(doc, "write" if write else "read", frappe.session.user) is False:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
