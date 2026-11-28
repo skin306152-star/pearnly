@@ -50,13 +50,15 @@ json.dump({k: isolate(v) for k, v in conf.items()}, open(path, "w"))
 PY
   chown 1000:1000 "$work/common.json" && chmod 600 "$work/common.json"
   network=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$web" | head -1)
+  # 同网页容器的 DNS 设置（生产 compose 给 web 配了 dns，避开外部域名 IPv6 查询超时；读 LINE 要解析 api.line.me）
+  read -ra dns <<< "$(docker inspect -f '{{range .HostConfig.Dns}}--dns {{.}} {{end}}{{range .HostConfig.DnsOptions}}--dns-option {{.}} {{end}}' "$web")"
   docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$web" | grep -v '^$' > "$work/env"
   docker rm -f "$name" >/dev/null 2>&1 || true
   mounts=(--volumes-from "$web:ro")
   # shellcheck disable=SC2206  # 测试用：按空格拆成多个 -v 参数
   [[ -z "${PEARNLY_PLAN_MOUNTS:-}" ]] || mounts=($PEARNLY_PLAN_MOUNTS)
   started=$(date +%s)
-  timeout 900 docker run --rm --name "$name" --memory 2g --network "$network" "${mounts[@]}" \
+  timeout 900 docker run --rm --name "$name" --memory 2g --network "$network" ${dns[@]+"${dns[@]}"} "${mounts[@]}" \
     -v "$work/common.json:$SITES/common_site_config.json:ro" --env-file "$work/env" -e FRAPPE_STREAM_LOGGING=1 -w "$SITES" \
     --entrypoint /home/frappe/frappe-bench/env/bin/python "$image" -m pearnly_core.line_surfaces check --product "$product" \
     </dev/null > "$work/out" 2>&1
