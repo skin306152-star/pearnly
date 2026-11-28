@@ -10,7 +10,8 @@
 - ``purchase``：页面「作废」`purchasing.api.api_cancel_purchase`；
 - ``sales``：页面「作废」`sales.api.api_cancel_sale`；
 - ``amend``：采购「修改」`purchasing.api.api_post_purchase(amended_from=原单)`（作废原单再建，作废在提交事务里，入口层管不到，
-  靠撤件不变式）。
+  靠撤件不变式）；
+- ``stock``：入库单作废 `inventory.api.api_void_stock_entry`（仓库要已对上 Express 仓库码，new 数据集照主档同步对好）。
 线程甲（后台）：`push.send`，准备完、排件之前停 3 秒（锁着单据行）；线程乙：开头普通读一次（同请求开头），0.8 秒后调上面的入口。
 判：单据（修改格是原单）是已作废；这张单没有任何没撤销的写账件。每格 ``ROUNDS`` 遍、每遍一张新单。
 
@@ -25,7 +26,8 @@ from erp_lib import company, void_documents
 TITLE = "ERP 作废与写账同时到（11-28 管钱底线）：后台正在排写账件时作废（采购、销售、采购修改作废原单），作废的单没有没撤销的写账件"
 ADMIN = "admin@erp.regression"
 ROUNDS = 3
-KINDS = ("purchase", "sales", "amend")
+KINDS = ("purchase", "sales", "amend", "stock")
+DOCTYPES = {"purchase": "Purchase Document", "amend": "Purchase Document", "sales": "ERP Sales Document", "stock": "ERP Stock Entry"}
 
 
 def prepare(lab, manifest):
@@ -36,6 +38,8 @@ from pearnly_erp_portal.express import api as express_api
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import entry as purchase, suppliers
 from pearnly_erp_portal.sales import entry as sales
+from pearnly_erp_portal.inventory import documents as stock_docs
+from pearnly_erp_portal.products import service as products
 from pearnly_core.cc_desktop import jobs
 frappe.set_user({ADMIN!r})
 companies.set_active_company({co!r})
@@ -60,15 +64,23 @@ def sold(n):
                        "buyer_name": "flow void race {tag}",
                        "lines": [{{"item_type": "service", "description": "flow void race", "qty": 1, "unit": "งาน",
                                   "unit_price": 100}}]}}, request_id="flow-voidrace-sale-{tag}-" + str(n))["name"]
+house = (frappe.get_all("ERP Warehouse", filters={{"company": {co!r}, "is_active": 1, "express_code": ["is", "set"]}},
+                        pluck="name", order_by="express_code asc", limit=1) or [None])[0]
+item = products.create_product(product_name="flow void race {tag}", unit="ชิ้น")["name"]
+def received(n):
+    return stock_docs.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=house, reason="flow void race",
+                                   submit=True, lines=[{{"product": item, "qty": 1, "unit_cost": 10, "warehouse": house}}])["name"]
 docs = {{}}
 for kind in {list(KINDS)!r}:
     docs[kind] = []
+    if kind == "stock" and not house:
+        continue  # 这家公司没有对上 Express 仓库码的仓：库存这一格跳过（判定里记成没测到）
     for n in range({ROUNDS}):
-        docs[kind].append(sold(n) if kind == "sales" else bought(kind + str(n)))
+        docs[kind].append(sold(n) if kind == "sales" else received(n) if kind == "stock" else bought(kind + str(n)))
         frappe.db.commit()
 # 照正式路径准备一次（先放成「排队中、还没有件」，同提交时 `push.queue`），停在要人选的照人点选记下答案，再放回同样的状态
 for kind, names in docs.items():
-    doctype = push.SALES if kind == "sales" else push.PURCHASE
+    doctype = {DOCTYPES!r}[kind]
     for name in names:
         push._set(doctype, name, {{"ledger_state": "queued", "ledger_reason": "", "ledger_needed": None, "ledger_job": None}})
         frappe.db.commit()
@@ -91,14 +103,14 @@ START = {{"ledger_state": "held", "ledger_reason": "choice_needed:account", "led
 import time
 time.sleep(5)
 for kind, names in docs.items():
-    doctype = push.SALES if kind == "sales" else push.PURCHASE
+    doctype = {DOCTYPES!r}[kind]
     for name in names:
         for job in frappe.get_all("Pearnly CC Job", filters={{"source_doctype": doctype, "source_name": name,
                                                               "status": ["in", ["queued", "manual"]]}}, pluck="name"):
             jobs.cancel(job, "flow prepare")
         push._set(doctype, name, START)
         frappe.db.commit()
-print(json.dumps({{"key": key, "seeded": seeded, "docs": docs, "supplier": supplier}}, default=str))
+print(json.dumps({{"key": key, "seeded": seeded, "docs": docs, "supplier": supplier, "stock_house": house}}, default=str))
 """), "company": co, "tag": tag}
 
 
@@ -107,6 +119,7 @@ import threading, time
 from pearnly_erp_portal.express import push
 from pearnly_erp_portal.purchasing import api as purchase_api
 from pearnly_erp_portal.sales import api as sales_api
+from pearnly_erp_portal.inventory import api as stock_api
 site, sites = frappe.local.site, frappe.local.sites_path
 real = push._prepare_body
 slow = threading.local()
@@ -146,6 +159,8 @@ def voiding(kind, name):
         return sales_api.api_cancel_sale(name, "flow void race")
     if kind == "amend":
         return amend(name)
+    if kind == "stock":
+        return stock_api.api_void_stock_entry(name=name)
     return purchase_api.api_cancel_purchase(name, "flow void race")  # 页面「作废」的同一个白名单入口
 def race(kind, doctype, name):
     results = {}
@@ -167,14 +182,15 @@ def verify(lab, manifest, params, camera_code=None):
 frappe.set_user(ADMIN)
 out = []
 for kind, names in {params['docs']!r}.items():
-    doctype = push.SALES if kind == "sales" else push.PURCHASE
+    doctype = {DOCTYPES!r}[kind]
     for name in names:
         before = state(doctype, name)
         raced = race(kind, doctype, name)
         out.append({{"kind": kind, "name": name, "before": before, "race": raced, "after": state(doctype, name)}})
 print(json.dumps(out, default=str))
 """)
-    cases = []
+    cases = [{"case": "stock: a warehouse mapped to an Express warehouse exists (else the stock cell is not run)",
+              "saved": {"house": params.get("stock_house")}, "ok": bool(params.get("stock_house"))}]
     for row in got:
         before, after = row.get("before") or {}, row.get("after") or {}
         sent = (row.get("race") or {}).get("send") or {}
@@ -217,3 +233,11 @@ print("{{}}")
 """)
     void_documents(lab, manifest["site"], (docs.get("purchase") or []) + (docs.get("amend") or []))
     void_documents(lab, manifest["site"], docs.get("sales") or [], doctype="ERP Sales Document")
+    if docs.get("stock"):
+        lab.python(manifest["site"], f"""
+from pearnly_erp_portal.inventory import documents
+for name in {docs['stock']!r}:
+    if frappe.db.get_value("ERP Stock Entry", name, "status") == "submitted":
+        documents.void_entry(name)
+print("{{}}")
+""")
