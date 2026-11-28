@@ -160,15 +160,26 @@ def test_saving_the_same_host_again_keeps_the_device_key(tmp_path, vault):
 
 # ── 断开、状态 ───────────────────────────────────────────────────────────────
 
-def test_disconnect_cleans_the_file_both_credentials_and_closes_the_session(tmp_path, vault):
+def test_disconnect_keeps_the_link_and_both_passwords_and_marks_it_user_disconnected(tmp_path, vault):
+    # 11-28 用户：断开只断开，「重新登录」仍免输；删凭据是单独的明确动作
     generic, domain = vault
     _connect(tmp_path)
+    kept = (dict(generic), dict(domain))
     closed = []
     session = types.SimpleNamespace(user_close=lambda: closed.append(True))
     assert settings_link.disconnect(_store(tmp_path), session) == {"ok": True}
     assert closed == [True]
-    assert not (tmp_path / "cloud_link.json").exists() and generic == {} and domain == {}
+    assert (generic, domain) == kept and _store(tmp_path).get(HOST).halted == "user"
     assert settings_link.disconnect(None) == {"ok": True}
+
+
+def test_forget_removes_the_file_both_passwords_and_the_operator_login(tmp_path, vault):
+    generic, domain = vault
+    _connect(tmp_path)
+    operator = []
+    assert settings_link.disconnect(_store(tmp_path), None, forget_operator=operator.append) == {"ok": True}
+    assert operator == [HOST]
+    assert not (tmp_path / "cloud_link.json").exists() and generic == {} and domain == {}
 
 
 @pytest.mark.parametrize("state,halt,word", [
@@ -240,7 +251,8 @@ def test_bridge_state_stays_byte_identical_and_no_file_without_a_cloud_link(tmp_
     assert bridge.state() == expected
     assert "cloud" not in " ".join(FEATURES)
     assert json.loads(bridge.call("cloud_prefill", "{}")) == {"ok": True, "host": "", "port": 3389, "user": ""}
-    assert json.loads(bridge.call("cloud_status", "{}")) == {"ok": True, "link": None, "state": "idle", "places": []}
+    assert json.loads(bridge.call("cloud_status", "{}")) == {"ok": True, "link": None, "state": "idle", "places": [],
+                                                              "forget": True}
     assert _wait(bridge, bridge.call("cloud_disconnect", "{}")) == {"ok": True}
     assert bridge.state() == expected
     assert list(tmp_path.iterdir()) == []
@@ -266,6 +278,8 @@ def test_bridge_connect_status_disconnect_round_trip(tmp_path, vault):
     status = bridge.call("cloud_status", "{}")
     assert json.loads(status)["link"]["host"] == HOST and PASSWORD not in status
     assert _wait(bridge, bridge.call("cloud_disconnect", "{}")) == {"ok": True}
+    assert generic and (tmp_path / "cloud_link.json").exists()   # 断开留着连接与密码
+    assert _wait(bridge, bridge.call("cloud_forget", "{}")) == {"ok": True}
     assert generic == {} and domain == {} and not (tmp_path / "cloud_link.json").exists()
     assert "cloud_link" not in json.loads(bridge.state())
 

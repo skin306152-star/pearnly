@@ -1683,6 +1683,11 @@ class CompanyFolders(unittest.TestCase):
         self.assertIn('api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })', row)
         self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })', row)
         self.assertIn('api.call("cloud_add_place", { path: path.trim() })', row)
+        # 11-28 用户：断开只断开（留着已存密码）；「移除」才删连接与密码——桥在 cloud_status 回 forget，页面据此出这一项
+        self.assertIn('end("cloud_forget")', row)
+        self.assertIn('forget: value.forget === true', row)
+        self.assertIn('if method in ("cloud_disconnect", "cloud_forget"):', self.bridge)
+        self.assertIn('result["forget"] = True', self.bridge)
         self.assertIn('payload = {"path": path}', self.bridge)
         # 桥回的 cloud_status 键（settings_link.status / cloud_summary）与页面读的一致
         status = (COMPANION / "cloud_link/settings_link.py").read_text(encoding="utf-8")

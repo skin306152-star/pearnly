@@ -552,7 +552,15 @@ def test_bridge_connect_starts_the_host_and_disconnect_stops_it_first(tmp_path, 
     assert log[2:] == [("stop", HOST), ("new", HOST), ("start", HOST)]
     assert _wait(bridge, bridge.call("cloud_disconnect", "{}")) == {"ok": True}
     assert log[5] == ("stop", HOST) and ("user_close", HOST) not in log
-    assert json.loads(bridge.call("cloud_status", "{}")) == {"ok": True, "link": None, "state": "idle", "places": []}
+    # 11-28 用户：断开只断开——连接记录与已存密码留着（重新登录免输），记下是人断开的（启动不自动连）
+    status = json.loads(bridge.call("cloud_status", "{}"))
+    assert status["state"] == "idle" and status["link"]["host"] == HOST and status["remembered"] is True
+    assert holder["store"].get(HOST).halted == "user"
+    assert status["forget"] is True   # 页面看这一项出「删除连接」
+    # 「删除连接」才删：连接记录、远程桌面密码一起没了
+    assert _wait(bridge, bridge.call("cloud_forget", "{}")) == {"ok": True}
+    assert json.loads(bridge.call("cloud_status", "{}")) == {"ok": True, "link": None, "state": "idle", "places": [],
+                                                              "forget": True}
     bridge.shutdown()
     assert log.count(("stop", HOST)) == 2
 

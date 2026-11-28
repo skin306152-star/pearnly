@@ -39,6 +39,8 @@ export type CloudStatus = {
   remembered: boolean;
   reason: string;
   cloud: CloudSummary | null;
+  /** 桥有「删除连接」（cloud_forget）：「断开连接」只断开、留着已存密码，删连接与密码是这一项（11-28 用户定） */
+  forget: boolean;
 };
 
 const DEFAULT_PORT = 3389;
@@ -47,7 +49,7 @@ const DEFAULT_PORT = 3389;
 export function cloudStatus(raw: unknown): CloudStatus | null {
   const value = (raw ?? {}) as {
     ok?: boolean; state?: string; link?: CloudStatus["link"]; places?: unknown; remembered?: unknown; reason?: unknown;
-    cloud?: Partial<CloudSummary> | null;
+    cloud?: Partial<CloudSummary> | null; forget?: unknown;
   };
   if (!value.ok) return null;
   const states: CloudState[] = ["idle", "connecting", "connected", "login_failed", "replaced"];
@@ -62,6 +64,7 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
     state: states.includes(value.state as CloudState) ? (value.state as CloudState) : "idle",
     link: value.link && typeof value.link.host === "string" ? value.link : null,
     places, remembered: value.remembered === true, reason: typeof value.reason === "string" ? value.reason : "", cloud,
+    forget: value.forget === true,
   };
 }
 
@@ -141,14 +144,15 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   const { link, state, places, cloud } = status;
   const line = cloudStatusLine(state, status.reason);
   const pair = () => setPairing((n) => (n ?? 0) + 1);
-  const disconnect = () => {
+  const end = (method: "cloud_disconnect" | "cloud_forget") => {
     setPairing(null);
     setBusy(true);
-    void api.call("cloud_disconnect").then(() => {
+    void api.call(method).then(() => {
       setBusy(false);
       reload();
     });
   };
+  const disconnect = () => end("cloud_disconnect");
   const rescan = () => void api.call("cloud_rescan").then(reload);
   return (
     <>
@@ -212,6 +216,11 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
               <DropdownMenuItem variant="destructive" onSelect={disconnect}>
                 {st.disconnect}
               </DropdownMenuItem>
+              {status.forget && (
+                <DropdownMenuItem variant="destructive" onSelect={() => end("cloud_forget")} data-slot="cc-cloud-express-forget">
+                  {st.remove}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

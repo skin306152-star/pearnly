@@ -280,7 +280,7 @@ class TomoBridge(QObject):
             return self._cloud_pending()
         if method == "cloud_token":
             return self._cloud_token(args)
-        if method in ("cloud_prefill", "cloud_connect", "cloud_disconnect", "cloud_status"):
+        if method in ("cloud_prefill", "cloud_connect", "cloud_disconnect", "cloud_forget", "cloud_status"):
             return self._cloud_settings(method, args, lang)
         if method in ("cloud_operator_authorize", "cloud_operator_forget"):
             return self._cloud_operator(method, args, lang)
@@ -500,6 +500,13 @@ class TomoBridge(QObject):
         log.info("云端代录登录已取消授权 · 连接=%s", connection)
         return {"ok": True, "removed": removed}
 
+    def _forget_cloud_operator(self, host_name: str) -> None:
+        """「删除连接」时连带删桥上存的实操登录（与「断开」不删一致：都只在删除连接时删）。"""
+        from .cloud_link import cred_handoff
+
+        self._cloud_forgets.discard("default")
+        self._cloud_cred_forget(cred_handoff.bridge_target(host_name, "default"))
+
     def _cloud_pair(self, method: str, lang: str) -> dict:
         """设备密钥的一次性配对：查状态（不含令牌）/ 先在后台备好隧道盘 ``cc\\``，再生成令牌（回 job）。宿主没起回 ``not_running``。"""
         host = self._cloud_host
@@ -578,8 +585,15 @@ class TomoBridge(QObject):
                                           getattr(host, "cloud_state", None) if host is not None else None)
             if self._cloud_package_code:
                 result["package"] = self._cloud_package_code
+            # 「删除连接」（cloud_forget，11-28 用户：断开只断开，「重新登录」仍免输；删凭据是单独的明确动作）：cloud_disconnect
+            # 只停连接、留着连接记录与已存密码（启动不自动连）；cloud_forget 停连接并删连接记录、远程桌面密码与实操登录。
+            # 同其它云端动作不进 FEATURES，页面看这一项决定出不出「删除连接」
+            result["forget"] = True
             return result
-        if method == "cloud_disconnect":
+        if method in ("cloud_disconnect", "cloud_forget"):
+            # 「断开」只停连接、留着连接记录与已存密码（重新登录免输，启动不自动连）；「删除连接」（cloud_forget）停了再删连接记录、
+            # 远程桌面密码与实操登录（11-28 用户：删凭据是单独的明确动作）
+            forget = method == "cloud_forget"
             # 段 ③：还连着时先在后台请云端删我们装的东西、等回执（最多 20 秒，cloud_host.uninstall_cloud），
             # 再回界面线程关窗即断开、停中转、撤隧道盘，最后后台删连接
             # 桥没连着时（连接窗口已关、没连上）没有通道请云端删，云端的安装留着（已知限制，见施工记录段 ③）
@@ -602,7 +616,8 @@ class TomoBridge(QObject):
             def work() -> dict:
                 if held.get("replaced"):
                     return {"ok": True}
-                return settings_link.disconnect(held["store"], held["session"])
+                return settings_link.disconnect(held["store"], held["session"],
+                                                forget_operator=self._forget_cloud_operator if forget else None)
 
             if host is not None and getattr(host, "running", False) and hasattr(host, "uninstall_cloud"):
                 return self._job(work, prelude=host.uninstall_cloud, between=stop_here)
@@ -688,6 +703,10 @@ class TomoBridge(QObject):
             return False
         if link.halted == "replaced":
             log.info("云端上次被别处登录挤下线，启动时不自动连（等人点重新登录）")
+            self._cloud_release_stale(store)
+            return False
+        if link.halted == "user":
+            log.info("云端上次是人点了断开，启动时不自动连（等人点连接）")
             self._cloud_release_stale(store)
             return False
         log.info("启动时自动连云端")

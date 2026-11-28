@@ -63,6 +63,10 @@ class Member:
     token_cipher: str = field(repr=False)
 
 
+# 停住的原因：replaced = 被别处登录挤下线；user = 人点了「断开」（11-28：断开不删密码，启动也不自动连，等人点连接）
+HALTED_VALUES = ("replaced", "user")
+
+
 @dataclass(frozen=True)
 class CloudLink:
     host: str
@@ -120,7 +124,7 @@ class CloudLink:
         return cls(host=host, port=port, user=user, domain=domain, device_cipher=cipher,
                    host_name=_label(raw.get("host_name")), via=_label(raw.get("via")), members=tuple(members),
                    tunnel_drive=_drive(raw.get("tunnel_drive")),
-                   halted="replaced" if raw.get("halted") == "replaced" else "")
+                   halted=raw.get("halted") if raw.get("halted") in HALTED_VALUES else "")
 
 
 def _account(user, domain) -> str:
@@ -234,8 +238,8 @@ class LinkStore:
                 self._put(replace(link, tunnel_drive=letter))
 
     def set_halted(self, host: str, halted: str) -> None:
-        """记下 / 清掉「被挤下线」（只认 ``replaced``，其余当清掉）；没变不写。"""
-        value = "replaced" if halted == "replaced" else ""
+        """记下 / 清掉停住原因（只认 :data:`HALTED_VALUES`，其余当清掉）；没变不写。"""
+        value = halted if halted in HALTED_VALUES else ""
         with self._lock:
             link = self.get(host)
             if link is not None and link.halted != value:

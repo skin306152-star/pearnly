@@ -187,7 +187,9 @@ def _forget(host: str) -> None:
             log.info("清理云端连接的本机凭据失败 · 主机=%s: %s", host, type(exc).__name__)
 
 
-def disconnect(store, session=None) -> dict:
+def disconnect(store, session=None, *, forget_operator: Optional[Callable[[str], object]] = None) -> dict:
+    """断开：关会话；连接记录与已存密码留着，记 ``halted=user``（启动不自动连，「重新登录」免输；11-28 用户定）。
+    ``forget_operator`` 给了就是「删除连接」：先删桥上的实操登录，再删连接记录（连同远程桌面密码、站点令牌，``LinkStore.remove``）。"""
     if session is not None:
         try:
             session.user_close()
@@ -195,6 +197,14 @@ def disconnect(store, session=None) -> dict:
             log.exception("断开云端连接会话失败")
     if store is not None:
         for link in list(store.links):
+            if forget_operator is None:
+                store.set_halted(link.host, "user")
+                log.info("云端连接已断开（连接与密码留着） · 主机=%s", link.host)
+                continue
+            try:
+                forget_operator(link.host)
+            except Exception as exc:  # noqa: BLE001 - 删不掉也照删连接
+                log.warning("删云端实操登录失败 · 主机=%s: %s", link.host, type(exc).__name__)
             store.remove(link.host)
     return {"ok": True}
 
