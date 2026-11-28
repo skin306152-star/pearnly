@@ -84,6 +84,20 @@ for kind, names in docs.items():
             jobs.cancel(job, "flow prepare")
         push._set(doctype, name, {{"ledger_state": "queued", "ledger_reason": "", "ledger_needed": None, "ledger_job": None}})
         frappe.db.commit()
+# 起始状态：停在「要人选」（答案上面已记住，同人在单据页答过、等后台再排）。不用「排队中」：每分钟的写账巡检（`push.poll`）会
+# 自己把排队中的单排上件，抢在竞争之前；停在要人选的它不碰。提交时排进后台队列的那次准备可能在复位之后才跑、又排出一件：等它
+# 跑完，再撤一次、复位一次（竞争开始前必须没有件）
+START = {{"ledger_state": "held", "ledger_reason": "choice_needed:account", "ledger_needed": None, "ledger_job": None}}
+import time
+time.sleep(5)
+for kind, names in docs.items():
+    doctype = push.SALES if kind == "sales" else push.PURCHASE
+    for name in names:
+        for job in frappe.get_all("Pearnly CC Job", filters={{"source_doctype": doctype, "source_name": name,
+                                                              "status": ["in", ["queued", "manual"]]}}, pluck="name"):
+            jobs.cancel(job, "flow prepare")
+        push._set(doctype, name, START)
+        frappe.db.commit()
 print(json.dumps({{"key": key, "seeded": seeded, "docs": docs, "supplier": supplier}}, default=str))
 """), "company": co, "tag": tag}
 
@@ -164,10 +178,10 @@ print(json.dumps(out, default=str))
     for row in got:
         before, after = row.get("before") or {}, row.get("after") or {}
         sent = (row.get("race") or {}).get("send") or {}
-        cases.append({"case": f"{row['kind']} {row['name']}: queued with no write job before, and the background send queued one "
+        cases.append({"case": f"{row['kind']} {row['name']}: waiting on an answered choice with no write job before, and the background send queued one "
                               "(the race is real)",
                       "saved": {"before": before, "send": sent},
-                      "ok": before.get("ledger_state") == "queued" and not before.get("job") and not before.get("live")
+                      "ok": before.get("ledger_state") == "held" and not before.get("job") and not before.get("live")
                       and sent.get("status") in ("sent", "already_queued")})
         cases.append({"case": f"{row['kind']} {row['name']}: voided while the job was being queued leaves no live write job",
                       "saved": {"race": row.get("race"), "after": after},
