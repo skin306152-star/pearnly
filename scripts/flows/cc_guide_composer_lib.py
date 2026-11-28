@@ -79,10 +79,12 @@ return {{picked, prompt, shown, ready, before, opened, cards: qa('[data-slot="cc
          f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['session'])})),0); return true;"},
         {"name": "引导卡", "js": JS + f"""
 const card=()=>{CARD};
-const moved=await until(()=>card()&&card().dataset.business==={business}&&card().dataset.stage&&card().dataset.stage!=='files',240);
+// 过了交文件：识别中的卡画识别状态行（cc-guide-uploads，交文件那一题没有；识别中的卡不带 data-stage），题卡 / 复核带 data-stage
+const stageOf=c=>c?.dataset.stage||(c?.querySelector('[data-slot="cc-guide-uploads"]')?'reading':'');
+const moved=await until(()=>card()&&card().dataset.business==={business}&&['reading','asking','review'].includes(stageOf(card())),240);
 await sleep(500);
 const c=card();
-return {{moved, cards: qa('[data-slot="cc-guide-run"]').length, business: c?.dataset.business||'', stage: c?.dataset.stage||'',
+return {{moved, cards: qa('[data-slot="cc-guide-run"]').length, business: c?.dataset.business||'', stage: stageOf(c),
   status: c?.dataset.status||'', run: c?.dataset.run||'', text: (c?.innerText||'').slice(0,300)}};"""},
     ]
 
