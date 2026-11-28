@@ -24,8 +24,8 @@ const source = fs.readFileSync('apps/pearnly_cowork/pearnly_cowork/public/desk/i
   vm.runInNewContext(source, {frappe, __: String, console});
   await p.intake(page, key => key, {});
 
-  // 推送状态筛选：四个选项、默认全部，选中的值原样交给 workbench。
-  assert.equal(JSON.stringify(fields.push_state.options.map(row => row.value)), JSON.stringify(['', 'failed', 'pending', 'success']));
+  // 推送状态筛选：五个选项（11-25 加「结果不明」，从失败里分出来）、默认全部，选中的值原样交给 workbench。
+  assert.equal(JSON.stringify(fields.push_state.options.map(row => row.value)), JSON.stringify(['', 'failed', 'unknown', 'pending', 'success']));
   assert.equal(fields.push_state.default, '');
 
   const column = options.columns.find(col => col.fieldname === 'last_push_status');
