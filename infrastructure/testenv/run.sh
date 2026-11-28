@@ -128,6 +128,32 @@ write_live_override() {
   mv "$live_override.tmp" "$live_override"
 }
 
+copies_scheduler() {
+  # 导入的测试租户副本（*.pearnly.com）默认暂停定时任务（11-28）：副本与线上那份共用同一个 LINE 频道和线上 Keycloak，
+  # 副本的定时任务会拿副本里**旧的**配置写真实 LINE——11-28 `up dms` 后 1 分钟内，副本的菜单对账按导入时的旧菜单编号
+  # 给测试官方号上两位绑定用户重挂了菜单。lab-start 只暂停线上那份，管不到副本。要测定时任务时显式打开：
+  # PEARNLY_TESTENV_SCHEDULER=on bash scripts/testenv.sh up|live|lab-start <app>（经 TESTENV_SCHEDULER 传进来）。
+  # 在容器起来之前直接改卷里的 site_config.json（Frappe 按站点配置的 pause_scheduler 判断），空白站点 *.test.localhost 不动。
+  local dir
+  dir=$(docker volume inspect -f '{{.Mountpoint}}' "${project}_sites-$app" 2>/dev/null) || return 0
+  python3 - "$dir" "${TESTENV_SCHEDULER:-}" <<'PY'
+import json, os, sys
+from pathlib import Path
+root, mode = Path(sys.argv[1]), sys.argv[2]
+for conf in sorted(root.glob("*.pearnly.com/site_config.json")):
+    data, stat = json.loads(conf.read_text()), conf.stat()
+    before = data.get("pause_scheduler")
+    if mode == "on":
+        data.pop("pause_scheduler", None)
+    else:
+        data["pause_scheduler"] = 1
+    if data.get("pause_scheduler") != before:
+        conf.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n")
+        os.chown(conf, stat.st_uid, stat.st_gid)
+    print(f"· 副本 {conf.parent.name} 定时任务：{'开' if mode == 'on' else '暂停'}（PEARNLY_TESTENV_SCHEDULER=on 才开）")
+PY
+}
+
 live_sync() {
   # $1 = Mac 侧打好的源码包，$2 = DocType / 补丁 / hooks 的指纹（变了才迁移）。
   local tarball=${1:?tarball} migrate_hash=${2:-} staging image
@@ -147,6 +173,7 @@ live_sync() {
   rsync -a --delete "$staging/" "$live_dir/"
   rm -rf "$staging"
   chmod -R a+rX "$live_dir"
+  copies_scheduler
   local fresh=0
   [[ -f "$live_override" ]] || fresh=1
   write_live_override
@@ -227,6 +254,7 @@ case "${1:-}" in
   up)
     stop_other_stacks
     ensure_volumes
+    copies_scheduler
     # keycloak 在 keycloak profile 里，本命令不带它（测试租户的身份用线上 Keycloak）。
     dc up -d --wait mariadb redis-cache redis-queue billing-web
     dc up -d
@@ -320,6 +348,7 @@ case "${1:-}" in
       -e TESTENV_DB_ROOT_PASSWORD="$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)" \
       "$service" \
       /home/frappe/frappe-bench/env/bin/python /workspace/testenv/import-test-tenant.py
+    [[ "$group" == billing ]] || copies_scheduler   # 导入换成线上的站点配置（不带暂停），容器重启前再暂停
     # 账本站点是导入进一个**新卷**的：sites 卷上的公共配置与应用清单没人生成过，
     # 少了它们 bench 会说 redis 没在跑、计费接口直接 404。补上再继续。
     if [[ "$group" == "billing" ]]; then

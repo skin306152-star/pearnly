@@ -32,7 +32,7 @@ bash_remote() { wsl_bash "$remote_deploy/infrastructure/testenv/run.sh" "$@"; }
 bash_remote_app() {
   local target_app=$1; shift
   ssh -o BatchMode=yes "$host" \
-    "wsl -d $distro -u root -- env TESTENV_APP=$target_app bash $remote_deploy/infrastructure/testenv/run.sh $*"
+    "wsl -d $distro -u root -- env TESTENV_APP=$target_app TESTENV_SCHEDULER=${PEARNLY_TESTENV_SCHEDULER:-} bash $remote_deploy/infrastructure/testenv/run.sh $*"
 }
 
 resolve_app() {
