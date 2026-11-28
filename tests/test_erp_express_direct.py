@@ -1965,6 +1965,162 @@ LINK_RULES_GOLDEN = {'amended|PUR-A2': None,
  'void|written': [1, 'written', 'queued', 'J9']}
 
 
+class StaleJobReceipt(PushModule):
+    """④（主会话 11-28）：写账回执只认单据上现在那件（``ledger_job``）。被换掉的旧件写成的回执晚到：不盖现在那件，Express 单号
+    留在单据上、转人工（结果不明 + 原因码，同 MR.ERP 记结论遇到意外状态那种）；现在那件写成了、而单据已不在等它的结果，同样转人工。
+    转人工之后再交 / 巡检 / 领单都不再写第二张；两张单号都在写账件表里各件自己的那一行，单据上的 ``ledger_job`` 指着记下单号的那件。"""
+
+    JOB = "Pearnly CC Job"
+    LINKED = LinkStates.LINKED
+
+    def setUp(self):
+        super().setUp()
+        LinkStates.link_fixture(self)
+        self.errors = []
+        for target, name, value in ((frappe, "log_error", lambda **kw: self.errors.append(kw)),
+                                    (self.push, "link_party", lambda *a: None), (self.push, "link_products", lambda *a: None),
+                                    (self.push, "_follow_up", lambda *a: None)):
+            patcher = mock.patch.object(target, name, value, create=True)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        # 共用通道的回执 / 领单兜底接回 ERP（同 hooks ``pearnly_cc_desktop``）：撤件、领单时都走真的 `jobs`
+        fake.STATE.hooks["pearnly_cc_desktop"] = {"job_changed": "erp.job_changed", "still_wanted": "erp.still_wanted"}
+        fake.STATE.attrs.update({"erp.job_changed": self.push.job_changed, "erp.still_wanted": self.push.still_wanted})
+        fake.STATE.db.table("Purchase Document")["PUR-1"] = {
+            "name": "PUR-1", "status": "submitted", "company": "CO-1", "owner": "a@x", "creation": LinkStates.AFTER,
+            "ledger_state": "queued", "ledger_job": "J2", "ledger_docnum": "", "ledger_reason": "", "ledger_book": "BK",
+            "ledger_needed": None}
+        # 旧件 J1 早先被领走（之后被换掉，单据记上了 J2）；现在那件 J2 排着
+        self.job("J1", "leased", "erp:purchase:PUR-1@x", creation="2026-10-24 09:00:00")
+        self.job("J2", "queued", "erp:purchase:PUR-1@x#2", creation="2026-10-24 09:30:00")
+
+    def job(self, name, status, key, creation, **extra):
+        fake.STATE.db.table(self.JOB)[name] = {
+            "name": name, "request_key": key, "source_doctype": "Purchase Document", "source_name": "PUR-1",
+            "actor": "a@x", "book_key": "BK", "payload": "{}", "payload_version": 4, "status": status, "attempt": 0,
+            "fence": 1, "docnum": "", "reason": "", "creation": creation, **extra}
+
+    def landed(self, name, docnum):
+        """电脑回报这件写成了（`jobs.acknowledge` 记成功后交回产品的那一份）。"""
+        fake.STATE.db.table(self.JOB)[name].update(status="success", docnum=docnum, lease_device=None)
+        self.push.job_changed(self.push.jobs.find_by_name(name))
+
+    @property
+    def row(self):
+        return fake.STATE.db.table("Purchase Document")["PUR-1"]
+
+    def assert_no_second_write(self):
+        """转人工之后：再交（网页再写一次 / CC 推送 / 代录都经 `send`）、巡检都不再排件；领单前兜底不交排着的那件。"""
+        before = sorted(fake.STATE.db.table(self.JOB))
+        with mock.patch.object(self.push.prepare, "prepare", side_effect=AssertionError("must not prepare")), \
+                mock.patch.object(self.push.jobs, "enqueue", side_effect=AssertionError("must not queue")):
+            self.assertEqual(self.push.send("Purchase Document", "PUR-1")["status"], "already_queued")
+            self.push.poll()
+        self.assertEqual(sorted(fake.STATE.db.table(self.JOB)), before)
+        self.assertFalse(self.push.release_operator("Purchase Document", "PUR-1"))
+        # 网页「再写一次」、选一次都不收（单据记着写成的那件，不是转人工的件）；页面不给这两个按钮；写账前判定说已在写账件里
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        from pearnly_erp_portal.express import api, precheck
+        row = types.SimpleNamespace(**{"ledger_void_state": None, "ledger_target": None, **self.row}, get=self.row.get)
+        with mock.patch.object(api, "_document", lambda doctype, name, write=False: row), \
+                mock.patch.object(api.push, "send", side_effect=AssertionError("must not send")), \
+                mock.patch.object(api.jobs, "cancel", side_effect=AssertionError("must not cancel")), \
+                mock.patch.object(api.jobs, "retry", side_effect=AssertionError("must not retry")):
+            for call in (lambda: api.retry("Purchase Document", "PUR-1"),
+                         lambda: api.answer("Purchase Document", "PUR-1", '[{"kind": "party", "subject": "x", "value": "B004"}]')):
+                with self.assertRaises(frappe.PermissionError):
+                    call()
+            view = api._view("Purchase Document", row)
+        self.assertEqual((view["state"], view["docnum"], view["can_answer"], view["can_retry"]),
+                         (E.HELD, self.row["ledger_docnum"], False, False))
+        self.assertEqual(precheck.document_view("P:PUR-1", "Purchase Document", "PUR-1", found={})["state"],
+                         precheck.card.NOT_WRITABLE)
+        for name, row in fake.STATE.db.table(self.JOB).items():
+            if row["status"] == "queued":
+                self.assertFalse(self.push.still_wanted(self.push.jobs.find_by_name(name)), name)
+        self.assertEqual((self.row["ledger_state"], self.row["ledger_reason"]), (E.HELD, E.MOVED_DURING_WRITE))
+
+    def test_a_late_write_of_a_replaced_job_holds_the_document_and_keeps_both_numbers(self):
+        self.landed("J1", "HP-OLD")
+        # 现在那件（J2）的状态不被盖成「已写入」；旧件写进 Express 的单号留在单据上、转人工（结果不明的码，页面只写状态）
+        self.assertEqual((self.row["ledger_state"], self.row["ledger_reason"], self.row["ledger_docnum"], self.row["ledger_job"]),
+                         (E.HELD, E.MOVED_DURING_WRITE, "HP-OLD", "J1"))
+        self.assertTrue(E.MOVED_DURING_WRITE.startswith(self.push.jobs.LOST))
+        self.assertEqual(fake.STATE.db.table(self.JOB)["J2"]["status"], "queued")  # 回执本身不动现在那件
+        self.assertEqual(len(self.errors), 1)
+        self.assertIn("HP-OLD", self.errors[0]["message"])
+        self.assert_no_second_write()
+        # 电脑来领 J2：领单前兜底撤掉它（单据记的不是它），回执回到单据不改转人工的结论
+        self.assertFalse(self.push.still_wanted(self.push.jobs.find_by_name("J2")))
+        self.push.jobs.cancel("J2", self.push.jobs.VOIDED)  # 同 `jobs._claim` 里兜底说不要了的那一支
+        self.assertEqual(fake.STATE.db.table(self.JOB)["J2"]["status"], "cancelled")
+        self.assertEqual((self.row["ledger_state"], self.row["ledger_docnum"], self.row["ledger_job"]), (E.HELD, "HP-OLD", "J1"))
+        self.assert_no_second_write()
+
+    def test_when_the_current_job_also_lands_both_numbers_stay_apart(self):
+        fake.STATE.db.table(self.JOB)["J2"].update(status="leased", lease_device="PC-1")  # 现在那件已被领走：撤不了
+        self.landed("J1", "HP-OLD")
+        self.landed("J2", "HP-NEW")
+        jobs_of = {job["job"]: job["docnum"] for job in self.push.jobs.of_source("Purchase Document", "PUR-1")}
+        self.assertEqual(jobs_of, {"J1": "HP-OLD", "J2": "HP-NEW"})  # 写账件表里各件记着自己的单号
+        # 单据：仍转人工，记最后写成的那件与它的单号；旧件那张在 J1 那一行（与错误日志）
+        self.assertEqual((self.row["ledger_state"], self.row["ledger_reason"], self.row["ledger_job"], self.row["ledger_docnum"]),
+                         (E.HELD, E.MOVED_DURING_WRITE, "J2", "HP-NEW"))
+        self.assertEqual(len(self.errors), 2)
+        self.assertIn("HP-OLD", self.errors[1]["message"])
+        self.assertIn("HP-NEW", self.errors[1]["message"])
+        self.assert_no_second_write()
+
+    def test_other_news_of_a_replaced_job_does_not_overwrite_the_current_one(self):
+        # 旧件租约到期收回（排队、结果不明）、转人工、被撤：都不是现在那件，单据照旧记着 J2
+        for status, reason in (("queued", self.push.jobs.LOST), ("manual", self.push.jobs.LOST), ("cancelled", "replaced")):
+            fake.STATE.db.table(self.JOB)["J1"].update(status=status, reason=reason)
+            self.push.job_changed(self.push.jobs.find_by_name("J1"))
+            self.assertEqual((self.row["ledger_state"], self.row["ledger_job"], self.row["ledger_reason"]), ("queued", "J2", ""),
+                             status)
+        fake.STATE.db.table(self.JOB)["J1"].update(status="queued", reason=self.push.jobs.LOST)
+        self.assertFalse(self.push.still_wanted(self.push.jobs.find_by_name("J1")))  # 旧件不再交给电脑
+        self.assertTrue(self.push.still_wanted(self.push.jobs.find_by_name("J2")))   # 现在那件照写
+        self.assertEqual(self.errors, [])
+
+    def test_the_current_job_landing_after_the_document_moved_on_is_held(self):
+        cases = [("failed", "replaced", ""), ("detached", E.DISCONNECTED, ""), ("handled", "", ""), (None, "", ""),
+                 ("written", "", "HP-OTHER")]
+        for state, reason, docnum in cases:
+            self.errors.clear()
+            self.row.update(ledger_state=state, ledger_reason=reason, ledger_docnum=docnum, ledger_job="J2")
+            fake.STATE.db.table(self.JOB)["J2"].update(status="leased", docnum="")
+            self.landed("J2", "HP-NEW")
+            self.assertEqual((self.row["ledger_state"], self.row["ledger_reason"], self.row["ledger_docnum"], self.row["ledger_job"]),
+                             (E.HELD, E.MOVED_DURING_WRITE, "HP-NEW", "J2"), state)
+            self.assertEqual(len(self.errors), 1, state)
+            self.assert_no_second_write()
+
+    def test_the_current_job_landing_while_awaited_is_recorded_as_before(self):
+        # 排队中 / 写入中、这件自己转人工（结果不明、代录半截）之后补报写成了：照实记已写入（不转人工）
+        for state, reason in (("queued", ""), ("queued", "express.waiting_computer:PC-1"), ("held", self.push.jobs.LOST),
+                              ("held", "[OPERATOR_HELD] x")):
+            self.row.update(ledger_state=state, ledger_reason=reason, ledger_docnum="", ledger_job="J2")
+            fake.STATE.db.table(self.JOB)["J2"].update(status="leased", docnum="")
+            self.landed("J2", "HP-NEW")
+            self.assertEqual((self.row["ledger_state"], self.row["ledger_reason"], self.row["ledger_docnum"], self.row["ledger_job"]),
+                             (E.WRITTEN, "", "HP-NEW", "J2"), (state, reason))
+        self.assertEqual(self.errors, [])
+        # 刚交进队列那一次（单据还没记上件）照旧算现在那件
+        self.row.update(ledger_state="queued", ledger_job=None)
+        self.push.job_changed(self.push.jobs.find_by_name("J1") | {"status": "queued", "docnum": ""})
+        self.assertEqual((self.row["ledger_state"], self.row["ledger_job"]), ("queued", "J1"))
+
+    def test_a_late_write_of_a_replaced_job_on_a_voided_document_follows_the_void_rule(self):
+        self.row.update(status="void")
+        self.landed("J1", "HP-OLD")
+        self.assertEqual((self.row["ledger_state"], self.row["ledger_reason"], self.row["ledger_docnum"]),
+                         (E.HELD, E.VOIDED_AFTER_WRITE, "HP-OLD"))
+
+
 class LinkRulesUnchanged(PushModule):
     """账本栏改成通用列（评估 2026-11-02 §12.1 #6）不改「接 Express」四条规则：①② 不排、③ 排且不看此刻电脑、④a 开始早于
     接上时刻不排不补（采购「修改」沿原单）、④b 断开优先（撤下标已断开，正在写的看结果）、④c 没报账套停下等、④d 断开后作废
@@ -2828,6 +2984,11 @@ class PosDayExits(PushModule):
         job = {"job": "J1", "status": "manual", "reason": "x"}
         writes, cancelled, _sent = self.run_exit("mark_handled", {"ledger_state": "queued"}, job)  # 电脑转了人工
         self.assertEqual((writes["ledger_state"], cancelled), ("handled", [("J1", "replaced")]))
+        # 迟到写成转人工的（单据记着写成的那件，11-28 ④）、或记着已撤的件：没有要撤的，照标；不去撤写成 / 已撤的件（共用通道会拒）
+        for job in ({"job": "J1", "status": "success", "reason": ""}, {"job": "J1", "status": "cancelled", "reason": "replaced"}):
+            writes, cancelled, _sent = self.run_exit(
+                "mark_handled", {"ledger_state": "held", "ledger_reason": E.MOVED_DURING_WRITE}, job)
+            self.assertEqual((writes["ledger_state"], writes["ledger_job"], cancelled), ("handled", None, []), job["status"])
 
     def test_a_summary_that_is_not_stuck_gets_no_exit(self):
         for row, job in (({"ledger_state": "written"}, None), ({"ledger_state": "queued"}, {"job": "J1", "status": "leased"})):

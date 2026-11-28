@@ -1434,6 +1434,116 @@ def mrerp_poll_stale(site, rounds, results):
         frappe.db.commit()
 
 
+def stale_job_receipt(site, rounds, results):
+    """④ 写账回执只认单据现在那件（`express.push.job_changed`，11-28）。每轮一张采购单，两段：
+    A. 旧件 J1 已被电脑领走；本连接是电脑回报 J1 写成的那笔事务（读视图先建好），另一路把单据换成新件 J2（排上、单据记 J2）并提交；
+       本连接接着记 J1 写成 → 修前盖成「已写入 + J1」（现在那件 J2 照样会被电脑领走、Express 里写第二张）；修后转人工（结果不明码）、
+       J1 的单号留在单据上，J2 不动、领单前兜底不要它，再交不排第三件。
+    B. 现在那件 J2 被领走，另一路把单据改成失败并提交；本连接记 J2 写成 → 修前照记已写入，修后转人工、J2 的单号记上；
+       两张单号各在写账件表自己那一行。主档同步、挂对方档码换成空函数（只修前会走到）。"""
+    from pearnly_core.cc_desktop import jobs
+    from pearnly_erp_portal.express import contracts as E, masters, push
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import suppliers
+
+    moved = getattr(E, "MOVED_DURING_WRITE", "cc_desktop.result_unknown:moved_during_write")  # 修前树上还没有这个常量
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    enabled = frappe.db.get_value("ERP Company", co, "express_enabled")
+    frappe.db.set_value("ERP Company", co, "express_enabled", 0)  # 建单时不自动排写账（本格自己排件）
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    saved = [(masters, "queue", masters.queue), (masters, "forget", masters.forget), (push, "link_party", push.link_party),
+             (push, "link_products", push.link_products)]
+    for module, key, _value in saved:
+        setattr(module, key, lambda *args, **kwargs: None)
+    made, made_jobs = [], []
+    book = f"{TAG}-BK-{secrets.token_hex(3)}"
+
+    def enqueue(name, key):
+        job = jobs.enqueue(source_doctype=push.PURCHASE, source_name=name, request_key=key, actor=user, book_key=book,
+                           payload={"payload_version": 4, "b3lab": True}, payload_version=4, label=f"{TAG}-stale")
+        made_jobs.append(job["job"])
+        return job["job"]
+
+    def landed(job, docnum):
+        # 电脑回报写成（同 `jobs.acknowledge` 记成功后交回产品）：本连接的事务里
+        frappe.db.set_value(jobs.JOB, job, {"status": "success", "docnum": docnum, "lease_device": None,
+                                            "lease_expires_at": None, "writing_key": None}, update_modified=False)
+        push.job_changed(jobs.find_by_name(job))
+        frappe.db.commit()
+
+    try:
+        for _ in range(rounds):
+            name = _purchase(co, supplier, "SJ")
+            made.append(name)
+            ref = f"erp:purchase:{TAG}-{secrets.token_hex(4)}"
+            first = enqueue(name, ref)
+            frappe.db.set_value(jobs.JOB, first, {"status": "leased", "lease_device": f"{TAG}-pc"}, update_modified=False)
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_job": first, "ledger_reason": "",
+                                                      "ledger_docnum": None, "ledger_book": book, "ledger_target": None},
+                                update_modified=False)
+            frappe.db.commit()
+            old_no, new_no = f"{TAG}-HPA{secrets.token_hex(2)}", f"{TAG}-HPB{secrets.token_hex(2)}"
+            # A：旧件迟到写成
+            read_view(push.PURCHASE)
+            frappe.db.get_value(push.PURCHASE, name, "ledger_job")  # 回报那笔事务先读过单据
+
+            def replace():
+                second = enqueue(name, ref + "#2")
+                frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_job": second, "ledger_reason": ""},
+                                    update_modified=False)
+                return second
+            second = elsewhere(site, user, replace)
+            made_jobs.append(second)
+            landed(first, old_no)
+            row = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_docnum", "ledger_job"],
+                                      as_dict=True)
+            second_view = jobs.find_by_name(second)
+            wanted = push.still_wanted(second_view)
+            frappe.db.rollback()
+            again = push.send(push.PURCHASE, name)
+            frappe.db.rollback()
+            count = len(jobs.of_source(push.PURCHASE, name))
+            good_a = (row.ledger_state, row.ledger_reason, row.ledger_docnum, row.ledger_job) == (
+                E.HELD, moved, old_no, first) and second_view["status"] == "queued" and not wanted \
+                and (again or {}).get("status") != "sent" and count == 2
+            # B：现在那件写成时单据已被改成别的状态
+            frappe.db.set_value(jobs.JOB, second, {"status": "leased", "lease_device": f"{TAG}-pc"}, update_modified=False)
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_job": second, "ledger_reason": "",
+                                                      "ledger_docnum": None}, update_modified=False)
+            frappe.db.commit()
+            read_view(push.PURCHASE)
+            frappe.db.get_value(push.PURCHASE, name, "ledger_state")
+            elsewhere(site, user, lambda: frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "failed",
+                                                                                    "ledger_reason": "replaced"},
+                                                              update_modified=False))
+            landed(second, new_no)
+            row_b = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_docnum", "ledger_job"],
+                                        as_dict=True)
+            numbers = {job["job"]: job["docnum"] for job in jobs.of_source(push.PURCHASE, name)}
+            good_b = (row_b.ledger_state, row_b.ledger_reason, row_b.ledger_docnum, row_b.ledger_job) == (
+                E.HELD, moved, new_no, second) and numbers == {first: old_no, second: new_no}
+            tally(results, "erp.stale_job_receipt", good_a and good_b,
+                  {"a": dict(row), "second": second_view["status"], "still_wanted": wanted, "send": again, "jobs": count,
+                   "b": dict(row_b), "numbers": numbers})
+    finally:
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.db.rollback()
+        for name in made:
+            frappe.db.set_value(push.PURCHASE, name, {"status": "void", "ledger_state": None, "ledger_reason": "",
+                                                      "ledger_job": None, "ledger_docnum": None, "ledger_book": None},
+                                update_modified=False)
+        if made_jobs:
+            frappe.db.delete(jobs.JOB, {"name": ["in", made_jobs]})
+        frappe.db.sql("delete from `tabError Log` where error like %s", (f"%{TAG}-HP%",))
+        frappe.db.set_value("ERP Company", co, "express_enabled", enabled)
+        frappe.db.commit()
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
@@ -1460,6 +1570,7 @@ def erp(site, rounds):
     guarded(results, "erp.mrerp_conclusion_conflict", mrerp_conclusion_conflict, site, rounds, results)
     guarded(results, "erp.mrerp_poll_stale", mrerp_poll_stale, site, rounds, results)
     guarded(results, "erp.mrerp_collection_conclusion_conflict", mrerp_collection_conclusion_conflict, site, rounds, results)
+    guarded(results, "erp.stale_job_receipt", stale_job_receipt, site, rounds, results)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
