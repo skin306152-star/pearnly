@@ -649,7 +649,8 @@ def collection_edit_vs_release(site, rounds, results):
 
 def collection_double_release(site, rounds, results):
     """B ② E11（管钱）：同一张发票（未收 1000）两笔草稿各收 1000，两路同时放行、读视图都早于对方提交。判：最多放行一笔，
-    另一笔回 invalid（超收）；不许两笔都放行（同一张发票收两遍）。"""
+    另一笔回 invalid（超收）；不许两笔都放行（同一张发票收两遍）。经 LINE / CC / 引导共用的整笔重来（`service.release_retried`，
+    11-28 ④：后到的那笔锁到快照行后核出读视图旧了，整笔重来再判）。"""
     from pearnly_erp_portal.collection import contracts, service
 
     for index in range(rounds):
@@ -659,7 +660,7 @@ def collection_double_release(site, rounds, results):
             drafts = [service.create_draft(co, customer, [{"docnum": docnum, "amount": "1000"}], cash="1000") for _ in range(2)]
             frappe.db.commit()
             box = _threads(site, collector, [
-                ((draft["name"]), _stale_then(0.3 + 0.4 * position, lambda draft=draft, position=position: service.release(
+                ((draft["name"]), _stale_then(0.3 + 0.4 * position, lambda draft=draft, position=position: service.release_retried(
                     draft["name"], draft["version"], f"line:{TAG}-dr-{index}-{position}")))
                 for position, draft in enumerate(drafts)])
             frappe.db.rollback()
@@ -701,7 +702,7 @@ def collection_double_offset(site, rounds, results):
                                            cash="700") for invoice in (one, two)]
             frappe.db.commit()
             box = _threads(site, collector, [
-                ((draft["name"]), _stale_then(0.3, lambda draft=draft, position=position: service.release(
+                ((draft["name"]), _stale_then(0.3, lambda draft=draft, position=position: service.release_retried(
                     draft["name"], draft["version"], f"line:{TAG}-do-{index}-{position}")))
                 for position, draft in enumerate(drafts)])
             frappe.db.rollback()
@@ -790,7 +791,7 @@ def collection_offset_shapes(site, rounds, results):
     """退货减项进收款（11-28）× B ②：部分抵、全抵（净额 0）、净额小于 0 三种，放行时的加锁读与普通读核出的结果逐项相同，
     放行后待写入，交给 CC 桌面版的载荷里发票、抵减单、现金就是草稿那几样（金额正数、减项 RECTYP 5、现金可负）。"""
     from pearnly_core.cc_desktop import jobs
-    from pearnly_erp_portal.collection import contracts, service
+    from pearnly_erp_portal.collection import contracts, service, snapshot
 
     for index in range(rounds):
         for shape, lines, amounts, cash, wrote in OFFSET_SHAPES:
@@ -803,7 +804,9 @@ def collection_offset_shapes(site, rounds, results):
                 book = {"key": doc.book_key, **service._book_row(doc)}
                 plain = service._checked(doc.company, book, doc.customer, service._draft_of(doc), record=doc.name)
                 frappe.db.rollback()
-                locked = service._checked(doc.company, book, doc.customer, service._draft_of(doc), record=doc.name, locked=True)
+                used = service._used(doc.name)  # 放行的判法：本笔用到的几张按加锁读到的值（`service.release`）
+                locked = service._checked(doc.company, book, doc.customer, service._draft_of(doc), record=doc.name,
+                                          locked=snapshot.lock(doc.book_key, used), used=used)
                 frappe.db.rollback()
                 released = service.release(made["name"], made["version"], f"line:{TAG}-os-{index}-{shape}")
                 frappe.db.commit()
@@ -1735,6 +1738,232 @@ def stale_job_receipt(site, rounds, results):
         frappe.db.commit()
 
 
+# ── 11-28 ④ 收款放行锁序（同账套不同客户 / 别笔草稿改动 × 放行 / 写账回执 × 放行）：直调与经入口 ──────────────────
+# 经入口 = LINE【确认】、CC「写入」、CC 引导「确定」共用的整笔重来（`service._retried`：先提交、重来只包这一步、成了在里面提交）
+
+
+STALE_VIEW = "read view is older than the locked snapshot rows"  # 放行锁到之后核出读视图旧了（`service._stale`，入口整笔重来）
+
+
+def kind(error):
+    if not error:
+        return "ok"
+    if STALE_VIEW in error:
+        return "stale(可重来)"
+    if "QueryDeadlockError" in error or "1213" in error:
+        return "1213"
+    if "QueryTimeoutError" in error or "1205" in error:
+        return "1205"
+    if "TimestampMismatch" in error:
+        return "TimestampMismatch"
+    if "Please try again later" in error:
+        return "Exhausted(请稍后重试)"
+    if "CollectionError" in error or "ValidationError" in error:
+        return "业务拒绝:" + error[:80]
+    return "other:" + error[:120]
+
+
+def counted(function, log):
+    """数一路经入口整笔重来时被调了几次、每次失败是什么。"""
+    def run(*args, **kwargs):
+        log.append("call")
+        try:
+            return function(*args, **kwargs)
+        except Exception as error:  # noqa: BLE001
+            log.append(kind(type(error).__name__ + ": " + str(error)))
+            raise
+    return run
+
+
+def tally_kinds(results, name, good, detail, box, logs=None):
+    tally(results, name, good, detail)
+    cell = results[name]
+    kinds = cell.setdefault("kinds", {})
+    for label, value in box.items():
+        key = kind(value.get("error"))
+        kinds[key] = kinds.get(key, 0) + 1
+    if logs is not None:
+        inner = cell.setdefault("inner", {})
+        for log in logs:
+            calls = log.count("call")
+            inner["retries"] = inner.get("retries", 0) + max(calls - 1, 0)
+            for item in log:
+                if item != "call":
+                    inner[item] = inner.get(item, 0) + 1
+
+
+MADE_CUSTOMERS = []
+
+
+def _book_seed(customers=20, invoices=20):
+    """同一本账套里造 ``customers`` 位客户 × 每位 ``invoices`` 张未收发票（各 1000）。回 (co, collector, book_key, {客户: [单号]})。"""
+    from pearnly_erp_portal.collection import snapshot
+
+    co, collector, book_key, first, _ = _collection_seed()
+    MADE_CUSTOMERS.append(first)
+    made = {}
+    for _ in range(customers):
+        code = ("CB" + secrets.token_hex(3)).upper()
+        frappe.get_doc({"doctype": "ERP Customer", "customer_name": f"{TAG} collect {code}", "express_company": co,
+                        "express_code": code, "is_active": 1}).insert(ignore_permissions=True)
+        MADE_CUSTOMERS.append(code)
+        docnums = [("IV" + secrets.token_hex(3)).upper() for _ in range(invoices)]
+        snapshot.replace(co, book_key, [{"docnum": docnum, "rectyp": "3", "docdat": frappe.utils.nowdate(), "customer": code,
+                                          "salesman": "S1", "department": "", "net": "1000.00", "received": "0.00",
+                                          "remaining": "1000.00"} for docnum in docnums],
+                         frappe.utils.now_datetime().isoformat(), customer=code)
+        made[code] = docnums
+    frappe.db.commit()
+    total = frappe.db.count("ERP Receivable Snapshot", {"book_key": book_key})
+    plans = {}
+    one = next(iter(made))
+    for label, sql in (("lock_customer", "EXPLAIN SELECT name FROM `tabERP Receivable Snapshot` WHERE book_key = %s AND customer = %s ORDER BY name FOR UPDATE"),
+                       ("lock", "EXPLAIN SELECT name, docnum, remaining FROM `tabERP Receivable Snapshot` WHERE book_key = %s AND docnum IN (%s) FOR UPDATE")):
+        args = [book_key, one] if label == "lock_customer" else [book_key, made[one][0]]
+        plans[label] = [{"key": row.get("key"), "rows": row.get("rows"), "type": row.get("type")}
+                        for row in frappe.db.sql(sql, args, as_dict=True)]
+    print("SEED " + json.dumps({"book_rows": total, "plans": plans}, default=str), file=sys.stderr)
+    return co, collector, book_key, made
+
+
+def collection_same_book_other_customers(site, rounds, results, entry):
+    """同一本账套（约 400 行快照）两位不同客户各一笔收款草稿（各收自己的一张发票），两路读视图都早于对方、同时起跑放行。
+    判：两笔都放行。``entry``：两路都经入口的整笔重来（`service._retried`）。"""
+    from pearnly_erp_portal.collection import contracts, service
+
+    name = "erp.collection_same_book_other_customers" + ("_entry" if entry else "")
+    co, collector, book_key, made = _book_seed()
+    codes = list(made)
+    for index in range(rounds):
+        pair = [codes[(2 * index) % len(codes)], codes[(2 * index + 1) % len(codes)]]
+        slot = (2 * index) // len(codes)
+        frappe.set_user(collector)
+        drafts = [service.create_draft(co, code, [{"docnum": made[code][slot], "amount": "1000"}], cash="1000") for code in pair]
+        frappe.db.commit()
+        logs = [[] for _ in drafts]
+
+        def call(draft, position):
+            consent = f"line:{TAG}-sb-{int(entry)}-{index}-{position}"
+            if entry:
+                return service._retried(counted(service.release, logs[position]), draft["name"], draft["version"], consent)
+            return service.release(draft["name"], draft["version"], consent)
+        box = _threads(site, collector, [
+            (draft["name"], _stale_then(0.3, lambda draft=draft, position=position: call(draft, position)))
+            for position, draft in enumerate(drafts)])
+        frappe.db.rollback()
+        statuses = [frappe.db.get_value("ERP Collection", draft["name"], "status") for draft in drafts]
+        leaked = {k: v["error"] for k, v in box.items() if "error" in v}
+        tally_kinds(results, name, statuses.count(contracts.QUEUED) == 2 and not leaked, {"statuses": statuses, "box": box},
+                    box, logs if entry else None)
+
+
+def collection_draft_change_vs_release(site, rounds, results, entry):
+    """同一位客户两笔草稿共用发票 X（未收 1000；A 收 400、B 收 300），一路放行 A，另一路同时改 B（``update_draft`` 改成 200）
+    或作废 B（``discard_draft``，两种各半轮），同时起跑、读视图都早于对方。判：两路都不漏出 1213 / 1205 / 417（业务拒绝可以）。
+    ``entry``：两路都经入口的整笔重来（`service._retried`）。"""
+    from pearnly_erp_portal.collection import contracts, service
+
+    name = "erp.collection_draft_change_vs_release" + ("_entry" if entry else "")
+    for index in range(rounds):
+        co, collector, book_key, customer, (invoice,) = _offset_seed([("IV", "3", "1000.00")])
+        MADE_CUSTOMERS.append(customer)
+        frappe.set_user(collector)
+        a = service.create_draft(co, customer, [{"docnum": invoice, "amount": "400"}], cash="400")
+        b = service.create_draft(co, customer, [{"docnum": invoice, "amount": "300"}], cash="300")
+        frappe.db.commit()
+        logs = [[], []]
+        edit = index % 2 == 0
+
+        def release():
+            consent = f"line:{TAG}-dc-{int(entry)}-{index}"
+            if entry:
+                return service._retried(counted(service.release, logs[0]), a["name"], a["version"], consent)
+            return service.release(a["name"], a["version"], consent)
+
+        def change():
+            if edit:
+                if entry:
+                    return service._retried(counted(service.update_draft, logs[1]), b["name"], b["version"],
+                                            [{"docnum": invoice, "amount": "200"}], cash="200")
+                return service.update_draft(b["name"], b["version"], [{"docnum": invoice, "amount": "200"}], cash="200")
+            if entry:
+                return service._retried(counted(service.discard_draft, logs[1]), b["name"])
+            return service.discard_draft(b["name"])
+        box = _threads(site, collector, [("release", _stale_then(0.3, release)),
+                                         ("update" if edit else "discard", _stale_then(0.3, change))])
+        frappe.db.rollback()
+        rows = {k: frappe.db.get_value("ERP Collection", d["name"], ["status", "draft_version"], as_dict=True)
+                for k, d in (("A", a), ("B", b))}
+        bad = {k: v["error"] for k, v in box.items() if "error" in v and not kind(v["error"]).startswith("业务拒绝")}
+        tally_kinds(results, name, not bad, {"mode": "update" if edit else "discard", "rows": rows, "box": box},
+                    box, logs if entry else None)
+        results[name].setdefault("by_mode", {}).setdefault("update" if edit else "discard", []).append(
+            {k: kind(v.get("error")) for k, v in box.items()})
+
+
+def collection_receipt_vs_release(site, rounds, results, entry):
+    """同一位客户一张发票 X（未收 1000）：收款 C 已放行（收 400、待写入），收款 A 是草稿（收 300）。一路记 C 的写账回执（成功、
+    X 写后余额 600：先改快照余额、再改 C 的状态），另一路同时放行 A，读视图都早于对方、同时起跑。判：两路都成、不漏出 1213；
+    A 放行后 X 的快照余额 600、A 还占 300。``entry``：放行经入口的整笔重来（`service._retried`）；回执照机器通道原样直调。"""
+    from pearnly_erp_portal.collection import contracts, push, service, snapshot
+
+    name = "erp.collection_receipt_vs_release" + ("_entry" if entry else "")
+    for index in range(rounds):
+        co, collector, book_key, customer, (invoice,) = _offset_seed([("IV", "3", "1000.00")])
+        MADE_CUSTOMERS.append(customer)
+        frappe.set_user(collector)
+        c = service.create_draft(co, customer, [{"docnum": invoice, "amount": "400"}], cash="400")
+        frappe.db.commit()
+        if service.release(c["name"], c["version"], f"line:{TAG}-rc-{int(entry)}-{index}-c")["status"] != "released":
+            raise RuntimeError("seed release refused")
+        frappe.db.commit()
+        a = service.create_draft(co, customer, [{"docnum": invoice, "amount": "300"}], cash="300")
+        frappe.db.commit()
+        job = frappe.db.get_value("ERP Collection", c["name"], "job")
+        view = {"source_doctype": "ERP Collection", "source_name": c["name"], "job": job, "status": "success",
+                "docnum": f"RE{index:05d}", "receipt": {"invoices": [{"docnum": invoice, "remaining_after": "600.00"}]}}
+        logs = [[]]
+
+        def release():
+            consent = f"line:{TAG}-rc-{int(entry)}-{index}-a"
+            if entry:
+                return service._retried(counted(service.release, logs[0]), a["name"], a["version"], consent)
+            return service.release(a["name"], a["version"], consent)
+        box = _threads(site, collector, [("receipt", _stale_then(0.3, lambda: push.job_changed(view))),
+                                         ("release", _stale_then(0.3, release))])
+        frappe.db.rollback()
+        rows = {k: frappe.db.get_value("ERP Collection", d["name"], "status") for k, d in (("C", c), ("A", a))}
+        remaining = frappe.db.get_value(snapshot.DOCTYPE, {"book_key": book_key, "docnum": invoice}, "remaining")
+        held = service.reserved(book_key, [invoice]).get(invoice)
+        leaked = {k: v["error"] for k, v in box.items() if "error" in v}
+        stale = not entry and set(leaked) == {"release"} and STALE_VIEW in leaked["release"]
+        # 直调没有整笔重来：放行核出读视图旧了照设计抛可重来冲突（A 仍是草稿、什么都没留），不算错；死锁 / 别的错算错
+        good = (rows == {"C": contracts.WRITTEN, "A": contracts.DRAFT} and held is None) if stale else (
+            rows == {"C": contracts.WRITTEN, "A": contracts.QUEUED} and str(held) in ("300", "300.00"))
+        good = good and str(remaining) in ("600", "600.0", "600.00")
+        leaked = {} if stale else leaked
+        tally_kinds(results, name, good and not leaked, {"rows": rows, "remaining": str(remaining), "held": str(held), "box": box},
+                    box, logs if entry else None)
+
+
+def lockorder_cleanup():
+    """删掉本次造的全部数据：这些客户的收款记录（连明细、写账任务）、快照行、客户主档。"""
+    frappe.set_user("Administrator")
+    frappe.db.rollback()
+    if not MADE_CUSTOMERS:
+        return
+    names = frappe.get_all("ERP Collection", filters={"customer": ["in", MADE_CUSTOMERS]}, pluck="name")
+    if names:
+        frappe.db.delete("Pearnly CC Job", {"source_doctype": "ERP Collection", "source_name": ["in", names]})
+        for child in ("ERP Collection Invoice", "ERP Collection Payment"):
+            frappe.db.delete(child, {"parenttype": "ERP Collection", "parent": ["in", names]})
+        frappe.db.delete("ERP Collection", {"name": ["in", names]})
+    frappe.db.delete("ERP Receivable Snapshot", {"customer": ["in", MADE_CUSTOMERS]})
+    frappe.db.delete("ERP Customer", {"express_code": ["in", MADE_CUSTOMERS], "customer_name": ["like", f"{TAG} collect %"]})
+    frappe.db.commit()
+    print("CLEANUP " + json.dumps({"customers": len(MADE_CUSTOMERS), "collections": len(names)}), file=sys.stderr)
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
@@ -1756,6 +1985,15 @@ def erp(site, rounds):
     guarded(results, "erp.collection_same_customer_releases", collection_same_customer_releases, site, rounds, results)
     guarded(results, "erp.collection_same_customer_via_line", collection_same_customer_via_line, site, rounds, results)
     guarded(results, "erp.collection_offset_shapes", collection_offset_shapes, site, rounds, results)
+    try:
+        for entry in (False, True):
+            suffix = "_entry" if entry else ""
+            for cell, function in (("erp.collection_same_book_other_customers", collection_same_book_other_customers),
+                                   ("erp.collection_draft_change_vs_release", collection_draft_change_vs_release),
+                                   ("erp.collection_receipt_vs_release", collection_receipt_vs_release)):
+                guarded(results, cell + suffix, function, site, rounds, results, entry)
+    finally:
+        lockorder_cleanup()
     guarded(results, "erp.snapshot_double_land", snapshot_double_land, site, rounds, results)
     guarded(results, "erp.snapshot_balances_stale", snapshot_balances_stale, site, rounds, results)
     guarded(results, "erp.snapshot_busy_book", snapshot_busy_book, site, rounds, results)
