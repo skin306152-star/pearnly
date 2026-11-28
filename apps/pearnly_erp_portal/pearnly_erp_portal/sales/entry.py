@@ -151,7 +151,7 @@ def _buyer(payload, company=None, started=None):
 # ── 提交 ────────────────────────────────────────────────────────────────────
 
 
-def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False):
+def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False, fresh=False):
     """`allow_duplicate` is server-only (LINE intake records duplicates, user 2026-09-25)."""
     guard.require("sales.write")
     if not isinstance(payload, dict) or not request_id or len(str(request_id)) > 140:
@@ -160,6 +160,8 @@ def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False
     fingerprint = hashlib.sha256(json.dumps([payload, name], sort_keys=True,
                                            ensure_ascii=False, default=str).encode()).hexdigest()
     with pearnly_state.store().lock(pearnly_state.store().make_key("erp-sales-post"), timeout=120, blocking_timeout=20):
+        if fresh:
+            frappe.db.commit()  # 同采购 `purchasing.entry.post`（11-28 B ②）：网页入口拿锁后结束读视图
         try:
             # 加锁读查重：读视图早于拿锁，普通读看不到另一路刚提交的同号单（11-28 B ③）；锁住这一行到本事务结束
             existing = frappe.db.get_value(DOCTYPE, {"request_id": request_id},

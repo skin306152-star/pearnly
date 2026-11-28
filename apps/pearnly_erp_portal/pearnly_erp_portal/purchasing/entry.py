@@ -122,7 +122,7 @@ def _calculate(payload):
         frappe.throw(_(str(exc)))
 
 
-def post(payload, *, request_id, name=None, amended_from=None, finalize=None, allow_duplicate=False):
+def post(payload, *, request_id, name=None, amended_from=None, finalize=None, allow_duplicate=False, fresh=False):
     """`allow_duplicate` is server-only (LINE intake, user 2026-09-25: duplicates are
     recorded, not blocked); the web API cannot pass it."""
     guard.require("purchase.write")
@@ -133,6 +133,10 @@ def post(payload, *, request_id, name=None, amended_from=None, finalize=None, al
                                            ensure_ascii=False, default=str).encode()).hexdigest()
     # Serialize auto-item matching until commit. Unique request_id remains the durable replay guard.
     with pearnly_state.store().lock(pearnly_state.store().make_key("erp-purchase-post"), timeout=120, blocking_timeout=20):
+        if fresh:
+            # 网页入口（11-28 B ②）：拿到锁后结束读视图（到这里还没写过），之后读到的草稿、原单、付款都是别人刚提交的值——
+            # 「修改」作废原单时按最新的付款冲回。LINE / CC 在锁卡片之后调这里，不能提交（会放掉卡片锁），不传 fresh
+            frappe.db.commit()
         try:
             # 加锁读查重：读视图早于拿锁，普通读看不到另一路刚提交的同号单（11-28 B ③）；锁住这一行到本事务结束
             existing = frappe.db.get_value("Purchase Document", {"request_id": request_id},

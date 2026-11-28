@@ -32,4 +32,8 @@ def api_open_line_intake(name):
 
 @frappe.whitelist(methods=["POST"])
 def api_submit_line_intake(name, payload):
-    return intake.submit(name, frappe.parse_json(payload) if isinstance(payload, str) else payload)
+    from pearnly_core.transaction import conflicts
+
+    # 网页从卡片打开后提交（11-28 B ②）：先结束请求开头的读视图，`_owned(lock=True)` 先锁卡片再读；撞冲突整笔重来
+    frappe.db.commit()
+    return conflicts.attempt(intake.submit, name, frappe.parse_json(payload) if isinstance(payload, str) else payload)

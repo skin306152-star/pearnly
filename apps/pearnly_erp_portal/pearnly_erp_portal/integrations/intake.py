@@ -439,11 +439,12 @@ def totals(doc, result=None) -> dict:
 
 
 def _owned(name, *, lock=False):
-    """只有发这张单据的本人能打开 / 提交（服务端判，不靠页面）。"""
+    """只有发这张单据的本人能打开 / 提交（服务端判，不靠页面）。``lock``：先加锁、再做任何普通读（11-28 B ②）——关快照隔离后
+    先普通读（exists）再锁，后面的 get_doc 读到的是旧副本，状态判断会按旧的走。"""
+    if lock and name:
+        frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", name)
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
-    if lock:
-        frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", name)
     doc = frappe.get_doc(DOCTYPE, name)
     if doc.sent_by != frappe.session.user:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
