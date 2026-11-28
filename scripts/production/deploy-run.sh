@@ -120,7 +120,7 @@ for product in erp cowork dms; do
     /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces sync --product "$product" \
     </dev/null > "$STATE/surfaces-$product-$short.log" 2>&1
   rc=$?
-  grep -E '^(PLAN|BEFORE|SITE|SUMMARY) ' "$STATE/surfaces-$product-$short.log"
+  grep -E '^(PLAN|BEFORE|ROLLBACK|SITE|SUMMARY) ' "$STATE/surfaces-$product-$short.log"
   if [[ $rc -ne 0 ]]; then
     tail -25 "$STATE/surfaces-$product-$short.log"
     fail "LINE surfaces $product exited $rc (SUMMARY above names the site; roll a published site back with: docker exec -w /home/frappe/frappe-bench/sites pearnly-production-$product-web-1 /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces restore --product $product --site <site> --surface <surface> --before '<config JSON of its BEFORE line>')"
