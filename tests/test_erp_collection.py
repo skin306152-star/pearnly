@@ -1502,6 +1502,27 @@ class Snapshot(Base):
         with mock.patch.object(self.requests, "create", side_effect=frappe.ValidationError("cc_desktop.request_invalid")):
             self.assertEqual(snapshot.request("CO-1", BOOK, "2100900"), snapshot.OUTDATED)
 
+    def test_computers_older_than_offsets_get_the_plain_read_and_the_collection_goes_on(self):
+        """CC 桌面版 1.12.26 发版前后（11-28）：够得到的电脑都还是 1.12.25（不认 ``offsets``）时，服务端照旧发只读发票的那种，
+        收款照常列发票、不说要更新。电脑连只读发票的都不认时才回「要更新」。"""
+        seen = []
+
+        def waiting(kind, book_key, actor=None, params=None):
+            seen.append(dict(params or {}))
+            return {"reason": "update_needed"} if (params or {}).get("offsets") else None
+
+        with mock.patch.object(self.requests, "waiting", side_effect=waiting):
+            self.assertEqual(snapshot.request("CO-1", BOOK, "2100900"), snapshot.READING)
+        key = snapshot.request_key(BOOK["key"], "2100900")
+        self.assertNotIn("offsets", self.requests.made[key]["params"])
+        self.assertEqual([bool(p.get("offsets")) for p in seen], [True, False])
+        self.requests.finish(key, [{"docnum": "IV3", "customer": "2100900", "net": "50", "received": "0",
+                                    "remaining": "50"}], "2026-11-11T06:00:00+00:00")
+        self.assertEqual(snapshot.request("CO-1", BOOK, "2100900"), snapshot.READY)
+        self.assertEqual([row.docnum for row in snapshot.rows(BOOK["key"], "2100900")], ["IV3"])
+        with mock.patch.object(self.requests, "waiting", return_value={"reason": "update_needed"}):
+            self.assertEqual(snapshot.request("CO-1", BOOK, "2100901"), snapshot.OUTDATED)
+
 
 class WebPage(Base):
     def setUp(self):
