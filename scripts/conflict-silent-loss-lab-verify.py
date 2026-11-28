@@ -1181,6 +1181,7 @@ def cowork(site, rounds):
         guarded(results, "cowork.automation_keeps_l0", automation_keeps_l0, site, rounds, results, company)
         guarded(results, "cowork.withdrawn_keeps_new_push", push_state_withdrawn, site, rounds, results, history)
         guarded(results, "cowork.delete_drops_new_records", removal_drops_new_records, site, rounds, results, history)
+        guarded(results, "cowork.folder_push_vs_human", folder_push_vs_human, site, rounds, results, workspace)
     finally:
         frappe.db.sql("delete from `tabCowork Company Automation` where company = %s", (company,))
         frappe.db.sql("delete from `tabCowork Push Record` where history = %s", (history,))
@@ -1188,6 +1189,125 @@ def cowork(site, rounds):
         frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (history,))
         frappe.db.commit()
     return results
+
+
+class _Prepared(Exception):
+    """无人值守的推送越过了「人推过没有」那道核、接着往下准备（真站上下一步就冻结目标、建这次的推送记录）。"""
+
+
+def folder_push_vs_human(site, rounds, results, workspace):
+    """④ A2 #1 / #3：无人值守的推送判完「没人改过、没推过」之后，另一路（人在网页）把同一张推往另一份账套并提交（推送记录
+    + 票上的推送状态，`push_state.mirror` 原样走）；本连接接着推 → 只能有人推的那一条：推送服务锁住票后要核出人推过、回 human。
+    两条路各半：文件夹定时推送（`folder_intake.push.push_one`，判完在取要选的项时人推）、自动推送扫描（`sweep.candidates` +
+    `sweep.one`，判定那一步时人推）。实验站没有 Express 连接与目录：连接读取、请求号查找换成替身，越过重核后的第一步
+    （`_document_block`）换成 `_Prepared`，算「会建第二条推送记录」；人推往另一份账套，是因为同一份账套的重复准备推送账本按
+    单据键（加锁读）本来就挡住（`push.native.service.reserve`），这里测的是它挡不住的那种。"""
+    from datetime import timedelta
+
+    from pearnly_cowork.connections import service as connections
+    from pearnly_cowork.folder_intake import follow
+    from pearnly_cowork.folder_intake import push as folder_push
+    from pearnly_cowork.history import push_state
+    from pearnly_cowork.push.application import service as application
+    from pearnly_cowork.push.automation import sweep
+    from pearnly_cowork.push.native import service as ledger
+
+    user = frappe.db.get_value("User", {"name": ["like", "acc.cowork@%"], "enabled": 1}, "name")
+    connection = f"{TAG}-CONN-{secrets.token_hex(3)}"
+    raw_row("Cowork ERP Connection", connection, {"workspace": workspace, "adapter": "express", "enabled": 1,
+                                                    "record_revision": 1})
+    frappe.db.commit()
+    automation = {"class": "A", "tier": "L0", "trigger": "task", "reasons": []}
+    human = {}
+
+    def web_push():
+        """另一路请求：人把这张推往另一份账套、已排队（推送记录 + 票上的状态），提交。"""
+        history = human.pop("history", None)
+        if not history:
+            return
+        record = f"{TAG}-PR-{secrets.token_hex(4)}"
+
+        def push():
+            raw_row("Cowork Push Record", record, {"history": history, "status": "pending", "workspace": workspace,
+                                                   "client": "", "connection": connection, "account_key": "BOOK-B",
+                                                   "request_digest": secrets.token_hex(16)})
+            push_state.mirror(frappe._dict(name=record, history=history, status="pending", workspace=workspace, client="",
+                                           connection=connection, account_key="BOOK-B", reason=""),
+                              frappe.utils.now_datetime(), select=True)
+        elsewhere(site, user, push)
+
+    def judged(*args, **kwargs):
+        web_push()  # 判完、接着要推的那一刻
+        return {"assessed": True, "action": "push", "class": "A", "tier": "L0", "codes": "", "why": "", "proposal": None,
+                "needed": [], "checked_at": sweep._now(), "account_set": "BOOK-A", "automation": dict(automation)}
+
+    def choices(*args, **kwargs):
+        web_push()
+        return {"needed": [], "account_set": "BOOK-A"}
+
+    def prepared(doc):
+        raise _Prepared()
+
+    loaded = frappe._dict(doc=frappe._dict(name=connection), revision=1, endpoint={"adapter": "express"})
+    saved = [(push_state, "_changed"), (push_state, "_announce"), (connections, "read_for_push"),
+             (ledger, "lookup_request"), (ledger, "has_writer"), (application, "_document_block"),
+             (application, "assess"), (application, "choices_view"), (follow, "choose")]
+    saved = [(module, key, getattr(module, key)) for module, key in saved]
+    push_state._changed = push_state._announce = lambda *args, **kwargs: None
+    connections.read_for_push = lambda *args, **kwargs: loaded
+    ledger.lookup_request = lambda context, key: None
+    ledger.has_writer = lambda *args, **kwargs: True
+    application._document_block = prepared
+    application.assess, application.choices_view = judged, choices
+    follow.choose = lambda rule, history, device=None: None
+    rule = frappe._dict(connection=connection, account_set_key="BOOK-A", posting_kind=None, defaults_json="{}",
+                        reader_device="")
+    made = []
+    try:
+        for index in range(rounds):
+            path = "folder" if index % 2 == 0 else "sweep"
+            history = f"{TAG}-H-{secrets.token_hex(4)}"
+            made.append(history)
+            raw_row("Cowork OCR History", history, {"workspace": workspace, "client": "", "record_version": 1,
+                                                    "edit_count": 0, "intake_target": "express", "source": "manual",
+                                                    "push_connection": connection, "push_account_set": "BOOK-A"})
+            frappe.db.sql("update `tabCowork OCR History` set owner=%s, creation=%s where name=%s",
+                          (user, frappe.utils.now_datetime() - timedelta(minutes=20), history))
+            frappe.db.commit()
+            human["history"] = history
+            frappe.set_user(user)
+            outcome = None
+            try:
+                read_view("Cowork OCR History")
+                if path == "folder":
+                    entry = frappe._dict(name=f"{TAG}-F-{secrets.token_hex(3)}", filename="bill.pdf", reader_device="")
+                    outcome = folder_push.push_one(entry, rule, history)
+                    good = outcome == {"status": "human"}
+                else:
+                    row = next((row for row in sweep.candidates() if row.name == history), None)
+                    outcome = sweep.one(row) if row else "not_a_candidate"
+                    good = outcome == "human"
+            except _Prepared:
+                outcome, good = "prepared_a_second_push", False
+            finally:
+                frappe.db.rollback()
+                frappe.set_user("Administrator")
+            records = frappe.db.count("Cowork Push Record", {"history": history})
+            tally(results, "cowork.folder_push_vs_human", good and records == 1 and not human,
+                  {"path": path, "outcome": outcome, "records": records, "human_pushed": not human})
+            seen = results["cowork.folder_push_vs_human"].setdefault("paths", {}).setdefault(path, {})
+            seen[str(outcome)] = seen.get(str(outcome), 0) + 1  # 两条路各自的结局，记录里分开写
+            human.clear()
+    finally:
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+        for history in made:
+            frappe.db.sql("delete from `tabCowork Push Record` where history = %s", (history,))
+            frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (history,))
+        frappe.db.sql("delete from `tabCowork ERP Connection` where name = %s", (connection,))
+        frappe.db.commit()
 
 
 def removal_drops_new_records(site, rounds, results, history):
