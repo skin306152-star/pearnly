@@ -106,9 +106,6 @@ apps/pearnly_dms/pearnly_dms/editor/booking_edit.py	load	Pearnly LINE Session	�
 apps/pearnly_dms/pearnly_dms/editor/booking_edit.py	save	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_dms/pearnly_dms/editor/customer_edit.py	save	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_dms/pearnly_dms/intake/customer_attempt.py	finish	Pearnly Push Log	判断	④	未判	存量（B ③ 11-28 全仓扫描）：DMS 客户写入日志收尾：外部写入后按结果写日志；随 ④ 核
-apps/pearnly_dms/pearnly_dms/intake/flow.py	_dms_failed	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_dms/pearnly_dms/intake/flow.py	_offer_check	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_dms/pearnly_dms/intake/flow.py	_recognize_image	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_dms/pearnly_dms/intake/flow.py	execute	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_dms/pearnly_dms/intake/flow.py	handle_postback	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_dms/pearnly_dms/intake/flow.py	merge_session	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数

@@ -151,6 +151,10 @@ class IntakeQueue(unittest.TestCase):
         cache.make_key.side_effect = lambda key: key
         cache.hincrby.side_effect = lambda key, field, value: self.counts.update({field.partition("|")[2]: value})
         replace(frappe, "cache", return_value=cache)
+        # 同一个人的串行块（`line_session.serialized`，Redis 锁）：离线单线程，锁总能拿到
+        lock = Mock()
+        lock.acquire.return_value = True
+        replace(self.store.pearnly_state, "store", return_value=Mock(make_key=lambda key: key, lock=Mock(return_value=lock)))
         dms_wait_fixture.install(self.stack.enter_context)  # LINE 等结果的在等 / 存档放内存（11-23 共用件）
         replace(frappe, "enqueue", side_effect=lambda method, **kwargs: self.jobs.append((method, copy.deepcopy(kwargs))))
         replace(requests.sessions.Session, "request", side_effect=AssertionError("Unexpected external HTTP"))

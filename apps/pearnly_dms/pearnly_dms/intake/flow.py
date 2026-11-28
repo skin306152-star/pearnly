@@ -400,10 +400,7 @@ def _recognize_image(binding, line_user_id, message_id, reply_token):
             _send(line_user_id, id_scan.prompt(cards.TXT_BLURRY), reply_token)
         return {"failed": "image_unavailable", "notified": True}
     try:
-        ep, ocr, _ = _id_ocr.recognize_id_card(
-            user_id, content, f"line_{message_id}.jpg", "", None,
-            billing_reference=f"idcard:line:{message_id}",
-        )
+        endpoint_id, ocr = _recognized(user_id, content, message_id)
     except _id_ocr.DmsOcrError as exc:
         frappe.db.commit()
         if _image_draft(binding, line_user_id, message_id):
@@ -420,16 +417,52 @@ def _recognize_image(binding, line_user_id, message_id, reply_token):
         return {"cancelled": "review_required"}
 
     id_card = _id_ocr.editable_id_card(ocr["id_card"])
-    old = expected.get("payload") or {}
-    payload = {k: old[k] for k in ("phone", "mode") if old.get(k)}
-    payload.update(id_card=id_card, endpoint_id=str(ep.get("id") or ""), id_card_mid=message_id)
-    if not store.replace_session_snapshot(line_user_id, expected, "collecting", payload):
+    written = {}
+
+    def merge(current):
+        # 串行块里加锁读到的此刻会话：仍在收这张图（最后一张为准）才把身份证并进去；识别期间刚到的手机号照样留着
+        # （④ 第二期：以前按识别前读到的那份整份比对，期间来了手机号就判「草稿变了」，已付费的结果被丢掉）
+        if ((current or {}).get("state") != "collecting"
+                or ((current or {}).get("payload") or {}).get("pending_image") != message_id):
+            return None
+        old = current.get("payload") or {}
+        payload = {k: old[k] for k in ("phone", "mode") if old.get(k)}
+        payload.update(id_card=id_card, endpoint_id=endpoint_id, id_card_mid=message_id)
+        written.update(payload)
+        return "collecting", payload
+
+    if not current_binding(binding, line_user_id):
         return {"cancelled": "draft_changed"}
-    if payload.get("phone"):
-        run_dedup(binding, line_user_id, id_card, payload["phone"], str(ep.get("id") or ""),
-                  reply_token=reply_token)
+    store.update_session(line_user_id, merge)
+    if not written:
+        return {"cancelled": "draft_changed"}
+    if written.get("phone"):
+        run_dedup(binding, line_user_id, id_card, written["phone"], endpoint_id, reply_token=reply_token)
     else:
         _push(line_user_id, cards.TXT_ASK_PHONE, reply_token)
+
+
+# 身份证识别结果的检查点（执行器 `execution.work.checkpoint`，按行存、自己提交；同 ERP LINE 收单的写法）：识别付过费之后记会话撞冲突、
+# 进程中途没了，任务重跑从这里取回，不再付费识别。状态用产品自己的「terminal」，不算进付费调用计数。
+RESULT_CHECKPOINT = "dms.id_card.result"
+RESULT_STATE = "terminal"
+
+
+def _recognized(user_id, content, message_id):
+    """这张身份证的识别结果 ``(endpoint_id, ocr)``（扣费参考号固定 `idcard:line:<消息号>`）：本次任务有检查点就取回。"""
+    from pearnly_core.execution import work
+
+    saved = work.checkpoint(RESULT_CHECKPOINT)
+    if saved and saved.get("state") == RESULT_STATE and isinstance(saved.get("body"), dict):
+        return str(saved["body"].get("endpoint_id") or ""), dict(saved["body"].get("ocr") or {})
+    ep, ocr, _ = _id_ocr.recognize_id_card(
+        user_id, content, f"line_{message_id}.jpg", "", None,
+        billing_reference=f"idcard:line:{message_id}",
+    )
+    endpoint_id = str((ep or {}).get("id") or "")
+    work.checkpoint(RESULT_CHECKPOINT, RESULT_STATE,
+                    json.loads(json.dumps({"endpoint_id": endpoint_id, "ocr": ocr}, ensure_ascii=False, default=str)))
+    return endpoint_id, ocr
 
 
 def _image_draft(binding, line_user_id, message_id):
@@ -603,23 +636,17 @@ def _dms_failed(
     if not dms_retry.is_retryable(code):
         _push(line_user_id, text, reply_token)
         return
-    sess = store.get_session(line_user_id) or {}
-    state = str(sess.get("state") or "collecting")
-    payload = dict(sess.get("payload") or {})
-    if dms_retry.clamp(attempt) >= dms_retry.MAX_ATTEMPTS:
-        payload.pop("dms_retry", None)
-        store.set_session(line_user_id, state, payload)
+    last = dms_retry.clamp(attempt) >= dms_retry.MAX_ATTEMPTS
+    retry = None if last else {"kind": kind, "attempt": dms_retry.clamp(attempt), "payload": retry_payload}
+    # 写 DMS（外部动作）之后再改会话：串行块里加锁读此刻的会话、只动 `dms_retry` 这一键（④ 第二期 L10），
+    # 不拿写之前读到的那份整份写回，期间本人在 LINE 上的操作不被盖掉；会话已经没了就不重建
+    _set_retry(line_user_id, retry, "collecting")
+    if last:
         # 第三次仍连不上：只说那一句，不再给按键（文案在错误码表里，与上面那句同源）。
         from pearnly_dms.line.errors import friendly as _friendly
 
         _push(line_user_id, _friendly("ERR_DMS_UNREACHABLE", lang=i18n.line_lang()), reply_token)
         return
-    payload["dms_retry"] = {
-        "kind": kind,
-        "attempt": dms_retry.clamp(attempt),
-        "payload": retry_payload,
-    }
-    store.set_session(line_user_id, state, payload)
     from pearnly_dms.line.errors import retry_text
 
     _send(line_user_id, cards.retry_message(retry_text(code, text, i18n.line_lang())), reply_token)
@@ -633,12 +660,26 @@ def _offer_check(line_user_id: str, *, kind: str, attempt: int, text: str,
     （`intake.service.push_idcard_fields`）。核对不费重试次数，所以不计入"第三次就请联系
     管理员"那一档（`check_only`），也不进 `pacing.RETRYABLE`。
     """
-    sess = store.get_session(line_user_id) or {}
-    payload = dict(sess.get("payload") or {})
-    payload["dms_retry"] = {"kind": kind, "attempt": dms_retry.clamp(attempt),
-                            "payload": retry_payload, "check_only": True}
-    store.set_session(line_user_id, str(sess.get("state") or "reviewing"), payload)
+    _set_retry(line_user_id, {"kind": kind, "attempt": dms_retry.clamp(attempt),
+                              "payload": retry_payload, "check_only": True}, "reviewing")
     _send(line_user_id, cards.retry_message(text), reply_token)
+
+
+def _set_retry(line_user_id: str, retry: Optional[dict], default_state: str) -> None:
+    """（写 DMS 之后）串行块里加锁读此刻的会话，只改 `dms_retry` 这一键；``retry`` 为 None 是去掉它。会话已经没了不重建。"""
+    def change(current):
+        if not current:
+            return None
+        payload = dict(current.get("payload") or {})
+        if retry is None:
+            if "dms_retry" not in payload:
+                return None
+            payload.pop("dms_retry", None)
+        else:
+            payload["dms_retry"] = retry
+        return str(current.get("state") or default_state), payload
+
+    store.update_session(line_user_id, change)
 
 
 def _recheck(binding: dict, line_user_id: str, source_session: dict, result: dict,

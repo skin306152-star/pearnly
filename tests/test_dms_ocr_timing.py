@@ -191,7 +191,10 @@ class WorkflowTimingTests(TimingHarness):
         from pearnly_dms.intake import flow
         self.service_fakes()
         self.replace(flow, "_image_draft", return_value={"payload": {"mode": "customer"}})
-        self.replace(flow.store, "replace_session_snapshot", return_value=True)
+        # 写会话：串行块里加锁读此刻的会话再并进去（④ 第二期）；此刻仍在收这张图
+        self.replace(flow, "current_binding", return_value=True)
+        self.replace(flow.store, "update_session", side_effect=lambda user, change, ttl_minutes=None: change(
+            {"state": "collecting", "payload": {"mode": "customer", "pending_image": "private message"}}))
         def loading(*args):
             self.clock += 0.2
             return lambda: None  # 发回复前要等的 wait()
