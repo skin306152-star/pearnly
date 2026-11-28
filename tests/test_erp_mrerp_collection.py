@@ -219,13 +219,18 @@ class PermissionError_(Exception):
 class Db:
     def __init__(self):
         self.tables, self.touched = {}, 0
+        # 读视图替身（④ 11-28）：``stale[(doctype, name)]`` 是普通读看到的旧行，加锁读看最新；``locked`` 记加锁读过的行
+        self.stale, self.locked = {}, []
 
     def table(self, doctype):
         return self.tables.setdefault(doctype, {})
 
     def get_value(self, doctype, name, fields, as_dict=False, for_update=False):
         self.touched += 1
-        row = self.table(doctype).get(name)
+        if for_update:
+            self.locked.append((doctype, name))
+        row = self.table(doctype).get(name) if for_update else \
+            self.stale.get((doctype, name), self.table(doctype).get(name))
         if row is None:
             return None
         if isinstance(fields, str):
@@ -286,6 +291,8 @@ frappe.db, frappe.cache = DB, CACHE
 frappe._ = lambda text, *a, **k: text
 frappe.PermissionError = PermissionError_
 frappe.ValidationError = ValueError
+frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})  # 1213（共用重试 `conflicts.retried` 认它）
+frappe.TimestampMismatchError = type("TimestampMismatchError", (Exception,), {})
 frappe.session = types.SimpleNamespace(user="collector@x")
 frappe.local = types.SimpleNamespace(site="erp.test", lang="en")
 frappe.get_roles = lambda user=None: []
@@ -306,7 +313,8 @@ def _matches(row, filters):
     return True
 
 
-frappe.get_all = lambda doctype, filters=None, **kw: [Row(r) for r in DB.table(doctype).values() if _matches(r, filters)]
+frappe.get_all = lambda doctype, filters=None, **kw: [Row(r) for r in (DB.stale.get((doctype, k), v) for k, v in
+                                                                      DB.table(doctype).items()) if _matches(r, filters)]
 frappe.utils = types.ModuleType("frappe.utils")
 frappe.utils.now_datetime = lambda: NOW
 frappe.utils.get_datetime = lambda v: v if isinstance(v, datetime.datetime) else datetime.datetime.fromisoformat(str(v))
@@ -361,7 +369,7 @@ SMALL = {"branch": [{"code": "00000", "name": "สำนักงานใหญ
 def reset(menu_pages=None, masters=True):
     import json
 
-    for item in (DB.tables, CACHE.values, ENQUEUED, SNAPSHOT, PUSHED, TOLD):
+    for item in (DB.tables, CACHE.values, ENQUEUED, SNAPSHOT, PUSHED, TOLD, DB.stale, DB.locked, ERRORS):
         item.clear()
     DB.table("ERP Company")["CO-1"] = {"name": "CO-1", "company_name": "บริษัท เรา จำกัด", "tax_id": "",
                                       "branch": "00000", "express_enabled": 0, "mrerp_enabled": 1,
@@ -651,6 +659,91 @@ class _execute:
 
     def __exit__(self, *exc):
         self.patch.stop()
+
+
+@patch.object(mrerp_switch, "MRERP_LEDGER_ENABLED", True)
+class ConclusionConflict(unittest.TestCase):
+    """④ 按类同 A2 #16（11-28）：收款导入 MR.ERP 之后记结论加锁按现值复核仍是本次领取才写，撞冲突只重来记结论那一段、不再导入。"""
+
+    def setUp(self):
+        reset()
+        self.sleep = patch("pearnly_core.transaction.conflicts.time.sleep")
+        self.sleep.start()
+
+    def tearDown(self):
+        self.sleep.stop()
+
+    def run_with(self, outcome, meanwhile=None):
+        def execute(payload, target, secrets, url):
+            calls.append(target)
+            if meanwhile:
+                meanwhile(DB.table("ERP Collection")["COL261116-AB12"])
+            return {"menus": {}, "masters": {}, **outcome}
+
+        calls = []
+        module = types.ModuleType("pearnly_core.mrerp.push.receipt")
+        module.execute = execute
+        with _network(), patch.dict(sys.modules, {"pearnly_core.mrerp.push.receipt": module}):
+            ledger.run("COL261116-AB12")
+        return calls, DB.table("ERP Collection")["COL261116-AB12"]
+
+    def test_a_conflict_on_the_conclusion_retries_only_the_conclusion(self):
+        """记结论撞一次 1213：修前任务失败、这笔停在「写入中」；修后已写入、单号在，导入只发 1 次，结论前加锁读了这笔。"""
+        collection(cash="100.00")
+        real, hits = _push._set, []
+
+        def flaky(name, values):
+            if values.get("status") == contracts.WRITTEN and not hits:
+                hits.append(name)
+                raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+            return real(name, values)
+
+        with patch.object(_push, "_set", flaky):
+            calls, saved = self.run_with({"status": "success", "docnum": "FR1128-COL261116-AB12"})
+        self.assertEqual((saved["status"], saved["docnum"], saved["reason"]),
+                         (contracts.WRITTEN, "FR1128-COL261116-AB12", ""))
+        self.assertEqual((len(calls), hits), (1, ["COL261116-AB12"]))
+        self.assertIn(("ERP Collection", "COL261116-AB12"), DB.locked[1:])  # 领取之后，记结论前又加锁读了一次
+        self.assertEqual(TOLD, ["COL261116-AB12"])
+
+    def test_written_while_the_poll_had_turned_it_unknown_and_then_it_was_withdrawn(self):
+        """导入写进了 MR.ERP，此间这笔已被别的路径改过：被巡检转成结果不明的照实记已写入；结果不明后又被撤回的按「写进去后撤回」
+        转人工（已撤回 + express.voided_after_write + 单号留着），不记成干净的已写入；没写进去的不盖。"""
+        unknown = {"status": contracts.FAILED, "reason": "mrerp.result_unknown: ERR_IMPORT_INTERRUPTED"}
+        cases = (
+            ({"status": "success", "docnum": "FR1"}, unknown, (contracts.WRITTEN, "", "FR1")),
+            ({"status": "success", "docnum": "FR2"}, {"status": contracts.WITHDRAWN, "reason": ""},
+             (contracts.WITHDRAWN, "express.voided_after_write", "FR2")),
+            ({"status": "failed", "reason": "ERR_BOOM"}, {"status": contracts.WITHDRAWN, "reason": ""},
+             (contracts.WITHDRAWN, "", "")),
+            ({"status": "failed", "reason": "ERR_BOOM"}, unknown, (unknown["status"], unknown["reason"], "")),
+        )
+        for outcome, moved, expected in cases:
+            with self.subTest(outcome=outcome["status"], moved=moved["status"]):
+                reset()
+                collection(cash="100.00")
+                calls, saved = self.run_with(outcome, lambda row, moved=moved: row.update(moved))
+                self.assertEqual((saved["status"], saved["reason"], saved["docnum"]), expected)
+                self.assertEqual(len(calls), 1)
+
+    def test_written_while_it_moved_elsewhere_is_logged_not_overwritten(self):
+        collection(cash="100.00")
+        calls, saved = self.run_with({"status": "success", "docnum": "FR3"},
+                                     lambda row: row.update(status=contracts.QUEUED, reason=""))
+        self.assertEqual((saved["status"], saved["docnum"]), (contracts.QUEUED, ""))
+        self.assertEqual(len(ERRORS), 1)
+
+    def test_the_poll_rechecks_under_the_lock_before_turning_a_write_unknown(self):
+        """巡检普通读列出一笔超时的「写入中」，此间导入刚记成已写入：修前盖成结果不明；修后加锁按现值复核、不动。仍超时的照旧改。"""
+        old = NOW - datetime.timedelta(minutes=16)
+        collection(status=contracts.WRITING, reason="mrerp.importing", modified=old)
+        DB.stale[("ERP Collection", "COL261116-AB12")] = dict(DB.table("ERP Collection")["COL261116-AB12"])
+        DB.table("ERP Collection")["COL261116-AB12"].update(status=contracts.WRITTEN, reason="", docnum="FR4")
+        collection(name="COL6", status=contracts.WRITING, reason="mrerp.importing", modified=old)
+        ledger.poll()
+        first, second = DB.table("ERP Collection")["COL261116-AB12"], DB.table("ERP Collection")["COL6"]
+        self.assertEqual((first["status"], first["docnum"]), (contracts.WRITTEN, "FR4"))
+        self.assertEqual((second["status"], second["reason"]), (contracts.FAILED, "mrerp.result_unknown: ERR_IMPORT_INTERRUPTED"))
 
 
 # ── 导入执行对假 MR.ERP 站点（要 requests 与读导入报告的 openpyxl；缺一样就跳过，候选检查在生产镜像里跑）────────────

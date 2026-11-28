@@ -381,15 +381,17 @@ def run(name):
 
     outcome = execute(prepared["payload"], {"account_set": book["key"]},
                       {"username": lease["username"], "password": lease["password"]}, lease["system_url"])
+    from pearnly_core.transaction import conflicts
+
     try:
-        choices.observe(book["connection"], book["key"], outcome.get("menus"), outcome.get("masters") or None)
-        frappe.db.commit()
+        # 只是给选择用的缓存：撞冲突只重来存选项这一段，用尽 / 存不了都不影响导入结论（同 `mrerp.push.run`）
+        conflicts.retried(_observe, book["connection"], book["key"], outcome.get("menus"), outcome.get("masters") or None)
     except Exception:  # noqa: BLE001 — 只是给选择用的缓存，存不了不影响导入结论
         frappe.db.rollback()
-    values = settle(outcome)
-    push._set(name, values)
-    frappe.db.commit()
-    if values["status"] == contracts.WRITTEN:
+    # 记结论（④ 按类同 A2 #16，11-28）：导入已经发出、结果在手里，撞冲突只整笔重来记结论这一段，不再导入。原来不在 `retried` 里：
+    # 撞一次任务就失败，这笔停在「写入中」，15 分钟后被 :func:`poll` 转成结果不明，已写进 MR.ERP 的也要人工核。用尽照旧抛出。
+    values = conflicts.retried(_conclude, name, settle(outcome))
+    if values and values.get("docnum"):
         request(doc.company, book, doc.customer)  # 写后余额：按这位客户再读一次未收发票
         frappe.db.commit()
     push._tell(doc)
@@ -424,6 +426,44 @@ def resolve_unknown(doc, entered, docnum=None) -> None:
         book = book_row(doc.company, doc.book_key)
         if book:
             request(doc.company, book, doc.customer)  # 写后余额：同导入写成后按这位客户再读一次未收发票
+
+
+def _observe(connection, account_set, menus, masters):
+    from pearnly_erp_portal.mrerp import choices
+
+    choices.observe(connection, account_set, menus, masters)
+    frappe.db.commit()
+
+
+def _conclude(name, values):
+    """把导入结论记回这笔收款并提交，回写下的值（没写回 None）。由 :func:`run` 经 `conflicts.retried` 调：重来只重来这一段。
+
+    先加锁读这笔的状态与原因（导入那几十秒本事务提交过，普通读可能是旧的）：
+    - 仍是本次领取（写入中 + 正在导入）：按导入结果写。
+    - 已被别的路径改过、导入却写进了 MR.ERP：这笔已撤回的，按「写进去后撤回」的规则（同 :func:`withdraw`）留在已撤回、转人工、
+      单号留着；被巡检转成结果不明的，照实记已写入与单号（导入结果是事实，「结果不明」只是猜测）；别的状态不盖，记一条日志带单号。
+    - 已被别的路径改过、也没写进去：别人的结论为准。"""
+    from pearnly_erp_portal.collection import push
+    from pearnly_erp_portal.express import contracts as express_contracts
+    from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
+
+    row = frappe.db.get_value(DOCTYPE, name, ["status", "reason"], as_dict=True, for_update=True)
+    if not row:
+        return None
+    if not (row.status == contracts.WRITING and row.reason == mrerp_contracts.IMPORTING):
+        written = values["status"] == contracts.WRITTEN
+        if written and row.status == contracts.WITHDRAWN:
+            values = {"reason": express_contracts.VOIDED_AFTER_WRITE, "docnum": values["docnum"],
+                      "written_at": values["written_at"]}
+        elif not (written and str(row.reason or "").startswith(mrerp_contracts.UNKNOWN)):
+            if written:
+                frappe.log_error(title="ERP MR.ERP receipt written after the collection moved on",
+                                 message=f"{name}: {row.status} {row.reason}; MR.ERP {values['docnum']}")
+            frappe.db.commit()  # 这笔只加锁读过（与上面那条日志）：提交放锁
+            return None
+    push._set(name, values)
+    frappe.db.commit()
+    return values
 
 
 def withdraw(doc) -> dict | None:
@@ -499,8 +539,14 @@ def poll():
             continue
         if row.status == contracts.WRITING:
             if row.modified and frappe.utils.get_datetime(row.modified) < stale:
-                push._set(row.name, {"status": contracts.FAILED,  # loop-query: 进程死掉的写入中，极少，至多 POLL_MAX 笔
-                                     "reason": f"{mrerp_contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED"})
+                # 加锁按现值再核一次仍是超时的那次领取才改（④，11-28，同 `mrerp.push._interrupted`）：普通读列出之后导入刚记成
+                # 已写入，按旧值改会把真结论盖成结果不明。任务领取（:func:`_claim`）在行锁里复核，排的那一支不用再锁
+                now = frappe.db.get_value(DOCTYPE, row.name, ["status", "reason", "modified"], as_dict=True,  # loop-query: 同上
+                                          for_update=True)
+                if now and now.status == contracts.WRITING and now.reason == mrerp_contracts.IMPORTING \
+                        and now.modified and frappe.utils.get_datetime(now.modified) < stale:
+                    push._set(row.name, {"status": contracts.FAILED,  # loop-query: 进程死掉的写入中，极少，至多 POLL_MAX 笔
+                                         "reason": f"{mrerp_contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED"})
         else:
             dispatch(row.name)
     frappe.db.commit()

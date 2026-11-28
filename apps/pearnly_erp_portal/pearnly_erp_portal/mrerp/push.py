@@ -306,8 +306,8 @@ def _conclude(doctype, name, values, prepared, book, company):
     - 导入期间在 ERP 作废了（11-13）：导入成的不记成干净的「已写入」，转人工、单号如实留着（同 Express 已领走的）；没导入成的清账本栏；
       结果不明的照旧交人核。作废会清掉账本栏（`express.push.void`），所以先于「还是不是本次领取」判。
     - 仍是本次领取（排队中 + 正在导入）：按导入结果写。
-    - 已被别的路径改过（巡检把超时的转成结果不明……）：导入写进了 MR.ERP 的照实记已写入与单号（导入结果是事实，「结果不明」只是
-      猜测）；没写进的不盖别人的结论。"""
+    - 已被别的路径改过：被巡检转成结果不明、导入其实写进了 MR.ERP 的，照实记已写入与单号（导入结果是事实，「结果不明」只是猜测）；
+      别的状态不盖（写进了的记一条日志带单号，人工核时对得上）；没写进的以别人的结论为准。"""
     row = _row(doctype, name, ["status", "ledger_state", "ledger_reason"], for_update=True)
     if not row:
         return None
@@ -331,8 +331,12 @@ def _conclude(doctype, name, values, prepared, book, company):
                           ledger_needed=None)
         elif not values["ledger_reason"].startswith(contracts.UNKNOWN):
             values = {"ledger_state": None, "ledger_reason": "", "ledger_needed": None}
-    elif not (row.ledger_state == express_contracts.QUEUED and row.ledger_reason == contracts.IMPORTING) and not written:
-        frappe.db.commit()  # 不是本次领取了、也没写进 MR.ERP：别人的结论为准；这笔只加锁读过、没写，提交只是放掉行锁
+    elif not (row.ledger_state == express_contracts.QUEUED and row.ledger_reason == contracts.IMPORTING) \
+            and not (written and str(row.ledger_reason or "").startswith(contracts.UNKNOWN)):
+        if written:
+            frappe.log_error(title="ERP MR.ERP import written after the document moved on",
+                             message=f"{doctype} {name}: {row.ledger_state} {row.ledger_reason}; MR.ERP {values.get('ledger_docnum')}")
+        frappe.db.commit()  # 不是本次领取了：别人的结论为准；这笔只加锁读过（与上面那条日志），提交只是放掉行锁
         return None
     _set(doctype, name, values)
     frappe.db.commit()

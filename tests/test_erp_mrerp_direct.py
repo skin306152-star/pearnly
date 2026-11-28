@@ -642,6 +642,43 @@ class ConclusionConflict(unittest.TestCase):
             saved = DB.table(PURCHASE)["PUR-1"]
             self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected, outcome)
 
+    def test_written_after_the_poll_turned_it_unknown_and_it_was_voided_follows_the_void_rule(self):
+        """巡检转成结果不明之后又在 ERP 作废（作废清账本栏、状态改作废），导入其实写进了：按「写进去后作废」转人工、单号留着，
+        不记成干净的已写入；没写进的清账本栏。被别的路径改到别的状态（不是结果不明）的：写进了也不盖、记一条日志。"""
+        from pearnly_erp_portal.express import contracts as E
+
+        for outcome, expected in (({"status": "success", "docnum": "PG691128-000005"},
+                                   ("held", E.VOIDED_AFTER_WRITE, "PG691128-000005")),
+                                  ({"status": "failed", "reason": "ERR_BOOM"}, (None, "", None))):
+            reset()
+            doc(ledger_state="queued", ledger_target="mrerp")
+
+            def voided(*args, outcome=outcome):
+                DB.table(PURCHASE)["PUR-1"].update(status="void", ledger_state=None, ledger_reason="")
+                return {**outcome, "menus": {}, "masters": {}}
+
+            with _Module({}):
+                sys.modules["pearnly_core.mrerp.push.execute"].execute = voided
+                push.run(PURCHASE, "PUR-1", document)
+            saved = DB.table(PURCHASE)["PUR-1"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected, outcome)
+        reset()
+        doc(ledger_state="queued", ledger_target="mrerp")
+        logged = []
+
+        def moved(*args):
+            DB.table(PURCHASE)["PUR-1"].update(ledger_state="held", ledger_reason=contracts.CHOICE)
+            return {"status": "success", "docnum": "PG691128-000006", "menus": {}, "masters": {}}
+
+        with _Module({}), patch.object(frappe, "log_error", lambda *a, **k: logged.append(k)):
+            sys.modules["pearnly_core.mrerp.push.execute"].execute = moved
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")),
+                         ("held", contracts.CHOICE, None))
+        self.assertEqual([k.get("title") for k in logged if "MR.ERP" in str(k.get("title"))],
+                         ["ERP MR.ERP import written after the document moved on"])
+
     def test_the_poll_rechecks_under_the_lock_before_turning_an_import_unknown(self):
         """巡检普通读列出一张超时的「正在导入」，此间导入刚记成已写入：修前按列出时的旧值盖成结果不明；修后加锁按现值再核、不动。
         仍是超时那次领取的照旧转结果不明。"""
