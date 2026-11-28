@@ -541,7 +541,7 @@
 
 ## ④ 变基对齐与收款锁序（接手窗口二，11-28 深夜）
 
-> **状态：未完成，不能合。** 分支推上远端只为留底。还差：迟到写成改落「结果不明」档、去掉会重写的出口（主会话 11-28 定）；出入库列表与日汇总的 Express 状态筛选；对 main 变基；全闸门、候选离线、逐入口实测、code-review。
+> **状态：未完成，不能合。** 分支推上远端只为留底。还差：对 main 变基；全闸门、候选离线、逐入口实测、code-review。
 
 **基线**：先挪到退货窗口最小修所在的 `pearnly/credit-note-in-collection` 2d70d6f27（= 列车 train-1128c cb7e8d7a6 + 3 个收款入口整笔重来提交）；列车进 main 后再对 main 变基。变基时把迟到写成那 4 个代码提交（70aa79a2f、2989af4f9、57d0f3f6c、741d0d52d）合成一个对齐提交，其余照原样。
 
@@ -554,7 +554,7 @@
 
 | 情况 | 列车头 | 现在 |
 |---|---|---|
-| 迟到写成转人工（`cc_desktop.result_unknown:moved_during_write`，单号在单据上） | 前缀判断会吞成「结果不明」，LINE 只给【查看结果】 | 状态词「失败」、原因「已写进 Express，需人工处理」、LINE 给【编辑】、CC 说已写进 + 单号 + 需人工处理、筛选落「失败」档（**显示词已发主会话定**） |
+| 迟到写成转人工（`cc_desktop.result_unknown:moved_during_write`，单号在单据上） | 前缀判断吞成「结果不明」、原因说「结果未确认，请先核对」、CC 给核对出口 | 状态词「结果不明」（主会话 11-28：它已写进 Express，说「失败」会让人重录变两张），原因保留「已写进 Express，需人工处理」+ 单号；判据与真正的结果不明分开（`result_unknown` 不含它、`shown_unknown` 含它）：CC 列单不带核对标记、说已写进 + 单号 + 需人工处理；没有会再写一次的出口——LINE 只给【查看结果】（不给【编辑】），单据弹窗不给「再写一次」（`api.retry` 也拒；收银日汇总留「已在 Express 手工处理」），CC 不再推；筛选落「结果不明」档 |
 | MR.ERP 导入后单据已变（`mrerp.result_unknown: ERR_MOVED_DURING_IMPORT`，④ 新码） | — | 同 MR.ERP 结果不明：「结果不明 · 结果未确认，请先在 MR.ERP 中核对…」+ 核对出口（单号留着） |
 | CC 列单 MR.ERP 结果不明 | 不带 `result_unknown` 标记 | 带（同 Express 结果不明） |
 
@@ -563,7 +563,8 @@
 - 筛选弹层多一个「Express 状态」（只在用 Express 的租户出），选项是状态词：录入中 / 成功 / 失败 / 结果不明（`list.js` 的 `labels` 写法；DocType 加不落库的虚字段 `ledger_word`，控制器 property 回状态词，只给原生筛选取元数据）。
 - 服务端：`express.contracts.ledger_word_filter` 把选择换成 Frappe 16.33 原生嵌套条件（`[条件, "or", 条件]`，查询引擎执行、参数化），与格子的 `ledger_word` 同一口径；「不等于 / 不在…之中」把没接 Express 的单算进去（同原生对空值的口径）；`LIKE` 里的 `_` 按字面转义。列表、合计、导出共用 `records.query`。销售列表里的收银小票没有自己的 Express 状态，按某几档筛时不列。
 - 离线：`LedgerWordFilter` 3 条（每档 × 全部账本状态 × 14 种原因按条件解释器求值，与 `ledger_word` 逐个一致；去掉 `_` 转义即红）。实验栈真库：采购 36 张、销售 15 张（另造 8 种状态组合，事后回滚）每档列表结果与逐张判定一致、「不等于」一致、合计口径一致。
-- 没做：收银小票、出入库列表（没有原生筛选那套，已发主会话定要不要做）。
+- 出入库列表（入库 / 出库 / 调拨 / 调整）同一套：`ERP Stock Entry` 加同一个虚字段，`inventory.documents._entry_filters` 接 `ledger_word` / `conditions`，页面原先没有原生筛选，按 `list.js` 的 `filter_fields` 共用写法只开放「Express 状态」一项（主会话 11-28：按类通用）。
+- 没做：收银小票列表（自己不写 Express，列里显示的是所在日汇总的状态）；日汇总（写 Express 的那一张）没有自己的列表页，不做（主会话 11-28）。
 
 ### 收款放行锁序收口（主会话追加 2–6 条）
 
@@ -584,3 +585,5 @@
 | 原有：放行中改草稿、同一位客户两笔、经 LINE、减项三种形状 | — | 各 10/10 |
 
 经入口的修前（退货窗口最小修 2d70d6f27 单独挂栈）没跑。
+
+迟到写成的出口离线核（test_erp_express_direct）：`test_result_unknown_is_its_own_status_word_and_a_late_write_shows_in_it_without_rewrite_exits`（状态词「结果不明」、`result_unknown` 不含它；LINE 回执「结果不明 · 已写进 Express，需人工处理 · 单号」只有【查看结果】；CC 列单不带核对标记、带 needs_person、不再推）、`test_a_late_write_on_a_pos_day_keeps_the_handled_exit_but_not_write_again`（日汇总弹窗不给「再写一次」、留「已在 Express 手工处理」，`api.retry` 拒）：改前 api.py / line_cards.py 两条都红，改后绿。采购 / 销售单的弹窗与 `api.retry` 原来就不给（同上一轮表）。没核、没改：已提交采购 / 销售单的「修改」入口对迟到写成那种单会不会再写一次（留到逐入口实测时核）。
