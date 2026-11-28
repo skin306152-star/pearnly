@@ -538,3 +538,47 @@
 | `erp.report.stock-count-variance` | 通过 | 不带筛选跳回盘点页（框架原生，伴一条框架自己的 `Filter missing` 未处理拒绝，`errors.js` 已登记不算）；带一份盘点：`erp_stocktake_report` 差异、只看差异、打印两种表、导出全过 |
 
 合计：通过 24，不通过 0，没测到 0（人工 5 个里登记的个别子项没测，写在各行）。栈仍挂本工作树 d6c8440be。
+
+## ④ 变基对齐与收款锁序（接手窗口二，11-28 深夜）
+
+**基线**：先挪到退货窗口最小修所在的 `pearnly/credit-note-in-collection` 2d70d6f27（= 列车 train-1128c cb7e8d7a6 + 3 个收款入口整笔重来提交）；列车进 main 后再对 main 变基。变基时把迟到写成那 4 个代码提交（70aa79a2f、2989af4f9、57d0f3f6c、741d0d52d）合成一个对齐提交，其余照原样。
+
+### 「结果不明」统一成一套（以列车 web-result-unknown / cc-line-result-unknown 为准，用户 11-28 定单列成状态）
+
+- 一个判据：`express.contracts.result_unknown(state, reason)`——停下、原因以 `UNKNOWN_REASONS`（`cc_desktop.result_unknown`、`mrerp.result_unknown`）开头，**排除迟到写成** `MOVED_DURING_WRITE`。`RESULT_UNKNOWN` 只指状态词「Result unknown」；④ 原来的同名原因码改名 `LOST`（= `cc_desktop.jobs.LOST`）。④ 的 `result_unknown(reason)`、`unknown_family`、`UNKNOWN_FAMILY`、`shown_state`、`UNKNOWN_SHOWN_AS`、`RESULT_UNKNOWN_TEXT` 删掉，各处改用上面那一个；`transactions.js` 的 `p.result_unknown` 同口径（多一个 `MOVED_DURING_WRITE` 常量，契约测试比对）。
+- 原因句用列车那句（`express.reason.resultUnknown`「结果未确认，请先在 Express 中核对…」）；④ 改用的共用层「结果不明」（`guide.reason.last_write_result_unknown`）不再用于原因栏。
+
+改已有显示的清单（相对列车头；④ 未上线的中间说法不列）：
+
+| 情况 | 列车头 | 现在 |
+|---|---|---|
+| 迟到写成转人工（`cc_desktop.result_unknown:moved_during_write`，单号在单据上） | 前缀判断会吞成「结果不明」，LINE 只给【查看结果】 | 状态词「失败」、原因「已写进 Express，需人工处理」、LINE 给【编辑】、CC 说已写进 + 单号 + 需人工处理、筛选落「失败」档（**显示词已发主会话定**） |
+| MR.ERP 导入后单据已变（`mrerp.result_unknown: ERR_MOVED_DURING_IMPORT`，④ 新码） | — | 同 MR.ERP 结果不明：「结果不明 · 结果未确认，请先在 MR.ERP 中核对…」+ 核对出口（单号留着） |
+| CC 列单 MR.ERP 结果不明 | 不带 `result_unknown` 标记 | 带（同 Express 结果不明） |
+
+### ERP 采购 / 销售列表按 Express 状态筛选（新增）
+
+- 筛选弹层多一个「Express 状态」（只在用 Express 的租户出），选项是状态词：录入中 / 成功 / 失败 / 结果不明（`list.js` 的 `labels` 写法；DocType 加不落库的虚字段 `ledger_word`，控制器 property 回状态词，只给原生筛选取元数据）。
+- 服务端：`express.contracts.ledger_word_filter` 把选择换成 Frappe 16.33 原生嵌套条件（`[条件, "or", 条件]`，查询引擎执行、参数化），与格子的 `ledger_word` 同一口径；「不等于 / 不在…之中」把没接 Express 的单算进去（同原生对空值的口径）；`LIKE` 里的 `_` 按字面转义。列表、合计、导出共用 `records.query`。销售列表里的收银小票没有自己的 Express 状态，按某几档筛时不列。
+- 离线：`LedgerWordFilter` 3 条（每档 × 全部账本状态 × 14 种原因按条件解释器求值，与 `ledger_word` 逐个一致；去掉 `_` 转义即红）。实验栈真库：采购 36 张、销售 15 张（另造 8 种状态组合，事后回滚）每档列表结果与逐张判定一致、「不等于」一致、合计口径一致。
+- 没做：收银小票、出入库列表（没有原生筛选那套，已发主会话定要不要做）。
+
+### 收款放行锁序收口（主会话追加 2–6 条）
+
+- **放行**（`collection.service.release`）：本笔用到的快照行（(book_key, docnum) 唯一索引、单号升序）→ 本笔记录；**别笔收款记录与明细不加锁**。预留与余额按普通读（按所属收款记录的账套过滤），锁到之后先核读视图没旧：`snapshot.stale` 普通读同几张快照行与加锁读比（名、余额、读取时刻、新加的放行序号 `reserve_seq`，每笔放行 +1）；旧了当冲突抛（同快照隔离开着时的 1020），由入口整笔重来。读到锁之间草稿换了账套 / 发票也整笔重来。删 `snapshot.lock_customer`、`snapshot.rows(locked=)`、`service._rows`。
+  - 为什么不按审查建议「先普通读别人记录名、按名加锁、再加锁读明细」：普通读走等锁之前建的读视图，等锁那段里别的放行（尤其网页一步建草稿 + 放行）提交了，名字读不到，照样漏算预留；而加锁读别人的明细 / 记录正是与草稿改动、写账回执互等的那几把锁。所有能增加预留的写法（放行）都要先拿同一张快照行，所以「锁快照行 + 核读视图」既不漏算也不互等。
+- **写账回执**（`collection.push.job_changed` 写成那一支）：先 `apply_balances`、再改收款记录状态。
+- **入口**：LINE【确认】/ 补凭证、CC「写入」/ 改草稿 / 补凭证、CC 引导「确定」经 `service._retried`（退货窗口最小修）之上补：成了在重来那一步里提交，之后的 LINE 回复、三个点、CC 回话都在提交之后。网页照旧 `api._fresh`。
+- 离线：test_erp_collection 改 3 条、新增 1 条（放行只加锁读快照行与本笔记录、改草稿不加锁；读视图旧了抛冲突、普通读与加锁读不一致 / 行数不同算旧、放行后序号 +1）；三个入口测试的「第一把锁撞死锁」桩改到 `snapshot.lock`。test_erp_collection 108、_line 79、_guide 28、_cc 46、test_erp_mrerp_collection 47 过。
+
+实验栈（maclab `pearnly-b3`，MariaDB 11.8，`innodb_snapshot_isolation=OFF`；格在 `scripts/conflict-silent-loss-lab-verify.py`，`_entry` = 经入口整笔重来）：
+
+| 格 | 修前（挂 train-1128c + 筛选那一版：有 `lock_customer`、加锁读别人的明细 / 记录，C1 唯一索引已在） | 修后（c6584f674 起） |
+|---|---|---|
+| 同账套不同客户同时放行（约 400 行快照） | 10/10（④ C1 唯一索引已让 `lock` 走点锁；无 C1 时 cb7e8d7a6 上 2/10，见第十四节交接） | 直调 10/10、经入口 10/10 |
+| 别笔草稿改动 / 作废 × 放行 | 5/10（改草稿 5 轮全 1213） | 直调 10/10、经入口 10/10 |
+| 写账回执 × 放行 | 1/10（9 轮 1213） | 经入口 10/10，再跑 30/30（7 次读视图旧了被整笔重来接住）；直调 30 轮 0 死锁，4 轮按设计抛可重来冲突（A 仍是草稿、什么都没留，计通过） |
+| 原有：两笔放行同一张发票 / 同一张减项单（改经入口） | — | 10/10、10/10 |
+| 原有：放行中改草稿、同一位客户两笔、经 LINE、减项三种形状 | — | 各 10/10 |
+
+经入口的修前（退货窗口最小修 2d70d6f27 单独挂栈）没跑。
