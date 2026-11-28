@@ -391,6 +391,7 @@ Grand Total,税込合計
 Guests are not allowed to upload files for {0} Doctype,ゲストは {0} にファイルをアップロードできません
 Guide,使い方
 HTTP Status,HTTPステータス
+Hands-on entry is not yet available for MR.ERP account sets,MR.ERP の帳簿は代行入力に未対応
 Head Office,本店
 "Header and journal only, no stock",見出しと仕訳のみ、在庫に入れない
 Home,ホーム
@@ -1214,6 +1215,7 @@ guide.reason.not_available,利用できません
 guide.reason.not_found,見つかりません
 guide.reason.not_permitted,権限がありません
 guide.reason.not_writable,書き込めません
+guide.reason.operator_mrerp,MR.ERP の帳簿は代行入力に未対応
 guide.reason.undecided_items,選択待ち
 guide.reason.unsupported,対応していません
 guide.reason.waiting_for_computer,待機中

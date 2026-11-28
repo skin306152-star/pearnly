@@ -391,6 +391,7 @@ Grand Total,ยอดรวมทั้งสิ้น
 Guests are not allowed to upload files for {0} Doctype,ผู้เยี่ยมชมไม่สามารถอัปโหลดไฟล์ให้ {0} ได้
 Guide,คู่มือใช้งาน
 HTTP Status,สถานะ HTTP
+Hands-on entry is not yet available for MR.ERP account sets,ชุดบัญชี MR.ERP ยังไม่รองรับการบันทึกแทน
 Head Office,สำนักงานใหญ่
 "Header and journal only, no stock",บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก
 Home,หน้าหลัก
@@ -1214,6 +1215,7 @@ guide.reason.not_available,ใช้ไม่ได้
 guide.reason.not_found,ไม่พบ
 guide.reason.not_permitted,ไม่ได้รับอนุญาต
 guide.reason.not_writable,เขียนไม่ได้
+guide.reason.operator_mrerp,ชุดบัญชี MR.ERP ยังไม่รองรับการบันทึกแทน
 guide.reason.undecided_items,ต้องเลือก
 guide.reason.unsupported,ไม่รองรับ
 guide.reason.waiting_for_computer,รอคิว

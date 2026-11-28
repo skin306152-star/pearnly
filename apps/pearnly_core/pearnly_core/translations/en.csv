@@ -390,6 +390,7 @@ Grand Total,Grand Total
 Guests are not allowed to upload files for {0} Doctype,Guests are not allowed to upload files for {0} Doctype
 Guide,Guide
 HTTP Status,HTTP Status
+Hands-on entry is not yet available for MR.ERP account sets,Hands-on entry is not yet available for MR.ERP account sets
 Head Office,Head Office
 "Header and journal only, no stock","Header and journal only, no stock"
 Home,Home
@@ -1212,6 +1213,7 @@ guide.reason.not_available,Not available
 guide.reason.not_found,Not found
 guide.reason.not_permitted,Not permitted
 guide.reason.not_writable,Cannot be written
+guide.reason.operator_mrerp,Hands-on entry is not yet available for MR.ERP account sets
 guide.reason.undecided_items,Needs a choice
 guide.reason.unsupported,Not supported
 guide.reason.waiting_for_computer,Waiting

@@ -650,7 +650,8 @@ def save_mrerp(company, doctype, answers, seen, name=None, picked=None) -> int:
 
 
 
-UNSUPPORTED = "unsupported"  # 这条路此刻办不了（共用层出口 `assistant.stop_exits`、文字 ``guide.reason.unsupported``）
+# 代录对话 × 账本是 MR.ERP 的公司：ERP 代录写的是 Express，MR.ERP 账套还不能代录（文字 ``guide.reason.operator_mrerp``；接通时随格子删）
+OPERATOR_MRERP = "operator_mrerp"
 
 
 def _operator_conversation(record=None) -> bool:
@@ -690,7 +691,7 @@ def check(company, doc_ids) -> dict:
                 # 同期两本选哪本；同已存单据 :func:`mrerp_view`，用户 11-19 出卡前问完）
                 if _operator_conversation(found):  # loop-query: 收单记录逐张判，一批有上限（同下一行）
                     documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE,
-                                      "reason": UNSUPPORTED if ledger_mrerp else contracts.DISCONNECTED})
+                                      "reason": OPERATOR_MRERP if ledger_mrerp else contracts.DISCONNECTED})
                     continue
                 view = operator.intake_mrerp_view if ledger_mrerp else operator.intake_own_view
                 documents.append(view(company, doc_id, found))  # loop-query: 收单记录逐张判，一批有上限

@@ -1093,6 +1093,7 @@ Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.
 Processing error	处理出错	เกิดข้อผิดพลาด	処理エラー	guide.reason.failed
 Needs a choice	待选择	ต้องเลือก	選択待ち	guide.reason.undecided_items
 Not supported	不支持	ไม่รองรับ	対応していません	guide.reason.unsupported
+Hands-on entry is not yet available for MR.ERP account sets	MR.ERP 账套暂不支持实操	ชุดบัญชี MR.ERP ยังไม่รองรับการบันทึกแทน	MR.ERP の帳簿は代行入力に未対応	guide.reason.operator_mrerp
 Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat
 Posting	入账方式	วิธีบันทึกบัญชี	計上方法	guide.q.goods_posting
 Post	是否入账	บันทึกบัญชีหรือไม่	記帳	guide.q.document_policy

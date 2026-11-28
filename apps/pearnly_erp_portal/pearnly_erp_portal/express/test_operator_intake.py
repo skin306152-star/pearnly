@@ -305,7 +305,7 @@ class Precheck(Base):
             self.assertEqual(remembered.call_count, 2)
             modes["operator"] = True
             self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"],
-                             [{"doc_id": "I:LI-7", "state": "not_writable", "reason": precheck.UNSUPPORTED}])
+                             [{"doc_id": "I:LI-7", "state": "not_writable", "reason": precheck.OPERATOR_MRERP}])
             plain.assert_not_called()
         self.assertEqual(remembered.call_args.args[:3], ("CO-1", row, answers))
 

@@ -71,7 +71,7 @@ basis = "MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声�
 
 [[row.link]]
 cell = "erp_operator.mrerp"
-basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」（unsupported）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单"
+basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」，11-28 起原因句「MR.ERP 账套暂不支持实操」（operator_mrerp）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单"
 
 
 [[row.link]]
@@ -121,7 +121,7 @@ basis = "MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声�
 
 [[row.link]]
 cell = "erp_operator.mrerp"
-basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」（unsupported）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单"
+basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」，11-28 起原因句「MR.ERP 账套暂不支持实操」（operator_mrerp）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单"
 
 
 [[row.link]]
