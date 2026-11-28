@@ -45,6 +45,7 @@ LINK = "CC.lnk"
 MARKER = ".pearnly-cc-cloud"
 MARKER_TEXT = "pearnly-cc-cloud v1\n"
 TRACE = "cc-cloud-uninstall.txt"
+UPGRADE_TRACE = "cc-cloud-upgrade.txt"
 _VERSION = re.compile(r"^\d{1,4}(\.\d{1,4}){2,3}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 MAX_PACKAGE = 200 * 1024 * 1024
@@ -201,14 +202,22 @@ def _link_lines(base: Path, then: str) -> list:
     ]
 
 
+def _trace_line(trace: Path, text: str) -> str:
+    """小进程往目录外的 trace 文件追一行（夜间真机核对：小进程起没起来、走到哪一步）。"""
+    return "Add-Content -LiteralPath " + _ps(trace) + " -Value ((Get-Date).ToString('s') + ' " + text + "')"
+
+
 def upgrade_script(pid: int, base: Path, exe: Path) -> str:
-    """小进程：等 ``pid`` 退出 → 指向我们目录的 CC.lnk 改指 ``exe`` → 起 ``exe --cloud``。"""
+    """小进程：等 ``pid`` 退出 → 指向我们目录的 CC.lnk 改指 ``exe`` → 起 ``exe --cloud``；起止各写一行到目录外的 trace。"""
     folder = Path(exe).parent
+    trace = Path(base).parent / UPGRADE_TRACE
     lines = [
+        _trace_line(trace, "upgrade helper started pid=" + str(int(pid))),
         f"Wait-Process -Id {int(pid)} -ErrorAction SilentlyContinue",
         *_link_lines(base, "$l.TargetPath = " + _ps(exe) + "; $l.Arguments = '--cloud'; $l.WorkingDirectory = "
                      + _ps(folder) + "; $l.Save()"),
         "Start-Process -FilePath " + _ps(exe) + " -ArgumentList '--cloud' -WorkingDirectory " + _ps(folder),
+        _trace_line(trace, "upgrade helper started the new version"),
     ]
     return "; ".join(lines)
 
@@ -218,6 +227,7 @@ def uninstall_script(pid: int, base: Path) -> str:
     trace = Path(base).parent / TRACE
     lines = [
         "Set-Location -LiteralPath " + _ps(Path(base).parent),   # 小进程自己不待在要删的目录里
+        _trace_line(trace, "uninstall helper started pid=" + str(int(pid))),
         f"Wait-Process -Id {int(pid)} -ErrorAction SilentlyContinue",
         "$before = Test-Path -LiteralPath " + _ps(base),
         *_link_lines(base, "Remove-Item -LiteralPath $p -Force"),
@@ -233,21 +243,35 @@ def uninstall_script(pid: int, base: Path) -> str:
 
 
 def helper_command(script: str) -> list:
-    """隐藏的一次性 PowerShell（``-Command`` 内联，不跑脚本文件，执行策略不管它）。"""
-    return ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script]
+    """一次性 PowerShell（``-Command`` 内联，不跑脚本文件）；窗口由 :func:`spawn_detached` 的 CREATE_NO_WINDOW 藏，
+    不再用 ``-WindowStyle Hidden``（11-28 真机：小进程起来后什么都没做）。"""
+    return ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script]
 
 
-def spawn_detached(command: list, cwd: Optional[Path] = None) -> None:
-    """起一个不随本进程退出的小进程（Windows：DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW）。
-    工作目录放在安装目录外（``cwd``，默认 ``%LOCALAPPDATA%\\Pearnly``）：本进程是在版本目录里起的，小进程继承它就删不掉那个目录。"""
-    flags = 0
-    if os.name == "nt":
-        flags = 0x00000008 | 0x00000200 | 0x08000000
+# CREATE_NO_WINDOW：给小进程一个看不见的控制台（PowerShell 要控制台；以前的 DETACHED_PROCESS 没有控制台）；
+# CREATE_NEW_PROCESS_GROUP；CREATE_BREAKAWAY_FROM_JOB：本进程若在作业对象里，小进程脱出去，本进程退出时不被一起结束
+# （11-28 真机：自升级与卸载的小进程在本进程退出后都没做事，同一段脚本手动跑能成）
+_CREATE_NO_WINDOW, _NEW_GROUP, _BREAKAWAY = 0x08000000, 0x00000200, 0x01000000
+
+
+def spawn_detached(command: list, cwd: Optional[Path] = None, *, popen=None) -> None:
+    """起一个不随本进程退出的小进程（Windows：CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB；
+    作业不许脱出时去掉最后一项再起一次）。工作目录放在安装目录外（``cwd``，默认 ``%LOCALAPPDATA%\\Pearnly``）：本进程是在
+    版本目录里起的，小进程继承它就删不掉那个目录。"""
+    popen = popen or subprocess.Popen
     if cwd is None:
         base = install_base()
         cwd = base.parent if base is not None else None
-    subprocess.Popen(command, creationflags=flags, close_fds=True, cwd=str(cwd) if cwd is not None else None,  # noqa: S603
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    options = dict(close_fds=True, cwd=str(cwd) if cwd is not None else None,
+                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if os.name != "nt":
+        popen(command, **options)  # noqa: S603
+        return
+    try:
+        popen(command, creationflags=_CREATE_NO_WINDOW | _NEW_GROUP | _BREAKAWAY, **options)  # noqa: S603
+    except OSError:   # 作业对象不许脱出（拒绝访问）：照常起
+        log.info("小进程不能脱出作业，照常起")
+        popen(command, creationflags=_CREATE_NO_WINDOW | _NEW_GROUP, **options)  # noqa: S603
 
 
 def upgrade(link, *, running: Optional[str] = None, base: Optional[Path] = None, exe=None,

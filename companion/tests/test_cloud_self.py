@@ -148,13 +148,16 @@ def test_a_newer_package_is_staged_then_the_helper_swaps_and_we_quit(tmp_path):
     assert sorted(p.name for p in base.iterdir()) == [cloud_self.MARKER, "1.12.26", "1.12.27"]   # 临时文件收干净
     assert link.quit.is_set() and link.generation == generation + 1
     [command] = spawned
-    assert command[:6] == ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command"]
+    assert command[:7] == ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+                           command[6]] and "-WindowStyle" not in command
     script = command[6]
-    assert script.startswith("Wait-Process -Id 4321 -ErrorAction SilentlyContinue; ") and "-Timeout" not in script
+    trace = str(base.parent / cloud_self.UPGRADE_TRACE)
+    assert script.startswith(f"Add-Content -LiteralPath '{trace}' ") and "upgrade helper started pid=4321" in script
+    assert "Wait-Process -Id 4321 -ErrorAction SilentlyContinue; " in script and "-Timeout" not in script
     assert f"$l.TargetPath = '{new_exe}'" in script
     assert f".StartsWith('{base}\\'" in script                                # 只改指向我们目录的快捷方式
-    assert script.rstrip().endswith(f"Start-Process -FilePath '{new_exe}' -ArgumentList '--cloud' -WorkingDirectory "
-                                    f"'{new_exe.parent}'")
+    assert (f"Start-Process -FilePath '{new_exe}' -ArgumentList '--cloud' -WorkingDirectory '{new_exe.parent}'; "
+            f"Add-Content -LiteralPath '{trace}'") in script
 
 
 @pytest.mark.parametrize("kind", ["checksum", "size", "no_exe", "bad_zip"])
@@ -205,6 +208,20 @@ def test_any_unpacking_error_is_recorded_once(tmp_path, monkeypatch):
     assert sorted(p.name for p in base.iterdir()) == [cloud_self.MARKER, "1.12.26"]
 
 
+def test_the_helper_breaks_away_from_a_job_with_a_hidden_console_and_falls_back(monkeypatch):
+    # 11-28 真机：DETACHED_PROCESS（无控制台）起的 PowerShell 小进程在本进程退出后什么都没做
+    monkeypatch.setattr(cloud_self.os, "name", "nt")
+    calls = []
+
+    def popen(command, **kw):
+        calls.append(kw["creationflags"])
+        if len(calls) == 1:
+            raise PermissionError(5, "access denied")   # 作业不许脱出
+    cloud_self.spawn_detached(["powershell.exe"], popen=popen)
+    assert calls == [0x08000000 | 0x00000200 | 0x01000000, 0x08000000 | 0x00000200]
+    assert not any(flags & 0x00000008 for flags in calls)   # 不再用 DETACHED_PROCESS
+
+
 def test_the_helper_runs_outside_the_install_folder(tmp_path, monkeypatch):
     seen = {}
     monkeypatch.setattr(cloud_self.subprocess, "Popen", lambda command, **kw: seen.update(kw, command=command))
@@ -248,7 +265,9 @@ def test_uninstall_schedules_a_helper_that_only_removes_our_folder(tmp_path):
     assert base.exists()                                                # 删要等本进程退出后由小进程做
     script = spawned[0][6]
     # 小进程先离开要删的目录，再一直等本进程退出（不设超时：没退出就删会留下半个安装）
-    assert script.startswith(f"Set-Location -LiteralPath '{base.parent}'; Wait-Process -Id 7 -ErrorAction SilentlyContinue; ")
+    trace = base.parent / cloud_self.TRACE
+    assert script.startswith(f"Set-Location -LiteralPath '{base.parent}'; Add-Content -LiteralPath '{trace}' ")
+    assert "uninstall helper started pid=7'); Wait-Process -Id 7 -ErrorAction SilentlyContinue; " in script
     assert "-Timeout" not in script
     removes = [part for part in script.split("; ") if "Remove-Item" in part]
     assert removes == [
