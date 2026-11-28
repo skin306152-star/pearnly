@@ -382,9 +382,16 @@ class IntakeRetry(unittest.TestCase):
         _stub("frappe", db=SimpleNamespace(commit=lambda: None))
         _stub("pearnly_core", __path__=[])
         line = _stub("pearnly_core.line", reply=lambda token, messages: None)
+        def update_session(uid, change, ttl_minutes=None):
+            """同 `line_session.update_session`：（串行块里）读此刻的会话 → change → 写回 / 不写。"""
+            outcome = change(self.sessions.get(uid))
+            if outcome is not None:
+                self.sessions[uid] = {"state": outcome[0], "payload": outcome[1]}
+            return self.sessions.get(uid)
+
         store = _stub("pearnly_core.line_session", get_session=lambda uid: self.sessions.get(uid),
                       set_session=lambda uid, state, payload, **kw: self.sessions.__setitem__(
-                          uid, {"state": state, "payload": payload}))
+                          uid, {"state": state, "payload": payload}), update_session=update_session)
         sys.modules["pearnly_core"].line, sys.modules["pearnly_core"].line_session = line, store
         _stub("pearnly_dms.i18n", t=lambda key, lang=None, **kw: tables[lang or "th"].get(key, key),
               line_lang=lambda: "th")

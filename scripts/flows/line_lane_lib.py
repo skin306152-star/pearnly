@@ -12,6 +12,7 @@
     docker exec -i <栈>-cowork-bench-1 /home/frappe/frappe-bench/env/bin/python - cowork cowork.maclab.localhost <账号> [--images 10] < 同上
 
 回归实验室里由流程 `erp.line.lane` / `cowork.line.lane`（`scripts/flows/line_lane_burst.py`）照同样的跑法调它。
+ERP 这一格要先把这家公司的「接 Express」关掉（识别后不去问 Express 的题，只看收件与出卡）：流程里由 `lab.set_fields` 改、跑完还原；单跑时自己改、自己还原。
 修前（没有道的源码）与修后各跑一次。末行打印 ``RESULT {...}``，每格 ``ok`` 为真才算通过（退出码 0）。
 
 格：① 同一个人同时发 10 张（ERP 途中点第一张卡上的「取消」）：10 条收单、10 个计费参考号各一次、10 张卡、收单按发送序、
@@ -529,20 +530,10 @@ def run(argv) -> dict:
     count = int(argv[argv.index("--images") + 1]) if "--images" in argv else 10
     lab = Lab(product, site, user, company)
     results = {}
-    express = None
     with ExitStack() as stack:
         lab.patches(stack)
         users = ["Ulanelab" + secrets.token_hex(12) for _ in range(4)]
         try:
-            if product == "erp":
-                # 识别后不去问 Express 的题（这一格只看收件与出卡）：临时关掉这家公司的接 Express，结束还原
-                connect(site)
-                try:
-                    express = frappe.db.get_value("ERP Company", company, "express_enabled")
-                    frappe.db.set_value("ERP Company", company, "express_enabled", 0, update_modified=False)
-                    frappe.db.commit()
-                finally:
-                    frappe.destroy()
             for line_user in users:
                 lab.prepare(line_user)
             # 格 1：同一个人同时发 count 张，途中点第一张卡上的「取消」
@@ -591,13 +582,6 @@ def run(argv) -> dict:
             results["crash"] = {"ok": False, "error": traceback.format_exc()[-1500:]}
         finally:
             lab.cleanup(users)
-            if express is not None:
-                connect(site)
-                try:
-                    frappe.db.set_value("ERP Company", company, "express_enabled", express, update_modified=False)
-                    frappe.db.commit()
-                finally:
-                    frappe.destroy()
     return results
 
 

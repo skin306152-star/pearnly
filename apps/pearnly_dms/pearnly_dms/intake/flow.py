@@ -636,17 +636,16 @@ def _dms_failed(
     if not dms_retry.is_retryable(code):
         _push(line_user_id, text, reply_token)
         return
-    last = dms_retry.clamp(attempt) >= dms_retry.MAX_ATTEMPTS
-    retry = None if last else {"kind": kind, "attempt": dms_retry.clamp(attempt), "payload": retry_payload}
     # 写 DMS（外部动作）之后再改会话：串行块里加锁读此刻的会话、只动 `dms_retry` 这一键（④ 第二期 L10），
     # 不拿写之前读到的那份整份写回，期间本人在 LINE 上的操作不被盖掉；会话已经没了就不重建
-    _set_retry(line_user_id, retry, "collecting")
-    if last:
+    if dms_retry.clamp(attempt) >= dms_retry.MAX_ATTEMPTS:
+        _set_retry(line_user_id, None, "collecting")
         # 第三次仍连不上：只说那一句，不再给按键（文案在错误码表里，与上面那句同源）。
         from pearnly_dms.line.errors import friendly as _friendly
 
         _push(line_user_id, _friendly("ERR_DMS_UNREACHABLE", lang=i18n.line_lang()), reply_token)
         return
+    _set_retry(line_user_id, {"kind": kind, "attempt": dms_retry.clamp(attempt), "payload": retry_payload}, "collecting")
     from pearnly_dms.line.errors import retry_text
 
     _send(line_user_id, cards.retry_message(retry_text(code, text, i18n.line_lang())), reply_token)

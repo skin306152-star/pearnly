@@ -29,6 +29,9 @@ def judge(params, results, camera_code=None):
 
 
 def verify(lab, manifest, params, camera_code=None):
+    if params["company"]:
+        # 识别后不去问 Express 的题（这一格只看收件与出卡）：经实验室改，这一格结束时还原
+        lab.set_fields(params["site"], "ERP Company", params["company"], {"express_enabled": 0})
     argv = [params["product"], params["site"], params["user"]] + ([params["company"]] if params["company"] else [])
     body = (f"__lane = {{'__name__': 'line_lane_lib'}}\n"
             f"exec(compile({LIB.read_text(encoding='utf-8')!r}, 'line_lane_lib.py', 'exec'), __lane)\n"
