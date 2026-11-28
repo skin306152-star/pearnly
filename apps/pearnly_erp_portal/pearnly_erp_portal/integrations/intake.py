@@ -237,22 +237,27 @@ RESULT_STATE = "terminal"
 
 
 def _recognised(doc):
-    """这张的识别结果：本次任务已有检查点就取回；没有才付费识别（扣费参考号固定 `erp.line_intake:<名>`），成功先写检查点。"""
+    """LINE 这张的识别结果（扣费参考号固定 `erp.line_intake:<名>`），经 :func:`_checkpointed`。"""
+    return _checkpointed(lambda: _recogniser(doc.direction).recognise(
+        [{"file": _file_name(doc), "kind": "bill"}], billing_reference="erp.line_intake:" + doc.name,
+        company=doc.company, prefill=False))
+
+
+def _checkpointed(read):
+    """本次任务已有结果检查点就取回；没有才调 ``read()`` 付费识别，成功先写检查点（自己提交）。LINE 与 CC 对话收单共用。"""
     from pearnly_core.execution import work
 
     saved = work.checkpoint(RESULT_CHECKPOINT)
     if saved and saved.get("state") == RESULT_STATE and isinstance(saved.get("body"), dict):
         return dict(saved["body"])
-    result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
-                                                  billing_reference="erp.line_intake:" + doc.name,
-                                                  company=doc.company, prefill=False)
+    result = read()
     work.checkpoint(RESULT_CHECKPOINT, RESULT_STATE, json.loads(json.dumps(result, ensure_ascii=False, default=str)))
     return result
 
 
-def _keep_result(name, result, extras, line_user_id):
+def _keep_result(name, result, extras, line_user_id=None):
     """记结果（`conflicts.retried` 包着，撞冲突整笔重来只重来这一段，不再调识别）：加锁读这张，仍在排队才写成待提交、拆出同一文件里
-    的其余几张、每行预选，然后提交。已不在排队回 ``None``（不改回）。"""
+    的其余几张、每行预选，然后提交。已不在排队回 ``None``（不改回）。CC 对话收单（:func:`run_chat`）同用，没有 LINE 用户。"""
     doc = frappe.get_doc(DOCTYPE, name, for_update=True)
     if doc.status != QUEUED:
         return None
@@ -748,7 +753,10 @@ def receive_chat(*, company, direction, filename, content, request_key, session_
 def run_chat(intake):
     """登记在 `pearnly_ocr_handlers`（``erp.cc_intake``）的识别入口：以发起人身份识别，几张票各落一条待提交记录，每行预选物料。
     识别失败（不是单据、余额不足、贷项通知单……）落定失败、原因记在记录上，对话里由 CC 照原话说。"""
-    doc = frappe.get_doc(DOCTYPE, intake)
+    # 同 LINE（④ #12，:func:`run`）：开头加锁读判状态；识别结果先进检查点，记结果（每行预选：同 LINE，定不了的留到开始前卡片问）
+    # 撞冲突只重来那一段、不再调识别；用尽按队列稍后再来，重跑从检查点取回。原件在收下时已存好（`receive_chat`），这里不取件。
+    doc = frappe.get_doc(DOCTYPE, intake, for_update=True)
+    frappe.db.commit()  # 放锁：下面交识别不攥着这一行
     if doc.status != QUEUED or doc.get("source") != SOURCE_CC:
         return {"cancelled": "not_queued"}
     previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
@@ -756,19 +764,20 @@ def run_chat(intake):
     frappe.local.lang = doc.get("language") or previous_lang
     try:
         try:
-            result = _read_chat(doc)
+            result = _checkpointed(lambda: _read_chat(doc))
         except frappe.ValidationError as exc:
             _drop(doc, FAILED, str(exc))
             return {"failed": "recognition_failed"}
         extras = result.pop("additional", None) or []
-        doc.reload()
-        doc.result = json.dumps(result, ensure_ascii=False, default=str)
-        doc.status = READY
-        doc.save(ignore_permissions=True)
-        records = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
-        for record, data in records:
-            line_items.prepare(record, data)  # 每行对哪件物料、入不入库（同 LINE；定不了的留到开始前卡片问）
-        frappe.db.commit()
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_core.transaction import conflicts
+
+        try:
+            records = conflicts.retried(_keep_result, doc.name, result, extras)
+        except (conflicts.Exhausted, conflicts.RollbackFailed):
+            raise Deferred("conflict") from None  # 结果在检查点里：重跑直接取回记上，不再识别、不再扣费
+        if records is None:
+            return {"cancelled": "not_queued"}  # 识别期间这条已不在排队：不改回
         return {"records": [record.name for record, _data in records]}
     finally:
         frappe.set_user(previous)
@@ -792,6 +801,8 @@ def _read_chat(doc):
     frappe.db.rollback()
     frappe.clear_messages()
     frappe.db.set_value(DOCTYPE, doc.name, {"direction": "sales", "direction_guessed": 0})
+    # 方向改定先提交（④ #12）：记结果撞冲突整笔重来时不能把它一起回滚掉（重跑从检查点取回结果、不再读这一遍）
+    frappe.db.commit()
     doc.direction = "sales"
     return _recogniser("sales").recognise(files, billing_reference=CC_OCR_KIND + ":" + doc.name, company=doc.company,
                                           prefill=False)

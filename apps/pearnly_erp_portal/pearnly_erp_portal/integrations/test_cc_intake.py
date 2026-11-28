@@ -54,6 +54,19 @@ class Base(unittest.TestCase):
         self.enterContext(patch("requests.sessions.Session.request", side_effect=AssertionError("External network forbidden")))
         self.drops = []
         self.enterContext(patch.object(intake, "_drop", side_effect=lambda doc, status, reason="": self.drops.append((doc.name, status, reason))))
+        # 识别任务的检查点（④ #12，`execution.work.checkpoint`）按一份 Work 存在内存里；记结果整笔重来（`conflicts.retried`）的
+        # 两路原生提示在替身里没有 frappe.local.flags
+        self.checkpoints = {}
+        self.enterContext(patch("pearnly_core.execution.work.checkpoint", side_effect=self._checkpoint))
+        self.enterContext(patch("pearnly_core.transaction.conflicts._error_message", return_value=None))
+        self.enterContext(patch("pearnly_core.transaction.conflicts._drop_messages"))
+        self.enterContext(patch("pearnly_core.transaction.conflicts.time.sleep"))
+
+    def _checkpoint(self, key, state=None, body=None):
+        if state is None:
+            return self.checkpoints.get(key)
+        self.checkpoints[key] = {"state": state, "body": body}
+        return self.checkpoints[key]
 
     @staticmethod
     def reject(message, exception=frappe.ValidationError, **kwargs):
@@ -153,6 +166,7 @@ class Run(Base):
         self.db.set_value.assert_any_call(intake.DOCTYPE, "LI-00001", {"direction": "sales", "direction_guessed": 0})
         self.assertEqual(sales.recognise.call_args.kwargs["billing_reference"], "erp.cc_intake:LI-00001")
         self.doc.direction, self.doc.direction_guessed, self.doc.status = "purchase", 0, intake.QUEUED
+        self.checkpoints.clear()  # 另一条、另一份 Work（检查点按 Work 存）
         self.assertEqual(intake.run_chat("LI-00001"), {"failed": "recognition_failed"})  # 方向是人说的：不改读
 
     def test_failures_keep_the_reason_and_only_chat_records_run(self):
@@ -162,6 +176,80 @@ class Run(Base):
         self.doc.source = "line"
         self.doc.status = intake.QUEUED
         self.assertEqual(intake.run_chat("LI-00001"), {"cancelled": "not_queued"})
+
+
+def _stale_save():
+    """Frappe 保存前比对抛的那一种 TimestampMismatchError（`conflicts._stale_save` 按 frappe/model/document.py 的 check_if_latest 认）。"""
+    namespace = {"frappe": frappe}
+    exec(compile("def check_if_latest():\n    raise frappe.TimestampMismatchError('modified after you opened it')\n",
+                 "frappe/model/document.py", "exec"), namespace)
+    namespace["check_if_latest"]()
+
+
+class StaleDoc(Doc):
+    """``conflicts`` 次保存先撞保存前比对，撞了退回上次存下的样子（同整笔回滚）。"""
+
+    def __init__(self, conflicts=0, **values):
+        super().__init__(**values)
+        self.__dict__["_left"], self.__dict__["_kept"] = conflicts, dict(values)
+
+    def save(self, **kwargs):
+        if self._left:
+            self.__dict__["_left"] -= 1
+            self.__dict__.update(self._kept)
+            _stale_save()
+        self.__dict__["_kept"] = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+        return self
+
+
+class RunConflict(Base):
+    """④ #12（CC 对话收单同 LINE）：识别期间另一路改过这条，记结果撞保存前比对只重来记结果那段：识别、扣费只一次；用尽按队列稍后
+    再来，重跑从检查点取回；识别期间被取消不改回。"""
+
+    def setUp(self):
+        super().setUp()
+        self.calls = []
+        self.recogniser = Mock()
+        self.recogniser.recognise.side_effect = lambda files, **kw: self.calls.append(kw["billing_reference"]) or {"doc_no": "IV1"}
+        self.enterContext(patch.object(intake, "_recogniser", return_value=self.recogniser))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_items.prepare"))
+
+    def use(self, conflicts):
+        self.doc = StaleDoc(conflicts, name="LI-00001", status=intake.QUEUED, source="cc", direction="purchase",
+                            sent_by="buyer@x", company="CO-1", language="th", source_file_name="F-1", result=None)
+        self.locks = []
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=lambda *a, **kw: self.locks.append(
+            kw.get("for_update", False)) or self.doc))
+        return self.doc
+
+    def test_a_stale_save_after_recognition_records_the_result_without_recognising_again(self):
+        doc = self.use(1)
+        self.assertEqual(intake.run_chat("LI-00001"), {"records": ["LI-00001"]})
+        self.assertEqual((doc.status, json.loads(doc.result), self.calls), (intake.READY, {"doc_no": "IV1"},
+                                                                             ["erp.cc_intake:LI-00001"]))
+        self.assertTrue(self.locks and all(self.locks), self.locks)  # 开头判状态与记结果都加锁读
+
+    def test_exhausted_record_defers_and_the_rerun_takes_the_checkpoint(self):
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_core.transaction import conflicts
+
+        doc = self.use(conflicts.ATTEMPTS)
+        with self.assertRaises(Deferred):
+            intake.run_chat("LI-00001")
+        self.assertEqual(doc.status, intake.QUEUED)
+        self.assertEqual(intake.run_chat("LI-00001"), {"records": ["LI-00001"]})
+        self.assertEqual((doc.status, len(self.calls)), (intake.READY, 1))
+
+    def test_a_record_cancelled_during_recognition_is_not_turned_back_to_ready(self):
+        doc = self.use(0)
+
+        def cancelled_meanwhile(files, **kw):
+            doc.status = intake.CANCELLED
+            return {"doc_no": "IV1"}
+
+        self.recogniser.recognise.side_effect = cancelled_meanwhile
+        self.assertEqual(intake.run_chat("LI-00001"), {"cancelled": "not_queued"})
+        self.assertEqual((doc.status, doc.result), (intake.CANCELLED, None))
 
 
 class Siblings(Base):
