@@ -182,8 +182,12 @@ def send(doctype, name, manual=False):
     """（`express.push.send` 遇到账本是 MR.ERP 的单交过来，或「再写一次」）停下 / 失败的回到排队、排一次导入。回结论。
 
     ``manual``：人在明确的推送入口点的（ERP 的 CC 推送工具 `express.cc_tools`）：这个 MR.ERP 账号被踢过的标记先清掉、这次照常登录
-    （:func:`release_kick`，11-09 风险 7）。其余（提交新单、每分钟巡检、选一次后再排、改票面合计放行）都不清，有标记时导入入口快速失败。"""
-    row = _row(doctype, name, ["name", "status", "company", "ledger_state", "ledger_reason"])
+    （:func:`release_kick`，11-09 风险 7）。其余（提交新单、每分钟巡检、选一次后再排、改票面合计放行）都不清，有标记时导入入口快速失败。
+
+    加锁读现值再判再写（11-28 ④ code-review）：调用方这笔事务的读视图可能早于任务领取（:func:`_claim` 改成「正在导入」并提交）——
+    连点两次「再写一次」、网页与 CC 同时点、选一次（:func:`answer`）之后再排；普通读看到「排队中 + 空原因」、把原因改回空，盖掉了
+    「正在导入」，导入回来记结论时这张已不是本次领取，会转成结果不明。"""
+    row = _row(doctype, name, ["name", "status", "company", "ledger_state", "ledger_reason"], for_update=True)
     if not row or row.status != "submitted" or not handles(row.company):
         return {"status": "not_ready"}
     if manual:

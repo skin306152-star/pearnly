@@ -1356,6 +1356,95 @@ def mrerp_conclusion_conflict(site, rounds, results):
         frappe.db.commit()
 
 
+def mrerp_resend_while_importing(site, rounds, results):
+    """④ code-review 2：MR.ERP 导入直写的任务领取（`mrerp.push._claim` 改成「正在导入」并提交）之后、导入还在跑，另一路点「再写一次」
+    （`mrerp.push.send`，连点两次 / 网页 + CC 同时点），它那笔事务的读视图早于领取提交（读到的还是「排队中 + 空原因」）。判：再写一次
+    回「已在排队」、不再排导入；导入回来记成已写入、单号在。修前：再写一次把原因改回空、又排一次导入，记结论时看到不是本次领取，
+    转成结果不明（`MOVED_DURING_IMPORT`）。导入与排导入换替身（不连 MR.ERP、不进真队列）。"""
+    import threading
+
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.mrerp import push
+    from pearnly_erp_portal.purchasing import suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    calls, state = {}, {}
+    importing, sent = threading.Event(), threading.Event()
+
+    def execute(*args):
+        calls["count"] += 1
+        importing.set()  # 领取已提交、正在导入
+        sent.wait(30)    # 等另一路的「再写一次」做完
+        return {"status": "success", "docnum": state["docnum"], "menus": {}, "masters": None}
+
+    def worker(name):
+        try:
+            frappe.init(site=site, sites_path=SITES)
+            frappe.connect()
+            frappe.set_user(user)
+            push.run(push.PURCHASE, name, None)
+            state["run"] = "done"
+        except Exception as error:  # noqa: BLE001
+            state["run"] = "".join(traceback.format_exception_only(type(error), error)).strip()[:200]
+            frappe.db.rollback()
+        finally:
+            frappe.destroy()
+
+    saved = _mrerp_doubles(co, calls)
+    calls["execute"] = execute
+    saved.append((push, "dispatch", push.dispatch))
+    dispatched = []
+    push.dispatch = lambda doctype, name: dispatched.append(name)
+    made = []
+    try:
+        for _ in range(rounds):
+            name = _purchase(co, supplier, "MR")
+            made.append(name)
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_reason": "", "ledger_target": "mrerp",
+                                                      "ledger_job": None, "ledger_docnum": None}, update_modified=False)
+            frappe.db.commit()
+            calls["count"], dispatched[:] = 0, []
+            state.clear()
+            state.update(docnum=f"{TAG}-PG{secrets.token_hex(3)}")
+            importing.clear()
+            sent.clear()
+            read_view(push.PURCHASE)
+            frappe.db.get_value(push.PURCHASE, name, "ledger_reason")  # 本连接的读视图：排队中 + 空原因
+            thread = threading.Thread(target=worker, args=(name,))
+            thread.start()
+            importing.wait(30)
+            answer = None
+            try:
+                answer = push.send(push.PURCHASE, name)
+                frappe.db.commit()
+            except Exception as error:  # noqa: BLE001
+                answer = "".join(traceback.format_exception_only(type(error), error)).strip()[:200]
+                frappe.db.rollback()
+            sent.set()
+            thread.join(60)
+            frappe.db.rollback()
+            row = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_docnum"], as_dict=True)
+            tally(results, "erp.mrerp_resend_while_importing",
+                  answer == {"status": "already_queued"} and not dispatched and row.ledger_state == "written"
+                  and row.ledger_docnum == state["docnum"] and calls["count"] == 1 and state.get("run") == "done",
+                  {"send": answer, "dispatched": len(dispatched), "row": dict(row), "imports": calls["count"],
+                   "run": state.get("run")})
+    finally:
+        sent.set()
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.db.rollback()
+        for name in made:
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": None, "ledger_reason": "", "ledger_target": None,
+                                                      "ledger_docnum": None, "ledger_sent_at": None}, update_modified=False)
+        frappe.db.commit()
+
+
 def mrerp_collection_conclusion_conflict(site, rounds, results):
     """④ 按类同 A2 #16：收款导入 MR.ERP（`collection.mrerp.run`）记结论撞冲突。导入替身（共用层 `mrerp.push.receipt.execute`）回
     「已写入 + FR 单号」；记结论那笔事务写下收款行之后，另一路（先改了几张别的单、再锁着公司行）来改这笔收款，本连接接着锁公司行
@@ -1665,6 +1754,7 @@ def erp(site, rounds):
     guarded(results, "erp.snapshot_busy_book", snapshot_busy_book, site, rounds, results)
     guarded(results, "erp.mrerp_conclusion_conflict", mrerp_conclusion_conflict, site, rounds, results)
     guarded(results, "erp.mrerp_poll_stale", mrerp_poll_stale, site, rounds, results)
+    guarded(results, "erp.mrerp_resend_while_importing", mrerp_resend_while_importing, site, rounds, results)
     guarded(results, "erp.mrerp_collection_conclusion_conflict", mrerp_collection_conclusion_conflict, site, rounds, results)
     guarded(results, "erp.stale_job_receipt", stale_job_receipt, site, rounds, results)
     frappe.set_user("Administrator")

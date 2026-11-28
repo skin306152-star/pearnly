@@ -697,6 +697,26 @@ class ConclusionConflict(unittest.TestCase):
                     push.run(PURCHASE, "PUR-1", document)
                 self.assertEqual((CALLS, DB.table(PURCHASE)["PUR-1"].get("ledger_docnum") or ""), ([], docnum))
 
+    def test_send_again_while_importing_on_an_old_read_view_leaves_the_claim_alone(self):
+        """④ code-review 2：「再写一次」的那笔事务读视图早于任务领取提交（连点两次、网页 + CC 同时点）：普通读看到「排队中 + 空原因」、
+        把原因改回空，盖掉了「正在导入」；导入回来记结论时这张已不是本次领取，转成结果不明。修后加锁读现值：正在导入就不动。"""
+        doc(ledger_state="queued", ledger_target="mrerp")
+        answers = []
+
+        def resend_meanwhile(*args):
+            DB.stale[(PURCHASE, "PUR-1")] = {**DB.table(PURCHASE)["PUR-1"], "ledger_reason": ""}  # 领取提交前的读视图
+            answers.append(push.send(PURCHASE, "PUR-1"))
+            return {"status": "success", "docnum": "PG691128-000009", "menus": {}, "masters": {}}
+
+        with _Module({}):
+            sys.modules["pearnly_core.mrerp.push.execute"].execute = resend_meanwhile
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual(answers, [{"status": "already_queued"}])
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved["ledger_docnum"]),
+                         ("written", "", "PG691128-000009"))
+        self.assertEqual(len(ENQUEUED), 0)  # 没再排一次导入
+
     def test_the_poll_rechecks_under_the_lock_before_turning_an_import_unknown(self):
         """巡检普通读列出一张超时的「正在导入」，此间导入刚记成已写入：修前按列出时的旧值盖成结果不明；修后加锁按现值再核、不动。
         仍是超时那次领取的照旧转结果不明。"""
