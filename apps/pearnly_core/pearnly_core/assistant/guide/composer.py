@@ -125,7 +125,8 @@ def open_with_files(session_id: str, business: str, refs) -> Dict[str, Any]:
         return {"status": "refused", "reason": "operator_takes_files_on_send"}
     if business not in documents_businesses(row.session_id, "chat"):
         return {"status": "refused", "reason": "business_not_offered", "offered": documents_businesses(row.session_id, "chat")}
-    ids = list(dict.fromkeys(files.resolve(ref) for ref in refs or () if str(ref or "").strip()))[:FILES_MAX]
+    given = [str(ref) for ref in refs or () if str(ref or "").strip()][:FILES_MAX]
+    ids = list(dict.fromkeys(files.resolve(ref) for ref in given))  # loop-query: 模型给的文件，最多 FILES_MAX 份，逐份按本对话认编号
     if not ids:
         return {"status": "refused", "reason": "no_files"}
     name = _run_taking_files(row.session_id, business)

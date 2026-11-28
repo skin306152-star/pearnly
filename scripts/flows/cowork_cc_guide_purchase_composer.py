@@ -26,5 +26,5 @@ def verify(lab, manifest, params, camera_code=None):
 
 
 def cleanup(lab, manifest, params):
-    lib.release(lab, manifest, params)
+    lib.cleanup(lab, manifest, params)
     return form.cleanup(lab, manifest, params)

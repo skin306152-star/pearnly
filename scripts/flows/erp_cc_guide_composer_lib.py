@@ -48,7 +48,7 @@ print(json.dumps({{"rows": rows}}, default=str))
 
 
 def cleanup(lab, manifest, params):
-    lib.release(lab, manifest, params)
+    lib.cleanup(lab, manifest, params)
     lab.python(manifest["site"], f"""
 from pearnly_core.assistant import sessions
 frappe.set_user({USER!r})

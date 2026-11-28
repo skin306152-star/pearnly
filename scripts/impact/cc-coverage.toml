@@ -44,8 +44,8 @@ erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 purchase（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；直写对话里按单据引导真页面从题卡（付款方式）点到复核、「立即录入」、结果卡已交出，运行 done、同意来自页面、推向本对话账套（11-23 实验栈电脑 / 手机两格；实验栈没有识别，单据由 run.start(doc_ids) 交进来，交文件 → 识别那段不在流程里）"
-page_flows = ["cowork.cc.guide.purchase"]
+basis = "Cowork 声明 purchase（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；直写对话里按单据引导真页面从题卡（付款方式）点到复核、「立即录入」、结果卡已交出，运行 done、同意来自页面、推向本对话账套（11-23 实验栈电脑 / 手机两格；实验栈没有识别，单据由 run.start(doc_ids) 交进来，交文件 → 识别那段不在流程里）；11-28 加交文件那段：先选业务再用输入框 + 上传只发文件，进该业务引导并交识别（cowork.cc.guide.purchase-composer，修前没卡、没运行）"
+page_flows = ["cowork.cc.guide.purchase", "cowork.cc.guide.purchase-composer"]
 flows = ["cowork.cc.guide"]
 
 [[row.link]]
@@ -76,8 +76,8 @@ basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 p
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 purchase 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）"
-page_flows = ["erp.cc.guide.purchase"]
+basis = "ERP 声明 purchase 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）；11-28 加交文件那段：先选业务再用输入框 + 上传只发文件，进该业务引导并交识别（erp.cc.guide.purchase-composer，修前没卡、没运行）"
+page_flows = ["erp.cc.guide.purchase", "erp.cc.guide.purchase-composer"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
@@ -126,8 +126,8 @@ basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 s
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 sales 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）"
-page_flows = ["erp.cc.guide.sales"]
+basis = "ERP 声明 sales 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）；11-28 加交文件那段：先选业务再用输入框 + 上传只发文件，进该业务引导并交识别（erp.cc.guide.sales-composer，修前没卡、没运行）"
+page_flows = ["erp.cc.guide.sales", "erp.cc.guide.sales-composer"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"

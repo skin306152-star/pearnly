@@ -35,7 +35,7 @@ def configure(lab, manifest):
     return {"config_before": lab.site_config(manifest["site"], OCR_CONFIG), "start": start}
 
 
-def release(lab, manifest, params):
+def cleanup(lab, manifest, params):
     """收尾（成功失败都跑）：作废这一格交的识别（不占后面流程的排队名额），还原站点配置。"""
     if params.get("start"):
         lab.python(manifest["site"], f"""
