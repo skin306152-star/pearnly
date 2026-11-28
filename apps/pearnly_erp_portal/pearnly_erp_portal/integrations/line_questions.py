@@ -199,18 +199,25 @@ def _drive(payload, messages=()) -> list:
 
 def begin(line_user_id, names):
     """识别完的几张票（`intake.run`）：回这次要发的消息（卡 / 第一题；正在问别的就排在后面、回「排队中」）。
-    会话已过期或已换成别的流程（收款）回 None：调用方照旧直接出卡（卡片「保存」照判定兜底）。"""
-    payload = line_flow.choices(line_user_id)
-    if not payload:
-        return None
-    waiting = list(payload.get(WAITING) or [])
-    payload[WAITING] = waiting + [name for name in names if name not in waiting]
-    messages = _drive(payload)
-    if not messages and _busy(payload):
-        # 正在答别的票：这张排在后面，回一句「排队中」（现有词条），后面紧跟在问的那道题（快捷回复只挂在最后一条上）
-        messages = [_text(_("Queued")), *_again(payload)]
-    line_flow.keep(line_user_id, payload)
-    return messages
+    会话已过期或已换成别的流程（收款）回 None：调用方照旧直接出卡（卡片「保存」照判定兜底）。
+
+    整段在这个人的串行块里（`line_session.serialized`，与 LINE 事件、别的票识别完同一把锁；调用方进块前已提交）：块里读会话是
+    加锁读，`_precheck` 中途提交放掉行锁也没人能插进来改会话，两张票同时识别完、识别完时本人正在答题，都不会互相整份盖掉
+    （④ 第二期 L6）。锁到点（超 60 秒）后别人改过，写回时照旧报保存前比对，调用方降级直接出卡，不静默盖掉。"""
+    from pearnly_core import line_session
+
+    with line_session.serialized(line_user_id):
+        payload = line_flow.choices(line_user_id)
+        if not payload:
+            return None
+        waiting = list(payload.get(WAITING) or [])
+        payload[WAITING] = waiting + [name for name in names if name not in waiting]
+        messages = _drive(payload)
+        if not messages and _busy(payload):
+            # 正在答别的票：这张排在后面，回一句「排队中」（现有词条），后面紧跟在问的那道题（快捷回复只挂在最后一条上）
+            messages = [_text(_("Queued")), *_again(payload)]
+        line_flow.keep(line_user_id, payload)
+        return messages
 
 
 def after_items(line_user_id, payload, reply_token, doc=None, cancelled=None):

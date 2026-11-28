@@ -156,9 +156,7 @@ apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	answer	Pear
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	cancel	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	start	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：LINE 会话 payload 读改写（line_session 根函数），随 ④ 一起改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：同 answer
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	_drive	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：LINE 问题流程，随 ④ 的 line_session 一起改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数

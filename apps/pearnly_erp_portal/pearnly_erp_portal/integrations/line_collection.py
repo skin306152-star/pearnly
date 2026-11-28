@@ -868,16 +868,30 @@ def store_voucher(line_user_id, user, message_id, filename, prefix, reply_token=
         if not stored:
             return line_out.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
                                       reply_token)
-        with background(line_user_id, reply_token), _guarded(reply_token):
-            if payload.get("name"):  # 卡片上缺凭证：补进草稿
-                found = _service().card(payload["name"])
-                card = _service().set_voucher(payload["name"], found["version"], prefix, stored["file"])
-                return _show_card(line_user_id, payload, card, reply_token)
-            for row in payload["methods"]:
-                if row["prefix"] == prefix and not row.get("voucher"):
-                    row["voucher"] = stored["file"]
-            payload.pop("voucher_for", None)
-            _after_amounts(line_user_id, payload, reply_token)
+        # 取图、存凭证（外部动作）期间本人可能点了取消、换了一笔：先把存好的凭证提交，再进这个人的串行块加锁重读，
+        # 还在等这一笔的凭证才挂上去；已经过去了就删掉刚存的凭证、不回话，不按旧会话把取消的流程写活（④ 第二期 L8）
+        frappe.db.commit()
+        with line_session.serialized(line_user_id):
+            payload = payload_of(line_user_id)
+            if payload.get("step") != "voucher" or payload.get("voucher_for") != prefix:
+                frappe.delete_doc("File", stored["file"], ignore_permissions=True, force=True)
+                frappe.db.commit()
+                return None
+            return _attach_voucher(line_user_id, payload, prefix, stored, reply_token)
+
+
+def _attach_voucher(line_user_id, payload, prefix, stored, reply_token):
+    """（串行块里）把刚存好的凭证挂到正在等它的那种转账上，接着问下一步。"""
+    with background(line_user_id, reply_token), _guarded(reply_token):
+        if payload.get("name"):  # 卡片上缺凭证：补进草稿
+            found = _service().card(payload["name"])
+            card = _service().set_voucher(payload["name"], found["version"], prefix, stored["file"])
+            return _show_card(line_user_id, payload, card, reply_token)
+        for row in payload["methods"]:
+            if row["prefix"] == prefix and not row.get("voucher"):
+                row["voucher"] = stored["file"]
+        payload.pop("voucher_for", None)
+        _after_amounts(line_user_id, payload, reply_token)
 
 
 # ── 草稿与确认卡 ─────────────────────────────────────────────────────────────

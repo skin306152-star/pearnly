@@ -3,6 +3,7 @@
 Runs in the pinned Frappe runtime via unittest. No Site, database, credentials, OCR,
 outbound LINE or DMS call is used: collaborators are replaced and network is blocked.
 """
+import contextlib
 import json
 from types import SimpleNamespace
 import unittest
@@ -43,6 +44,8 @@ class Base(unittest.TestCase):
         self.enterContext(patch("pearnly_core.line_session.set_session",
                                 side_effect=lambda uid, state, payload, ttl_minutes=None: self.sessions.__setitem__(uid, {"state": state, "payload": dict(payload)})))
         self.enterContext(patch("pearnly_core.line_session.clear_session", side_effect=lambda uid, **kw: self.sessions.pop(uid, None)))
+        # 同一个人的串行块（Redis 锁，④ 第二期识别完出题进块）：离线单线程，直接放行
+        self.enterContext(patch("pearnly_core.line_session.serialized", side_effect=lambda uid, **kw: contextlib.nullcontext()))
         self.enterContext(patch("pearnly_erp_portal.access.guard.has",
                                 side_effect=lambda capability, user=None: capability in self.roles.get(user or frappe.session.user, set())))
         self.network = self.enterContext(patch("requests.sessions.Session.request",
@@ -607,7 +610,7 @@ class LineItems(Base):
         self.items = line_items
         self.enterContext(patch.object(line_items, "_", _same))
         self.docs = {}
-        self.enterContext(patch.object(line_items, "_doc", side_effect=lambda name: self.docs[name]))
+        self.enterContext(patch.object(line_items, "_doc", side_effect=lambda name, **kw: self.docs[name]))
         self.enterContext(patch.object(line_questions, "_doc", side_effect=lambda name: self.docs[name]))
         self.enterContext(patch.object(line_items, "_save_choices",
                                        side_effect=lambda name, value: setattr(self.docs[name], "line_choices", json.dumps(value))))

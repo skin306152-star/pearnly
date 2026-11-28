@@ -145,8 +145,9 @@ def _pending(value) -> str:
 # ── 提问 ─────────────────────────────────────────────────────────────────────
 
 
-def _doc(name):
-    return frappe.get_doc("ERP LINE Intake", name)
+def _doc(name, lock=False):
+    """``lock``：加锁读（拿最新的、锁到本事务提交）。"""
+    return frappe.get_doc("ERP LINE Intake", name, for_update=True) if lock else frappe.get_doc("ERP LINE Intake", name)
 
 
 def _result(doc) -> dict:
@@ -284,7 +285,8 @@ def _current(line_user_id, user, params):
     name = params.get("n") or ""
     if not asking.get("intake") or name != asking["intake"] or not frappe.db.exists("ERP LINE Intake", name):
         return payload, None
-    doc = _doc(name)
+    # 加锁读这张（④ 第二期 L7）：每行选择整列写回（`_save_choices`），与网页编辑、CC 代录记付款写同一列，读的必须是最新的
+    doc = _doc(name, lock=True)
     if doc.sent_by != user or doc.status != "ready" or not choices_of(doc):
         return payload, None
     return payload, doc

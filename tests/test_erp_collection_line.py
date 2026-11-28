@@ -78,6 +78,7 @@ TTLS = []
 session_module.set_session = lambda uid, state, payload, ttl_minutes=None: (TTLS.append(ttl_minutes), SESSIONS.__setitem__(
     uid, {"state": state, "payload": json.loads(json.dumps(payload))}))
 session_module.clear_session = lambda uid, **kw: SESSIONS.pop(uid, None)
+session_module.serialized = lambda uid, **kw: contextlib.nullcontext()  # 同一个人的串行块（Redis 锁）：离线单线程不用锁
 
 
 def _consume_nonce(uid, expect_state, nonce):
@@ -1109,6 +1110,37 @@ class CardLife(Base):
         colors = line_cards.COLORS
         self.assertEqual(header["backgroundColor"], colors["collection"])
         self.assertEqual(len({colors["purchase"], colors["sales"], colors["collection"]}), 3)
+
+
+class VoucherAfterCancel(Base):
+    """④ 第二期 L8：后台取图、存凭证期间本人点了取消 / 换了一笔——不按取图前读到的会话把流程写活，刚存的凭证删掉，不回话。"""
+
+    def test_a_voucher_that_arrives_after_the_step_moved_on_is_removed_and_not_attached(self):
+        self.to_invoices(("IV2",))
+        self.tap(next(item["data"] for item in self.buttons() if "BB" in item["data"]))
+        self.type("500")
+        self.assertEqual(self.step(), "voucher")
+        flow.receive_voucher("U1", "a@x", {"type": "image", "id": "M1"}, "r-img")
+        _path, kwargs = self.enqueued[-1]
+        kwargs = {key: value for key, value in kwargs.items() if key not in ("queue", "enqueue_after_commit")}
+        files_before = set(T.S.table("File"))
+        moved = {**SESSIONS["U1"], "payload": {**SESSIONS["U1"]["payload"], "step": "more"}}
+        moved["payload"].pop("voucher_for", None)
+
+        def download(message_id, **kw):
+            SESSIONS["U1"] = json.loads(json.dumps(moved))  # 下载这几秒里本人在 LINE 上点了别的
+            return LINE.content
+
+        deleted, replies = [], len(LINE.replies)
+        with mock.patch.object(LINE, "download_message_content", side_effect=download), \
+                mock.patch.object(frappe, "delete_doc", side_effect=lambda doctype, name, **kw: (
+                    deleted.append(name), T.S.table(doctype).pop(name, None)), create=True):
+            flow.store_voucher(**kwargs)
+        self.assertEqual(self.step(), "more")
+        self.assertFalse(any(row.get("voucher") for row in self.payload()["methods"]))
+        self.assertEqual(len(deleted), 1)
+        self.assertEqual(set(T.S.table("File")), files_before)
+        self.assertEqual(len(LINE.replies), replies)
 
 
 class VoucherLanguage(Base):
