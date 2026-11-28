@@ -1350,6 +1350,16 @@ class Snapshot(Base):
         snapshot.replace("CO-1", BOOK["key"], [], "2026-11-11T05:00:00+00:00")
         self.assertEqual(S.table(snapshot.DOCTYPE), {})
 
+    def test_a_read_without_offsets_keeps_the_credit_notes_a_newer_cc_listed(self):
+        """11-28：旧版 CC 桌面版读回只有发票（没带 ``offsets``）：快照里已有的抵减单不当「已没有」删；带了的照常对齐。"""
+        sr = {"docnum": "SR1", "rectyp": "5", "customer": "2100883", "net": "300", "received": "0", "remaining": "300"}
+        iv = {"docnum": "IV1", "rectyp": "3", "customer": "2100883", "net": "1000", "received": "0", "remaining": "1000"}
+        snapshot.replace("CO-1", BOOK["key"], [iv, sr], "2026-11-11T04:00:00+00:00", customer="2100883")
+        snapshot.replace("CO-1", BOOK["key"], [iv], "2026-11-11T04:10:00+00:00", customer="2100883", offsets=False)
+        self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "SR1"}, "remaining"), Decimal("300.00"))
+        snapshot.replace("CO-1", BOOK["key"], [iv], "2026-11-11T04:20:00+00:00", customer="2100883")
+        self.assertIsNone(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "SR1"}, "name"))
+
     def test_an_older_whole_book_read_does_not_bring_back_an_invoice_a_newer_read_found_gone(self):
         """11-15：按客户读（04:00）发现 IV2 已收清删掉；晚到的整本读是 03:30 的、里面还有 IV2——不插回（之前会显示到下次读回）。
         写后回执把 IV1 收清（05:00）同理；比它们新的整本读里又有这张（重开 / 撤销），照常插回。"""

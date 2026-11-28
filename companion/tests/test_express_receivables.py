@@ -219,6 +219,7 @@ def test_offsets_also_list_open_credit_notes_and_deposits_only_when_asked(receip
     assert [(row["docnum"], row["rectyp"], row["remaining"]) for row in data["items"]] == [
         ("IV001", "3", "9972.00"), ("IV002", "3", "29996.00"), ("SR001", "5", "100.00"), ("AI001", "0", "200.00")]
     assert sorted((row["docnum"], row["state"]) for row in data["looked_up"]) == [("SR002", "settled"), ("SR003", "cancelled")]
+    assert data["offsets"] is True and "offsets" not in plain
 
 
 def test_offsets_must_be_a_flag(receipts):

@@ -17,7 +17,7 @@
 - 可选 ``offsets: true``（1.12.26 起，退货 / 减项进收款，评估 ``docs/work/2026-11-28-credit-note-assessment.md``）：``items`` 另列这位
   （这本）客户还没抵完的**抵减单**——减项（``RECTYP 5``，单据簿 CN 的 SR / SE / EC）与定金（``RECTYP 0``，AI），条件同发票（未删、
   没作废、余额 > 0、不是服务品现金制）；``rectyp`` 照原样交，金额照原样正数（收款时从合计里扣，服务端按类型判）。不带时只列发票
-  （旧服务端照旧）；旧版 CC 不认这个参数，服务端只派给新版。``looked_up`` 按单号查同样认这三类。
+  （旧服务端照旧）；旧版 CC 不认这个参数，服务端只派给新版。``looked_up`` 按单号查同样认这三类。带了时结果另有 ``"offsets": true``。
 """
 
 from __future__ import annotations
@@ -152,6 +152,8 @@ def read_ar_open(cfg, params: dict, *, sleep: Callable[[float], None] = time.sle
             "read_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "items": items}
     if customer:
         data["customer"] = customer
+    if offsets:
+        data["offsets"] = True  # 这份读回列了抵减单（服务端据此判：没列的读回不删快照里已有的抵减单）
     if looked is not None:
         data["looked_up"] = looked
     content = gzip.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

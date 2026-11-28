@@ -817,7 +817,10 @@ def _ask_each(payload, reply_token, note=""):
     left = _paid(payload) - sum((_signed(payload, key, value) for key, value in payload["each"].items()), contracts.ZERO)
     choices = [money(value) for value in sorted({due, max(contracts.ZERO, min(due, left)), contracts.ZERO}, reverse=True)]
     lines = [note] if note else [_("Received {0} · due {1}").format(money(_paid(payload)), money(_rest(payload)))]
-    lines += [f"{docnum} · " + _("Due {0}").format(money(-due if _is_offset(payload, docnum) else due)),
+    from pearnly_erp_portal.integrations.line_collection_cards import _kind
+
+    kind = _kind((payload.get("kinds") or {}).get(docnum))  # 抵减单标类型，金额照填正数（从合计里扣）
+    lines += [" · ".join(part for part in (docnum, kind, _("Due {0}").format(money(due))) if part),
               _("Enter the amount for {0}").format(docnum)]
     _ask(reply_token, "\n".join(lines), [_button(value, _data("each", value.replace(",", ""))) for value in choices])
 

@@ -171,7 +171,7 @@ def land(company, book_key, made, customer="", key=None):
         frappe.log_error(title="ERP receivable snapshot result invalid", message=str(made.get("request")))
         return -1
     _looked(key, data)
-    return replace(company, book_key, data["items"], data.get("read_at"), customer)
+    return replace(company, book_key, data["items"], data.get("read_at"), customer, offsets=bool(data.get("offsets")))
 
 
 def _row_values(item):
@@ -199,13 +199,14 @@ def _moment(value):
     return moment or now_datetime()
 
 
-def replace(company, book_key, items, read_at=None, customer=""):
-    """一份读取结果（整本或一位客户）对齐进快照：新的建、变的改、读到时已没有（收清 / 作废）的删；比这次读取新的行不动。"""
+def replace(company, book_key, items, read_at=None, customer="", offsets=True):
+    """一份读取结果（整本或一位客户）对齐进快照：新的建、变的改、读到时已没有（收清 / 作废）的删；比这次读取新的行不动。
+    ``offsets`` 为假（旧版 CC 桌面版只读了发票）：快照里已有的抵减单不当「已没有」删掉。"""
     at = _moment(read_at)
     filters = {"book_key": book_key, **({"customer": customer} if customer else {})}
     # 按客户读的一份只动这位客户的行：客户按原样比（库的排序规则把只差空白的两位客户当成一位，不能删了另一位的发票）
     current = {row.docnum: row for row in frappe.get_all(
-        DOCTYPE, filters=filters, fields=["name", "docnum", "remaining", "received", "net", "read_at", "customer"],
+        DOCTYPE, filters=filters, fields=["name", "docnum", "rectyp", "remaining", "received", "net", "read_at", "customer"],
         limit_page_length=ROWS_MAX) if not customer or row.customer == customer}
     seen, written = set(), 0
     gone = _gone(book_key)
@@ -229,6 +230,8 @@ def replace(company, book_key, items, read_at=None, customer=""):
             frappe.db.set_value(DOCTYPE, row.name, {**values, "company": company, "read_at": at}, update_modified=False)
             written += 1
     for docnum, row in current.items():
+        if not offsets and contracts.is_offset(row.get("rectyp")):
+            continue  # 这份读回没列抵减单（旧版 CC）：不知道它在不在，留着
         if docnum not in seen and (not row.read_at or get_datetime(row.read_at) <= at):
             frappe.db.delete(DOCTYPE, {"name": row.name})
             _bury(book_key, docnum, at)
