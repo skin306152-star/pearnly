@@ -16,7 +16,7 @@ import socket
 import sys
 import unittest
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import connection_doubles  # noqa: E402
@@ -654,6 +654,75 @@ class ManualEntries(unittest.TestCase):
             with self.assertRaises(frappe.ValidationError):
                 connections.read_for_push("C", "W", lock=False)
         error.assert_called_once_with("connection.lock_required")
+
+
+class ConclusionConflict(unittest.TestCase):
+    """④ B6（11-28）：导入发出之后记回执撞冲突（1213 / 保存前比对）只整笔重来记回执那一段，不再导入；回执按 attempt_token / fence
+    核对，重来的那次是第一次回执（被回滚的那次什么都没落）。不连库：数据库、领取、凭据、导入换替身。"""
+
+    RECORD = dict(name="CWP-1", status="pending", result_unknown=0, target_json='{"adapter": "mrerp", "account_set": "12:1"}',
+                  actor="staff@x", payload_json='{"histories": [], "mappings": {}}', workspace="WS", client="",
+                  history="CWH-1", history_version=1, connection="CWEC-MR", account_key="12:1", branch="legacy",
+                  binding_generation=0, connection_revision=1)
+
+    def run_record(self, outcome, receipt, exhausted=False):
+        import frappe
+
+        row = frappe._dict(self.RECORD)
+        db = MagicMock()
+        db.get_value.side_effect = lambda doctype, name, fields, as_dict=False: (
+            row if isinstance(fields, list) else row.payload_json)
+        calls = {"execute": 0, "dispatch_next": []}
+
+        def execute(*args):
+            calls["execute"] += 1
+            return outcome
+
+        claim = {"leased": True, "fence": 3, "attempt_token": "tok-3", "payload": {"histories": []}}
+        loaded = type("Loaded", (), {"endpoint": {"config": {"system_url": BASE}}})()
+        with patch.object(frappe, "db", db), patch.object(runner.ledger, "lease", lambda *a, **k: claim), \
+                patch.object(runner.ledger, "trusted_adapter_context", lambda *a, **k: "adapter"), \
+                patch.object(runner.ledger, "ack", receipt), patch.object(runner.ledger, "mark_unknown", receipt), \
+                patch.object(runner.connections, "read_for_push", lambda *a, **k: loaded), \
+                patch.object(runner.connections, "credentials_for_use", lambda value: {"username": "u", "password": "p"}), \
+                patch.object(runner, "operator_holds", lambda key: False), patch.object(runner, "execute", execute), \
+                patch.object(runner, "dispatch_next", calls["dispatch_next"].append), \
+                patch.object(frappe, "set_user", MagicMock()), \
+                patch("pearnly_core.transaction.conflicts.time.sleep"), \
+                patch("pearnly_core.transaction.conflicts._error_message", return_value=None), \
+                patch("pearnly_core.transaction.conflicts._drop_messages"), \
+                patch("pearnly_core.transaction.conflicts.ATTEMPTS", 2 if exhausted else 4):
+            runner.run("CWP-1")
+        return calls, db
+
+    def flaky(self, times):
+        import frappe
+
+        seen = []
+
+        def receipt(name, **kwargs):
+            seen.append((name, kwargs["fence"], kwargs["attempt_token"]))
+            if len(seen) <= times:
+                raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+            return {"status": "success", "replayed": False}
+        return receipt, seen
+
+    def test_a_conflict_on_the_receipt_retries_only_the_receipt(self):
+        for outcome in ({"status": "success", "docnum": "PG691128-000001", "meta": {}},
+                        {"status": "unknown", "reason": "ERR_IMPORT_SENT_NO_RESULT"},
+                        {"status": "failed", "reason": "ERR_NO_SUPPLIER"}):
+            with self.subTest(status=outcome["status"]):
+                receipt, seen = self.flaky(1)
+                calls, db = self.run_record(outcome, receipt)
+                self.assertEqual(calls["execute"], 1)  # 导入只发一次
+                self.assertEqual(seen, [("CWP-1", 3, "tok-3")] * 2)  # 同一次尝试的 token / fence 回执两次：第一次被整笔回滚
+                self.assertEqual(calls["dispatch_next"], ["CWEC-MR"])  # 写者锁放了，接着排同连接下一条
+                self.assertGreaterEqual(db.rollback.call_count, 1)
+
+    def test_retries_used_up_keep_the_lease_and_do_not_raise(self):
+        receipt, seen = self.flaky(9)
+        calls, _db = self.run_record({"status": "success", "docnum": "PG691128-000002", "meta": {}}, receipt, exhausted=True)
+        self.assertEqual((calls["execute"], len(seen), calls["dispatch_next"]), (1, 2, []))
 
 
 class Defaults(unittest.TestCase):

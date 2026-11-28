@@ -8,7 +8,6 @@ apps/pearnly_core/pearnly_core/ai_usage/ledger.py	write_session	Pearnly AI Usage
 apps/pearnly_core/pearnly_core/assistant/sessions.py	set_business	$SESSION	写的是用户刚选的业务与时刻（会话建立时刻不会变），不由读出的值推算
 apps/pearnly_core/pearnly_core/assistant/toolrun.py	decide	Pearnly Assistant Tool Run	前面带条件的 UPDATE 已抢到这条（当前读），之后只有这里写
 apps/pearnly_core/pearnly_core/exports/service.py	run	Pearnly Export	导出任务只由这一个后台任务写；值是刚生成的文件
-apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py	run	Cowork Push Record	写的是 MR.ERP 回的单号；领取有 fence，同一条只一个执行者
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/vat.py	refresh	ERP Sale Line	按小票行现算的税额整值重写，重算幂等
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/vat.py	refresh	ERP Sale	按小票行现算的税额合计整值重写，重算幂等
 apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py	settle_payment	$DOCTYPE	选择在写之前加锁重读（11-23）；方向与票面识别结果建单后不变

@@ -32,6 +32,7 @@ from pearnly_core.express_operator.contracts import is_operator
 from pearnly_core.mrerp.push.readback import AMOUNT_MISMATCH
 from pearnly_core.mrerp.session import lock_key
 from pearnly_core.session_lock import operator_holds
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.connections import service as connections
 from pearnly_core.express_rules.push import common
 # 一次导入的执行（纯网络）在共用层（2026-11-03 搬去，ERP 接 MR.ERP 导入直写同用一份）；本模块对外名 `execute` 照旧。
@@ -130,7 +131,22 @@ def run(record):
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     outcome = execute(claim["payload"], target, secrets, system_url, today)
     _remember_menus(row.connection, target.get("account_set"), outcome.get("menus"), outcome.get("masters"))
-    fence, token = claim["fence"], claim["attempt_token"]
+    # 记结论（④ B6，11-28）：导入已经发出、结果在 ``outcome`` 里，这一段撞冲突（1213 / 保存前比对）只整笔重来这一段，不再导入。
+    # 原来不在 `retried` 里：撞一次任务就抛出，记录停在「已领」，写者锁等租约过期才放、过期后按结果不明转人工，已写进 MR.ERP 的
+    # 也要人工核，同连接后面的单一直排着。被回滚的那次什么都没落（回执在保存点里，撞 1213 整笔回滚），重来是第一次回执；
+    # 回执本身按 attempt_token / fence 幂等（同一次尝试再收同样的回执回原记录，`ledger.ack` / `mark_unknown` 的 replayed）。
+    try:
+        conflicts.retried(_conclude, record, context, adapter, claim["fence"], claim["attempt_token"], outcome)
+    except (conflicts.Exhausted, conflicts.RollbackFailed):
+        # 用尽：记录仍「已领」、写者锁留着（同修前），租约过期后由巡检 `sweep` 转结果不明；单号记进日志，人工核时对得上
+        logger.error("[mrerp-push] outcome of %s not recorded after retries: status=%s docnum=%s", record,
+                     outcome.get("status"), outcome.get("docnum") or "")
+        return
+    dispatch_next(row.connection)
+
+
+def _conclude(record, context, adapter, fence, token, outcome):
+    """把这次导入的结果记回推送账本并提交（:func:`run` 经 `conflicts.retried` 调，重来只重来这一段）。"""
     if outcome["status"] == "unknown":
         ledger.mark_unknown(record, context=context, adapter=adapter, fence=fence, attempt_token=token,
                             reason=outcome["reason"])
@@ -149,7 +165,6 @@ def run(record):
                    express_docnum=outcome.get("docnum"), error=None if success else outcome["reason"],
                    meta=outcome.get("meta"))
     frappe.db.commit()
-    dispatch_next(row.connection)
 
 
 def release_kick(connection, workspace, client=None):
