@@ -48,10 +48,33 @@ STATUS_WORDS = {DRAFT: "erp.collection.status.draft", QUEUED: "Entering", WRITIN
 RESULT_UNKNOWN = "Result unknown"
 EXPRESS_UNKNOWN = "cc_desktop.result_unknown"
 UNKNOWN_REASONS = (EXPRESS_UNKNOWN, "mrerp.result_unknown")
+# 列表「状态」筛选里结果不明单列一档（筛选值，不落库）：失败 + 原因是上面两种（库里按 LIKE 认，两种都含这一段）
+RESULT_UNKNOWN_STATUS = "result_unknown"
+UNKNOWN_LIKE = "%.result_unknown%"
 
 
 def result_unknown(status, reason="") -> bool:
     return status == FAILED and str(reason or "").startswith(UNKNOWN_REASONS)
+
+
+def status_filters(filters) -> list:
+    """列表「状态」筛选交给库的条件（服务端筛选，同 :func:`result_unknown` 的判据）：选「结果不明」= 失败且原因是结果不明；选「失败」=
+    失败且原因不是结果不明（结果不明不并进失败，主会话 11-28）。其余条件原样。``filters`` 是 ``[字段, 操作, 值]`` 的表。"""
+    out = []
+    for item in filters:
+        field, op, value = (list(item) + [None, None])[:3]
+        if field != "status" or op not in ("=", "in"):
+            out.append(item)
+            continue
+        values = [value] if op == "=" else list(value or [])
+        unknown, failed = RESULT_UNKNOWN_STATUS in values, FAILED in values
+        if unknown and not failed and len(values) == 1:
+            out += [["status", "=", FAILED], ["reason", "like", UNKNOWN_LIKE]]
+        elif failed and not unknown and len(values) == 1:
+            out += [["status", "=", FAILED], ["reason", "not like", UNKNOWN_LIKE]]
+        else:  # 几档一起选：结果不明算进失败那一档查（两档都选时就是全部失败）
+            out.append(["status", "in", sorted({FAILED if v == RESULT_UNKNOWN_STATUS else v for v in values})])
+    return out
 
 
 def retryable(status, reason="") -> bool:

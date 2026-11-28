@@ -11,6 +11,7 @@ from pearnly_core.cc_desktop import jobs
 from pearnly_core.desk import list_filters
 
 from pearnly_erp_portal.access import guard, listing
+from pearnly_erp_portal.collection import contracts
 from pearnly_erp_portal.masters import company as companies
 
 DOCTYPE = "ERP Collection"
@@ -42,7 +43,8 @@ def query(params=None):
     filters.extend(list_filters.conditions(params.get("conditions"), {
         **{field: field for field in CONDITION_FIELDS}, "doc_date": "doc_date"}))
     or_filters = listing.search_or(params.get("q"), SEARCH_FIELDS)
-    return filters, or_filters
+    # 「状态」里结果不明单列一档、失败不含它（`contracts.status_filters`，同状态词的判据）
+    return contracts.status_filters(filters), or_filters
 
 
 def rows(params=None, *, start=0, limit=20, sort_by=None, sort_order=None):

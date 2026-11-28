@@ -62,7 +62,10 @@ class Unknown(unittest.TestCase):
             ({"last_push_status": "manual", "last_push_reason": "EXPRESS_MANUAL: confirmed_push_unacked"}, True),
             ({"last_push_status": "manual", "last_push_reason": "mrerp.result_unknown: ERR_AUTH"}, True),
             ({"last_push_status": "success", "last_push_record": "PR1"}, False),
-            ({"last_push_status": "", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"}, False),
+            # 旧票没有推送状态、只记了结果不明的码：也是结果不明（主会话 11-28：原来两档都筛不到）
+            ({"last_push_status": "", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"}, True),
+            ({"last_push_status": "", "last_push_record": "PR1", "last_push_reason": "ERR_TECHNICAL"}, False),
+            ({"last_push_status": "pending", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"}, False),
         ]
         for row, expected in cases:
             with self.subTest(row=row):
@@ -70,15 +73,16 @@ class Unknown(unittest.TestCase):
 
     def test_a_page_is_marked_in_one_query(self):
         rows = [{"last_push_status": "manual", "last_push_record": "PR1"}, {"last_push_status": "manual", "last_push_record": "PR2"},
-                {"last_push_status": "pending", "last_push_record": "PR3"}]
+                {"last_push_status": "pending", "last_push_record": "PR3"},
+                {"last_push_status": "", "last_push_reason": "ERP_CONFIRMED_PUSH_RESULT_UNKNOWN"}]
         unknown.mark(rows)
-        self.assertEqual([row.get("push_unknown") for row in rows], [1, None, None])
+        self.assertEqual([row.get("push_unknown") for row in rows], [1, None, None, 1])
         self.assertEqual(len(CALLS), 1)
         self.assertEqual(sorted(CALLS[0][1]["name"][1]), ["PR1", "PR2"])   # 只问转人工的几条
 
     def test_list_filters_split_unknown_out_of_failed(self):
         both, either = unknown.list_filters("unknown")
-        self.assertEqual(both, [["last_push_status", "=", "manual"]])
+        self.assertEqual(both, [["last_push_status", "not in", ["success", "pending"]]])  # 停着的：转人工或旧票没有状态
         self.assertEqual(either[0], ["name", "in", ["H1", "H3"]])
         self.assertEqual([row[1:] for row in either[1:]], [["like", "%result_unknown%"], ["like", "%confirmed_push_unacked%"]])
         both, either = unknown.list_filters("failed")

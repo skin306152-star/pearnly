@@ -1016,6 +1016,23 @@ class ResultUnknown(Base):
                 service.retry(name)
             self.assertEqual(caught.exception.code, C.NOT_RETRYABLE)
 
+    def test_the_status_filter_lists_result_unknown_apart_from_failed(self):
+        """主会话 11-28：筛选也是显示——「结果不明」单列一档、「失败」不含它；服务端条件（不在浏览器里过滤），判据同状态词。"""
+        self.assertEqual(C.status_filters([["company", "=", "CO-1"], ["status", "=", "result_unknown"]]),
+                         [["company", "=", "CO-1"], ["status", "=", "failed"], ["reason", "like", C.UNKNOWN_LIKE]])
+        self.assertEqual(C.status_filters([["status", "=", "failed"]]),
+                         [["status", "=", "failed"], ["reason", "not like", C.UNKNOWN_LIKE]])
+        self.assertEqual(C.status_filters([["status", "in", ["failed", "result_unknown", "queued"]]]),
+                         [["status", "in", ["failed", "queued"]]])
+        for reason in C.UNKNOWN_REASONS:  # 库里 LIKE 认得的正是状态词认的那两种
+            self.assertIn(C.UNKNOWN_LIKE.strip("%"), reason + ": x")
+        meta = json.loads((ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_collection/"
+                                  "erp_collection.json").read_text(encoding="utf-8"))
+        options = next(f["options"] for f in meta["fields"] if f["fieldname"] == "status").split("\n")
+        self.assertIn(C.RESULT_UNKNOWN_STATUS, options)  # 原生筛选的下拉里有这一档
+        records = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/records.py").read_text(encoding="utf-8")
+        self.assertIn("return contracts.status_filters(filters), or_filters", records)
+
     def test_the_page_offers_retry_instead_of_withdraw_and_shows_the_word(self):
         page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
         web = re.findall(r'"([^"]+)"', page.split("const UNKNOWN_REASONS = [", 1)[1].split("];", 1)[0])

@@ -72,11 +72,11 @@ def classify(row, cutoff, unknown=frozenset()) -> str | None:
         # 要人选：推送服务停在复核时状态是 manual；CC 对话、定时任务在推之前就停下时只记原因（`push_state.record_failure`），
         # 状态不变（空，或上一次的失败）——都是要人选，不能当成「失败、请重新提交」（2026-10-15 验收 F12）
         return "choice_needed"
-    if status == "manual":
-        from pearnly_cowork.push import unknown as push_unknown
+    from pearnly_cowork.push import unknown as push_unknown
 
-        if push_unknown.is_unknown(row, unknown):   # 同录入列表「结果不明」的判据（11-25）
-            return "result_unknown"
+    if push_unknown.is_unknown(row, unknown):   # 同录入列表「结果不明」的判据（11-25；没有状态只带结果不明码的旧票也算，11-28）
+        return "result_unknown"
+    if status == "manual":
         return "manual"
     if reason:
         return "failed"
