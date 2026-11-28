@@ -78,11 +78,31 @@ for kind in {list(KINDS)!r}:
     for n in range({ROUNDS}):
         docs[kind].append(sold(n) if kind == "sales" else received(n) if kind == "stock" else bought(kind + str(n)))
         frappe.db.commit()
-# 照正式路径准备一次（先放成「排队中、还没有件」，同提交时 `push.queue`），停在要人选的照人点选记下答案，再放回同样的状态
+# 提交时 `push.queue` 把单标成「排队中」并排了一次提交后的后台准备（`push.send`，短队列）。等它们每张都真跑过（单不再是
+# 「排队中、没有件」）再往下：实验室慢时这批后台准备会落在下面复位成「要人选」之后，读到答案已记住就照常排上件，竞争开始前
+# 单上就有件了（11-28 列车合并头 new / 桌面：采购几格成立、后面几种不成立，件的请求号挤在同一秒）。固定等几秒保证不了
+import time
+def _settled(doctype, name):
+    frappe.db.rollback()  # 新事务：看后台任务刚提交的状态
+    row = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_job"], as_dict=True) or {{}}
+    return row.get("ledger_state") != "queued" or bool(row.get("ledger_job"))
+deadline = time.time() + 180
+waiting = [({DOCTYPES!r}[kind], name) for kind, names in docs.items() for name in names]
+while waiting and time.time() < deadline:
+    waiting = [pair for pair in waiting if not _settled(*pair)]
+    if waiting:
+        time.sleep(1)
+if waiting:
+    raise SystemExit("post-submit background send did not run within 180s: " + json.dumps(waiting))
+# 起始状态：停在「要人选」（答案下面记住，同人在单据页答过、等后台再排）。不用「排队中」：每分钟的写账巡检（`push.poll`）会
+# 自己把排队中的单排上件；停在要人选的它不碰。前置全程也不把单放成「排队中、没有件」：巡检若在那时列到它们，逐张交的时候
+# 单已复位成要人选，准备照样认记住的答案、排上件，竞争开始前单上就有件了（11-28 列车合并头 new / 桌面，件的请求号挤在同一秒）
+START = {{"ledger_state": "held", "ledger_reason": "choice_needed:account", "ledger_needed": None, "ledger_job": None}}
+# 照正式路径准备一次（`push.send` 对停下的单同样准备），停在要人选的照人点选记下答案，再放回起始状态
 for kind, names in docs.items():
     doctype = {DOCTYPES!r}[kind]
     for name in names:
-        push._set(doctype, name, {{"ledger_state": "queued", "ledger_reason": "", "ledger_needed": None, "ledger_job": None}})
+        push._set(doctype, name, START)
         frappe.db.commit()
         push.send(doctype, name)
         frappe.db.commit()
@@ -94,22 +114,27 @@ for kind, names in docs.items():
         for job in frappe.get_all("Pearnly CC Job", filters={{"source_doctype": doctype, "source_name": name,
                                                               "status": ["in", ["queued", "manual"]]}}, pluck="name"):
             jobs.cancel(job, "flow prepare")
-        push._set(doctype, name, {{"ledger_state": "queued", "ledger_reason": "", "ledger_needed": None, "ledger_job": None}})
+        push._set(doctype, name, START)
         frappe.db.commit()
-# 起始状态：停在「要人选」（答案上面已记住，同人在单据页答过、等后台再排）。不用「排队中」：每分钟的写账巡检（`push.poll`）会
-# 自己把排队中的单排上件，抢在竞争之前；停在要人选的它不碰。提交时排进后台队列的那次准备可能在复位之后才跑、又排出一件：等它
-# 跑完，再撤一次、复位一次（竞争开始前必须没有件）
-START = {{"ledger_state": "held", "ledger_reason": "choice_needed:account", "ledger_needed": None, "ledger_job": None}}
-import time
-time.sleep(5)
-for kind, names in docs.items():
-    doctype = {DOCTYPES!r}[kind]
-    for name in names:
-        for job in frappe.get_all("Pearnly CC Job", filters={{"source_doctype": doctype, "source_name": name,
-                                                              "status": ["in", ["queued", "manual"]]}}, pluck="name"):
+# 复位后要稳住：在途的巡检 / 后台准备若又排出件，撤掉、再复位，直到连续 3 秒没有单再有件（最多 120 秒）
+def _live(doctype, name):
+    return frappe.get_all("Pearnly CC Job", filters={{"source_doctype": doctype, "source_name": name,
+                                                       "status": ["in", ["queued", "manual"]]}}, pluck="name")
+pairs = [({DOCTYPES!r}[kind], name) for kind, names in docs.items() for name in names]
+deadline, quiet = time.time() + 120, 0
+while time.time() < deadline and quiet < 3:
+    time.sleep(1)
+    frappe.db.rollback()
+    moved = [(doctype, name) for doctype, name in pairs
+             if _live(doctype, name) or frappe.db.get_value(doctype, name, "ledger_state") != "held"]
+    for doctype, name in moved:
+        for job in _live(doctype, name):
             jobs.cancel(job, "flow prepare")
         push._set(doctype, name, START)
         frappe.db.commit()
+    quiet = 0 if moved else quiet + 1
+if quiet < 3:
+    raise SystemExit("documents kept getting write jobs after the reset for 120s")
 print(json.dumps({{"key": key, "seeded": seeded, "docs": docs, "supplier": supplier, "stock_house": house}}, default=str))
 """), "company": co, "tag": tag}
 
