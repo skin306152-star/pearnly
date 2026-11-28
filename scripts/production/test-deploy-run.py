@@ -32,7 +32,8 @@ def stub(path, body):
 
 
 class Runner(unittest.TestCase):
-    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None, config_exit=0, surfaces_exit=0):
+    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None, config_exit=0, surfaces_exit=0,
+                   plan_exit=0):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             state, deploy, bin_dir = root / 'state', root / 'deploy', root / 'bin'
@@ -47,6 +48,11 @@ class Runner(unittest.TestCase):
                     f'echo "{name} $*" >> "{trace}"\n'
                     f'[ "{name} $2" != "activate-product.sh {fail_product}" ] || {{ echo boom; exit 4; }}\n'
                     f'echo "done {name}"\n')
+            # 新镜像预览本身另在生产机上跑（surfaces-plan.sh）；这里只看它在激活前、拿到新镜像、没跑成就停
+            (deploy / 'scripts/production/surfaces-plan.sh').write_text(
+                f'echo "surfaces-plan.sh $*" >> "{trace}"\n'
+                f'[ {plan_exit} = 0 ] || {{ echo "PLAN-FAILED cowork: preview exited 2"; exit 1; }}\n'
+                'echo "SUMMARY {}"\n')
             (deploy / 'scripts/production/check-deploy-image.py').write_text(
                 f'import sys\nopen("{trace}", "a").write("check-deploy-image " + " ".join(sys.argv[1:]) + "\\n")\n')
             # 租户配置对比本身另有离线测试（test-check-tenant-config.py）；这里只看它在激活前跑、交给它镜像里的地图导出
@@ -85,6 +91,7 @@ class Runner(unittest.TestCase):
         steps = [line.split()[0] if not line.startswith('docker') else ' '.join(line.split()[:2]) for line in trace]
         self.assertEqual([s for s in steps if s != 'docker rm'], [
             'docker ps', 'docker image', 'docker create', 'docker cp', 'check-deploy-image', 'check-tenant-config',
+            'surfaces-plan.sh',
             'activate-product.sh', 'activate-product.sh', 'activate-product.sh',
             'docker exec', 'docker exec', 'docker exec',
             'activate-foundation.sh', 'deploy-readback.sh'])
@@ -95,6 +102,16 @@ class Runner(unittest.TestCase):
         self.assertTrue(all(' sync --product ' in line and f'pearnly-production-{line.split()[-1]}-web-1' in line for line in surfaces))
         self.assertIn('DEPLOY DONE', log)
         self.assertFalse(locked, 'lock is released after the run')
+
+    def test_preview_runs_with_the_new_image_and_its_failure_changes_nothing(self):
+        result, trace, status, log, _ = self.run_runner()
+        self.assertIn(f'surfaces-plan.sh {IMAGE}', trace)
+        result, trace, status, log, locked = self.run_runner(plan_exit=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(status, 'failed plan')
+        self.assertIn('PLAN-FAILED cowork', log)
+        self.assertFalse([l for l in trace if l.startswith('activate') or 'line_surfaces' in l])
+        self.assertFalse(locked)
 
     def test_surfaces_failure_stops_before_foundation(self):
         result, trace, status, log, locked = self.run_runner(surfaces_exit=1)
@@ -350,13 +367,13 @@ class Driver(unittest.TestCase):
     def run_driver(self, *args, build='success', stage='success', remote_status='ok', candidate='success',
                    busy_server=False, attach_failures=0, flows=FLOWS_OK, base_flows='', changed='', on_main=True,
                    with_map=False, config_rc=0, liff_rc=0, dump=True, manual='', external=False, external_rc=0,
-                   external_facts=True):
+                   external_facts=True, stage_log=False, plan_rc=0):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             repo, bin_dir = root / 'repo', root / 'bin'
             (repo / 'scripts/production').mkdir(parents=True)
             bin_dir.mkdir()
-            for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py', HERE / 'flows_inherit.py'):
+            for f in (DRIVER, RUNNER, READBACK, HERE / 'target.py', HERE / 'flows_inherit.py', HERE / 'surfaces-plan.sh'):
                 (repo / 'scripts/production' / f.name).write_text(f.read_text())
             if with_map:  # 这个提交带产品地图：部署前配置对比要跑（git archive 交出地图与对比脚本）
                 shutil.copytree(HERE.parent / 'impact', repo / 'scripts/impact')
@@ -390,6 +407,7 @@ case "$*" in
   *rev-list*) {f'echo {BASE}' if base_flows else ':'} ;;
   *"diff --name-only"*) printf '%s\n' {changed!r} ;;
   *show*deploy-run.sh) cat "{repo}/scripts/production/deploy-run.sh" ;;
+  *show*surfaces-plan.sh) cat "{repo}/scripts/production/surfaces-plan.sh" ;;
   *" archive "*external-config-collect*) {f'tar -c -C "{repo}/ext" scripts' if external else 'exit 128'} ;;
   *" archive "*) {f'tar -c -C "{repo}" scripts/impact scripts/check-product-map.py scripts/production/check-tenant-config.py scripts/production/check-liff-endpoints.py' if with_map else 'exit 128'} ;;
 esac
@@ -408,6 +426,8 @@ case "$1 $2" in
     esac ;;
   "run view")
     case "$*" in
+      *"--log"*) {f'echo "DIGEST: {DIGEST}"; echo "digest: {DIGEST}"' if stage_log else ':'} ;;
+      *"headSha"*) echo {SHA} ;;
       *"Verify the candidate"*) echo {candidate} ;;
       *"101 "*) echo "completed|{build}|" ;;
       *"202 "*) echo "completed|{stage}|" ;;
@@ -418,6 +438,7 @@ esac
             stub(bin_dir / 'fake-ssh', f'''printf 'ssh %s\\n' "$(printf '%s' "$*" | tr '\\n' ' ')" >> "{trace}"
 case "$*" in
   *"--map-b64"*) cat > "{root}/config-script"; echo "  tenants read: erp 2"; {('case "$*" in *external-config-collect*) echo \'__EXT {"version": 1, "sites": {}}\' ;; esac;' if external_facts else '')} {('echo "__MANUAL ' + manual + '";') if manual else ''} {('echo ' + repr(json.dumps({"erp": [{"site": "mrerp.pearnly.com", "keys": {"pearnly_line_liff_id": "1-a"}}, {"site": "gize.pearnly.com", "keys": {"pearnly_line_liff_id": None}}], "dms": {"error": "x"}})) + ' >&2;') if dump else ''} {'echo "  BLOCK erp mrerp.pearnly.com pearnly_x"; exit 1' if config_rc else 'echo "  tenant config check passed"'} ;;
+  *"bash -s"*) cat > "{root}/plan-script"; echo 'SUMMARY {{"product": "cowork", "ok": ["ccx.pearnly.com rich_menu"], "drift": ["erpcowork.pearnly.com rich_menu"], "skipped": {{"ccdemo.pearnly.com rich_menu": "no LINE channel credentials"}}, "failed": {{}}, "changes": {{"erpcowork.pearnly.com rich_menu": {{"zh:intake": {{"image": "same", "text": ["cell 1 label: a -> b"]}}}}}}}}'; {'echo "PLAN-FAILED dms: preview exited 2"; exit 1' if plan_rc else ':'} ;;
   *"nohup bash"*) cat > /dev/null; {'echo "BUSY abc"' if busy_server else 'echo "STARTED 4242"'} ;;
   *"tail -n"*)
     n=$(cat "{root}/attach-count" 2>/dev/null || echo 0); echo $((n + 1)) > "{root}/attach-count"
@@ -623,6 +644,25 @@ esac
         self.assertEqual(result.returncode, 1)
         self.assertIn('激活前的租户配置对比没过', result.stderr)
         self.assertIn('生产服务没动', result.stderr)
+
+    def test_dry_run_previews_line_surfaces_with_the_given_image(self):
+        other = 'sha256:' + 'd' * 64
+        # 演练之后还要核生产 SSH 密钥与目标（测试里没有，停在那一步）；这里只看预览那一段
+        result, calls = self.run_driver('--dry-run', '--digest', other, stage_log=True)
+        self.assertIn('站外 LINE 表面预览完', result.stdout, result.stdout + result.stderr)
+        plan = [c for c in calls if c.startswith('ssh') and 'bash -s' in c]
+        self.assertEqual(len(plan), 1)
+        self.assertIn(f"pearnly/frappe@{other}", plan[0])
+        self.assertIn('将发布 erpcowork.pearnly.com rich_menu：1 套（图：same）', result.stdout)
+        self.assertIn('zh:intake  图 same；cell 1 label: a -> b', result.stdout)
+        self.assertIn('无变化 ccx.pearnly.com rich_menu', result.stdout)
+        self.assertIn('跳过 ccdemo.pearnly.com rich_menu：no LINE channel credentials', result.stdout)
+        self.assertFalse([c for c in calls if 'nohup bash' in c])
+        result, calls = self.run_driver('--dry-run', stage_log=True)
+        self.assertIn(f"pearnly/frappe@{DIGEST}", [c for c in calls if 'bash -s' in c][0])
+        result, calls = self.run_driver('--dry-run', stage_log=True, plan_rc=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('站外 LINE 表面预览没跑成', result.stderr)
 
     def test_dry_run_makes_no_tag(self):
         result, calls = self.run_driver('--dry-run')

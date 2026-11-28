@@ -82,6 +82,12 @@ log "tenant config: formal tenants against the test tenant (product map classes)
 python3 "$ROOT/scripts/production/check-tenant-config.py" --map "$ROOT/scripts/production/product-map.json" \
   || fail "tenant config check found differences that block the deployment (BLOCK lines above)"
 
+# 站外 LINE 表面预览（11-28）：激活前用**新镜像**起一次性只读容器逐站对照，PLAN 逐套写进日志（改了哪些文字字段、图变没变）；
+# 只发 LINE GET、不写库不发布、缓存与线上隔开（surfaces-plan.sh 文件头）。没跑成 → 部署失败，此时线上没动。
+step=plan; set_status "running $step"
+log "LINE surfaces preview with the new image (read-only one-off containers)"
+bash "$ROOT/scripts/production/surfaces-plan.sh" "$image" || fail "LINE surfaces preview did not run (PLAN-FAILED lines above); production is unchanged"
+
 wait_mem() {
   local i avail
   for i in $(seq 1 60); do

@@ -4,7 +4,7 @@
 #   scripts/production/deploy.sh                 从远端 main 当前提交打发布标记 release-<UTC 年月日-时分> 并推上去，部署这个标记
 #                                                （要有部署授权，按「攒批部署」规矩来）
 #   scripts/production/deploy.sh --tag <标记>    部署已有的发布标记（重跑、或部署 main 上更早的提交）；标记所指提交必须在 main 上
-#   scripts/production/deploy.sh --dry-run [--tag <标记>]
+#   scripts/production/deploy.sh --dry-run [--tag <标记>] [--digest sha256:<64位>]
 #                                                演练：不打标记、不构建、不放镜像，用最近一次已放上生产的镜像走到放镜像前一步；
 #                                                只读连生产一次，做部署前租户配置对比
 #   scripts/production/deploy.sh --tag <标记> --digest sha256:<64位> [--skip-stage]
@@ -29,8 +29,9 @@
 #   2. 放镜像：gh workflow run stage-production.yml --ref <标记> -f digest=…，等它跑完（只把镜像拉到生产机，不启动）。
 #   3. 激活：一次 SSH 把本提交里的 deploy-run.sh 传上去、nohup 后台启动（脚本内容取自 git 里这个提交，服务器上还会与镜像里那份再比一次）。
 #      deploy-run.sh 照旧逐个激活 ERP / Cowork / DMS / 基础层，之间等可用内存 ≥ 8 GB，每 10 秒记内存，最后跑 deploy-readback.sh。
-#      三个产品激活后、基础层前同步站外 LINE 表面（富菜单：有漂移才发布、发布后回读，不一致即失败；没凭据的站点跳过并列出）；
-#      演练与部署前那次只读 SSH 顺带按线上代码预览会发布哪些（不拦）。
+#      激活前用新镜像起一次性只读容器预览站外 LINE 表面（PLAN 逐套写进日志，没跑成即失败、线上没动）；三个产品激活后、
+#      基础层前同步（富菜单：有漂移才发布、发布后重挂并回读，不一致即失败；没凭据的站点跳过并列出）。
+#      演练（--dry-run）也经一次 SSH 跑同一份预览，用最近一次放上生产的镜像，或 --digest 指定已放上去的那份。
 #   4. 看进度：一条 SSH 长连接在服务器那头 tail 日志，部署结束自己断开；中途断线等 120 秒再接，最多 5 次。不在本机循环反复新建 SSH。
 #   5. 回读通过后跑登录后端到端（e2e_gate：测试租户、本机无头浏览器）；不通过停下，没测到只打印。
 # 任何一步失败立刻停下，打印现在停在哪、生产受没受影响、下一步怎么处理；不自动回滚。
@@ -67,9 +68,12 @@ fi
 if [[ $skip_stage == 1 && -z "$digest" ]]; then
   printf '--skip-stage 要和 --digest 一起用\n' >&2; exit 2
 fi
-if [[ -n "$digest" && -z "$tag" ]]; then
+if [[ -n "$digest" && -z "$tag" && $mode != dry-run ]]; then
   printf '--digest 要和 --tag 一起用（跳过的是那个标记的构建）\n' >&2; exit 2
 fi
+# 演练带 --digest：只用来做站外 LINE 表面预览（那份镜像要已放上生产机），其余照旧用最近一次放上生产的镜像
+preview_digest=
+if [[ $mode == dry-run ]]; then preview_digest=$digest; digest=; fi
 if [[ -n "$tag" && ! "$tag" =~ ^release-[0-9]{8}-[0-9]{4}$ ]]; then
   printf '--tag 要写成 release-<年月日>-<时分>（例如 release-20261031-1405）\n' >&2; exit 2
 fi
@@ -166,6 +170,46 @@ flows_gate() {
   fi
 }
 
+# 站外 LINE 表面预览（11-28）：用要上线的镜像（surfaces-plan.sh，生产机上一次性只读容器）逐站对照，打印每个站点
+# 「无变化 / 将发布 N 套及每套改了什么」。演练经一次 SSH 跑它；正式部署在 deploy-run.sh 激活前的 plan 步骤里跑，没跑成即部署失败。
+surfaces_note() {
+  python3 - "$1" <<'PY'
+import json, sys
+for row in sys.argv[1].splitlines():
+    if row.startswith("PLAN-FAILED "):
+        print("  没跑成：" + row[len("PLAN-FAILED "):])
+        continue
+    if not row.startswith("SUMMARY "):
+        continue
+    s = json.loads(row[len("SUMMARY "):])
+    drift = s["drift"]
+    print(f"  {s['product']}: 一致 {len(s['ok'])} 项；部署时会发布 {len(drift)} 项")
+    for label in sorted(s["ok"]):
+        print(f"    无变化 {label}")
+    for label in sorted(drift):
+        changes = (s.get("changes") or {}).get(label) or {}
+        images = sorted({r.get("image", "unknown") for r in changes.values()})
+        print(f"    将发布 {label}：{len(changes)} 套（图：{'、'.join(images) or '未知'}）")
+        for key, r in sorted(changes.items()):
+            print(f"      {key}  图 {r.get('image')}；" + ("；".join(r.get("text") or []) or "文字无变化"))
+    for label, why in sorted(s["skipped"].items()):
+        print(f"    跳过 {label}：{why}")
+    for label, why in sorted(s["failed"].items()):
+        print(f"    读不出 {label}：{why}")
+PY
+}
+
+surfaces_preview() {  # surfaces_preview <镜像>：演练用，一次 SSH，生产机上跑本提交里的 surfaces-plan.sh
+  local image=$1 plan out rc=0
+  plan=$(git -C "$REPO" show "$sha:scripts/production/surfaces-plan.sh" 2>/dev/null) ||
+    { say "站外 LINE 表面预览：提交 $short 还没有 surfaces-plan.sh，跳过"; return 0; }
+  out=$(printf '%s\n' "$plan" | ssh_production "bash -s '$image'" 2>&1) || rc=$?
+  surfaces_note "$out"
+  [[ $rc == 0 ]] || stop "站外 LINE 表面预览没跑成（上面「没跑成」行）" "生产没动" \
+    "镜像不在生产机上就先放镜像（演练可带 --digest 指定已放上去的那份）；其余看 PLAN-FAILED 行"
+  say "站外 LINE 表面预览完（${image}）"
+}
+
 # 部署前租户配置对比：这个提交的产品地图导出交给生产机上的 check-tenant-config.py（一次 SSH、只读）
 config_gate() {
   local tmp out rc=0 b64
@@ -180,38 +224,7 @@ config_gate() {
   python3 "$tmp/scripts/check-product-map.py" --export "$tmp/product-map.json" ||
     { rm -rf "$tmp"; stop "提交 $short 的产品地图导不出来" "生产没动" "python3 scripts/check-product-map.py 看地图错在哪"; }
   b64=$(base64 < "$tmp/product-map.json" | tr -d '\n')
-  # 站外 LINE 表面预览（11-28，不拦）：按线上正在跑的代码对照每个站点 LINE 上现挂的富菜单。真部署时 deploy-run.sh 的
-# surfaces 步骤换上新镜像后按新代码再算一遍、有漂移才发布并回读，回读不一致部署失败。这里只报「至少会发布哪些」与跳过的站点。
-surfaces_note() {
-  local rows=$1
-  [[ -n "$rows" ]] || { say "站外 LINE 表面：生产机没回结果（不拦，真部署时 surfaces 步骤照常对照并发布）"; return 0; }
-  python3 - "$rows" <<'PY'
-import json, sys
-for row in sys.argv[1].splitlines():
-    product, _, data = row.strip().partition(" ")
-    if not data or data == "none":
-        print(f"  {product}: 线上镜像还没有 pearnly_core.line_surfaces（这一版部署后才有），部署时按新代码对照并发布")
-        continue
-    s = json.loads(data)
-    drift = s["drift"]
-    print(f"  {product}: 一致 {len(s['ok'])} 项；部署时会发布 {len(drift)} 项")
-    for label in sorted(s["ok"]):
-        print(f"    无变化 {label}")
-    for label in sorted(drift):
-        changes = (s.get("changes") or {}).get(label) or {}
-        images = sorted({row.get("image", "unknown") for row in changes.values()})
-        print(f"    将发布 {label}：{len(changes)} 套（图：{'、'.join(images) or '未知'}）")
-        for key, row in sorted(changes.items()):
-            print(f"      {key}  图 {row.get('image')}；" + ("；".join(row.get("text") or []) or "文字无变化"))
-    for label, why in sorted(s["skipped"].items()):
-        print(f"    跳过 {label}：{why}")
-    for label, why in sorted(s["failed"].items()):
-        print(f"    读不出 {label}：{why}")
-PY
-  say "站外 LINE 表面预览完（按线上正在跑的代码；本批若改了菜单，部署时按新代码再算，可能比这里多）"
-}
-
-# 站外设置对比（11-05）：这个提交有那几个脚本才跑；单独打包，免得更早的标记连租户配置对比都跳过
+  # 站外设置对比（11-05）：这个提交有那几个脚本才跑；单独打包，免得更早的标记连租户配置对比都跳过
   local collect=
   if git -C "$REPO" archive "$sha" $EXTERNAL_FILES 2>/dev/null | tar -x -C "$tmp" 2>/dev/null &&
       [[ -f "$tmp/scripts/production/external-config-collect.py" ]]; then
@@ -226,14 +239,9 @@ for c in \$(docker ps --format '{{.Names}}' | grep '^pearnly-production-'); do
   at=\$(docker inspect -f '{{.State.StartedAt}}' \$c); [ \"\$(date -d \"\$at\" +%s)\" -gt \"\$last\" ] && echo \"__MANUAL \$c \$at\"
 done; fi
 $collect
-for p in erp cowork dms; do
-  o=\$(docker exec -w /home/frappe/frappe-bench/sites pearnly-production-\$p-web-1 /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces check --product \$p </dev/null 2>&1 | sed -n 's/^SUMMARY //p' | tail -1)
-  echo \"__SURF \$p \${o:-none}\"
-done
 exit \$rc" < "$tmp/scripts/production/check-tenant-config.py" 2> "$tmp/sites.json") || rc=$?
   printf '%s\n' "$out" | sed -n 's/^__EXT //p' > "$tmp/external.json"
-  printf '%s\n' "$out" | grep -v '^__MANUAL\|^__EXT\|^__SURF' | sed 's/^/  │ /'
-  surfaces_note "$(printf '%s\n' "$out" | sed -n 's/^__SURF //p')"
+  printf '%s\n' "$out" | grep -v '^__MANUAL\|^__EXT' | sed 's/^/  │ /'
   manual=$(printf '%s\n' "$out" | sed -n 's/^__MANUAL //p')
   if [[ "$manual" == unknown ]]; then
     say "  ⚠ 生产机上还没有回读通过的时间记录（这一版之后的第一次部署会记下）"
@@ -372,6 +380,10 @@ elif [[ $mode == dry-run ]]; then
   say "最近一次放上生产：放镜像运行 ${stage_run}，提交 ${stage_head:0:8}，$digest"
   say "对应构建运行 ${build_run}：候选检查 success，构建日志里推送的 digest ${build_digest:-（没取到）}"
   [[ -z "$build_digest" || "$build_digest" == "$digest" ]] || stop "构建推送的 digest 与放镜像用的不一致"
+  plan_digest=${preview_digest:-$digest}
+  if [[ -n "$preview_digest" ]]; then plan_note="--digest 指定"; else plan_note="最近一次放上生产的镜像；要看这一批的预览，先构建并放镜像，再带 --digest 演练"; fi
+  say "站外 LINE 表面预览：用 ${plan_digest}（${plan_note}）"
+  surfaces_preview "$IMAGE_REPO@$plan_digest"
   if runner=$(git -C "$REPO" show "$sha:scripts/production/deploy-run.sh" 2>/dev/null); then
     source_note="提交 $short"
   else
@@ -510,6 +522,9 @@ case "$status" in
     stop "三个产品已激活，站外 LINE 表面同步或回读没过（上面 SUMMARY / FAILED 行写了哪一站）" \
       "不自动回滚；没发布的站点菜单仍是旧的，已发布的站点在日志里有 BEFORE 行" \
       "看 $REMOTE_STATE/surfaces-<产品>-$short.log；要回退某站用 FAILED 行里的 restore 命令；修好后 deploy.sh --tag $tag --digest $digest --skip-stage 重跑" ;;
+  "failed plan")
+    stop "激活前用新镜像做的站外 LINE 表面预览没跑成（上面 PLAN-FAILED 行）" "生产服务没动（镜像已放上生产机）" \
+      "看 PLAN-FAILED 行；修好后 scripts/production/deploy.sh --tag $tag --digest $digest --skip-stage" ;;
   "failed revision"|"failed sync-tooling"|"failed start")
     stop "激活前的核对没过（${status}）" "生产服务没动；看上面日志的 FAILED 行" ;;
   "failed erp"|"failed cowork"|"failed dms"|"failed foundation")
