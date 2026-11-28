@@ -188,7 +188,8 @@
 - 兼容：读取参数 `offsets` 只派给最低版本 1.12.26 起的 CC 桌面版（`PARAM_MIN_COMPANION`，发版时与带它的那一版 VERSION 对齐）；
   够得到的电脑都还旧时服务端退回不带 `offsets` 的读取，照旧只列发票、照常收款；旧版的读回不删快照里已有的抵减单。
   带抵减单的收款载荷 23 只交给报过支持 23 的电脑；不带抵减单的照旧 20。
-- 本批放出范围：**Express 收款三入口（LINE、网页、CC 对话引导）带减项单与定金**。CC 对话引导的「正好抵平（净额 0）」已由共用引擎
+- 本批放出范围：**Express 收款三入口（LINE、网页、CC 对话引导）带减项单与定金**，含部分抵扣、正好抵平（净额 0）、
+  抵减大于发票（净额 < 0，差额退现金；主会话 11-28 定本批放开）。CC 对话引导的「正好抵平（净额 0）」已由共用引擎
   「无需分摊」标记补上（`steps.NOTHING_TO_SPLIT`），三入口一致。
 - MR.ERP 收款减债（arsc）**本批不放**（主会话 11-28 定）：代码与离线测试保留，用户可见行为同现在（减债页签不列）。
   开关是代码常量 `mrerp/receivables.py · OFFSETS_RELEASED = False`（不做租户开关、不进站点配置），测试守着「现在不列」。
@@ -203,8 +204,7 @@
     与分支写法逐栏一致（抵清才 CMPLAPP Y，没抵清不动），减项单部分抵扣照原生放开。
   - RE0000034 **净额 < 0**：IV0000020 收 20 + SR0000002 抵剩余 57 → Express 接受现金 −37 并保存：NETAMT = IVCAMT = CSHRCV = −37、
     DOCSTAT M；凭证借应收 37 / 贷现金 37（金额正数、借贷反向）；客户余额 +37、ARBAL RE11 −37；SR 抵完 CMPLAPP Y。
-    即 §12.3 有原生证据；本批写法仍拦（`offsets_exceed_invoices`），放开需三入口金额校验、负数现金、凭证借贷反向，且只有现金的证据
-    （转账 / 支票负数未验）。是否下一批放开待主会话定。
+    即 §12.3 有原生证据，本批照它放开（见下「净额 < 0」）。
   - Express 收款窗在「执行」后先把 RE 存成未完成（DOCSTAT R、REMAMT = 应收），填付款方式再存才变 M——这是原生的两步，不影响直写。
   - 这几张单留在 TEST（SR0000001、SR0000002、RE0000033、RE0000034），已登记占用表。
 - 发现的原有问题（不是本分支引入，未修）：CC 桌面版 `dbf_fields.audit_fields` 给 CC 写的赊销减项单也写 CMPLAPP 'Y'，原生未收的
@@ -212,7 +212,19 @@
 - 连带回归（5 个共用入口）：control.assistant、cowork.assistant、cowork.cc-chat.push、cowork.cc.troubleshooting、cc.operator.thread
   由列车回归覆盖（流程 id cowork.cc.guide.purchase、cowork.cc.guide.pending、cowork.cc.send-unblocked、cc.operator.replay、
   cc.operator.stop、cc.chat、cc.companies、erp.cc.guide.collection、erp.cc.typed-collection；control.assistant 没有流程），不是本窗口实测。
+- 净额 < 0（11-28 主会话定本批放开）：
+  - CC 桌面版写入器：现金只在净额 < 0 时可为负；单头 NETAMT = IVCAMT = CSHRCV = 净额；凭证 SEQIT 2 贷现金、SEQIT 6 借应收（正数）；
+    ARBAL 加负数、ARMAS 加回。转账 / 支票等方式退负数：Express 原生没录到 → 载荷不合格（照证据拦，不是保守）。载荷仍是 23
+    （23 本批新加、还没有发布的桌面版认它），不加版本号。
+  - 服务端规则（三入口同一套 `collection.contracts.check`）：净额 < 0 时现金不填或填这个负数都按它记；选了别的方式回
+    `offsets_exceed_invoices`；账套没有现金科目回 `cash_account_missing`。
+  - LINE：勾完发票直接出确认卡（现金 −xx、合计 −xx，现有金额格式）；网页：现金不填即可；CC 对话引导：方式那张卡应分为负，
+    交空的分摊（共用引擎「合计不是正数可交空」，只有收款用分摊题），复核卡列现金 −xx。没加新文案。
+  - 回放（分支写入器在 TEST 快照副本上重写，与 Express 原生逐表逐字段比，只差时间、操作员、单号备注）：s4 → RE0000034（净额 −37）、
+    s2 → RE0000033（部分抵 950），ARBAL / ARMAS / ARRCPIT / ARTRN / GLJNL / GLJNLIT / ISRUN 七张表全一致。
+  - NLTTEST 里唯一一张原生净额 < 0（RE1803714，2018）是未完成单（DOCSTAT R、NETAMT −8000 ≠ IVCAMT −15463.92、无凭证），不当样本。
+  - 没做：转账 / 支票退负数的原生试录、TEST 真写一张净额 < 0 并在 Express 界面核对——都要 Express 重新登录（13:01 已退出），
+    TEST 里也没有未抵完的减项单可用，待主会话排。
 - 未做 / 待定：
-  - Express 净额 < 0：见上，本批拦。
   - MR.ERP 减债：见上，本批不放。
   - MR.ERP 预收：不做（§1.5）。
