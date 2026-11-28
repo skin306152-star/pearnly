@@ -29,7 +29,7 @@ GUIDES = [
           "options": "pearnly_erp_portal.express.guide_pending.item_options"},
      ],
      "draft": "pearnly_erp_portal.express.guide_pending.draft", "review": "pearnly_erp_portal.express.guide_pending.review",
-     "confirm": "pearnly_erp_portal.express.guide_pending.confirm",
+     "confirm": "pearnly_erp_portal.express.guide_pending.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "erp_pending", "expires": ["company"]},
     # 单据维护（总表第 14 行）：同一组函数，按 ctx 的业务分（`guide_pending._documents`）
     {"id": "documents", "label_key": "guide.business.documents", "icon": "file-spreadsheet", "order": 101,

@@ -535,22 +535,22 @@ desktop_version: 1.12.21
 | 7 | 调拨 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
 | 8 | 物料调整 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
 | 9 | 入库 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
-| 10 | 盘点 | ✅ | —（只做直写） | ◐ P4 | —（只做直写） |
-| 11 | 结果不明核对、待处理 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 |
+| 10 | 盘点 | ✅ | —（只做直写） | ✅ | —（只做直写） |
+| 11 | 结果不明核对、待处理 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 |
 | 12 | 文件夹定时任务 | ✅ · ◐ P4 · ⇢云 | —（只做直写） | —（11-12 先不做） | —（11-12 先不做） |
 | 13 | 银行对账、收入对账、增值税对账 | ✅ · ✅ · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 14 | 增值税 ภ.พ.30 草稿 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 15 | 预扣税 ภ.ง.ด.3 / 53 草稿 | ✅ | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 16 | Express 读回 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
 | 17 | 单据维护：改识别结果、录不录、删除、导出复核表 | ✅ | ✅ | ◐ P2 | ◐ P2 |
-| 18 | 公司资料、记住的选择、知识库 | ✅ | —（只做直写） | ◐ P4 | —（只做直写） |
+| 18 | 公司资料、记住的选择、知识库 | ✅ | —（只做直写） | ✅ | —（只做直写） |
 | 19 | 任务看板 | ✅ | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
 | 20 | MR.ERP 导入设置、库存科目组、重读账套 | ○ P4 | —（只做直写） | —（ERP 无此设置） | —（只做直写） |
-| 21 | 收发存报表导出 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 | —（只做直写） |
+| 21 | 收发存报表导出 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ✅ | —（只做直写） |
 | 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
 | 23 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **90 格**：✅ 27、◐ 20、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
+范围内共 **90 格**：✅ 31、◐ 16、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
 
 按证据：**真机通过 5** · **真模型通过 1** · **只有服务端 41** · **没做 6**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
 
@@ -612,14 +612,14 @@ desktop_version: 1.12.21
 | stock_in | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 stock_in（chat）；等 MR.ERP（开着） |
 | stock_in | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 stock_in（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | stocktake | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 stocktake（form 源，一个「盘点」入口先选操作：模板、按表新建、计数（可记 0）、结束、导出、删除；结束与删除走允许卡；cdb104b3d、c0c936631、80c1c2770）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是盘点名、不出内部编号）；真页面下载模板 → 结果卡成功带 stocktake-template.xlsx、对话里服务端同名（电脑 / 手机）；离线单测 test_cowork_stocktake_guide；页面流程 `cowork.cc.guide.stocktake` |
-| stocktake | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；没有结果步骤；b0fcdc66b、e101bb82b）；只有离线单测 test_erp_stocktake_guide，页面流程归第 2 步 |
+| stocktake | ERP 直写 | ✅ | 只有服务端 | ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；b0fcdc66b、e101bb82b）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是盘点名称、删除写张数）；真页面新建 → 结果卡成功带名称、库里真有这份盘点（实验栈电脑 / 手机两格）；离线单测 test_erp_stocktake_guide；页面流程 `erp.cc.guide.stocktake` |
 | resolve | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 pending（form 源，选本对话公司待处理清单里的一项 → 确定后交给采购 / 销售的按单据引导 run.start(doc_ids)，判定卡与复核卡都在那里；删除走允许卡；d920db310、bba22e8c7；11-24 补结果步骤：交出的写单号 · 对方、导出的放文件、删除的说删了几张跳过几张）；真页面点菜单 → 删除 → 选单 → 复核 → 允许 → 结果卡已删除 1 条（11-24 本机实验栈电脑 / 手机两格）；离线单测 test_cowork_pending_guide。ERP 的待处理 11-23 随 ERP 直写采购 / 销售一起带进来（另见 erp_direct 两格）；页面流程 `cowork.cc.guide.pending` |
 | resolve | Cowork 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP）；Cowork 的 MR.ERP 推送在线；没有 MR.ERP 公司上的流程 |
 | resolve | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 pending（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | resolve | Cowork 代录 · 本地 | ✅ | 只有服务端 | pending 声明 11-24 加 operator：代录对话里待处理清单只列对话月份（按发票日期）的单，同代录交单的清单；真页面同一条删除走到结果卡（11-24 本机实验栈电脑 / 手机两格）；页面流程 `cowork.cc.guide.pending-operator` |
 | resolve | Cowork 代录 · MR.ERP | ◐ P2 | 只有服务端 | 同代录 · 本地那格的声明（面向 MR.ERP）；没有 MR.ERP 公司上的流程 |
 | resolve | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 pending（operator）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
-| resolve | ERP 直写 · 本地 | ◐ P2 | 只有服务端 | ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；没有结果步骤；离线单测 test_erp_pending_guide，页面流程真点卡从题到结果（本地 Express）；页面流程 `erp.cc.guide.pending` |
+| resolve | ERP 直写 · 本地 | ✅ | 只有服务端 | ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是交出那张的「单号 · 对方」）；离线单测 test_erp_pending_guide，页面流程真点卡从题到结果（本地 Express）；页面流程 `erp.cc.guide.pending` |
 | resolve | ERP 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）；没有 MR.ERP 公司上的流程 |
 | resolve | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 pending（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | resolve | ERP 代录 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 pending（operator）；打字路径能办，没有引导卡 |
@@ -641,11 +641,11 @@ desktop_version: 1.12.21
 | documents | ERP 直写 | ◐ P2 | 只有服务端 | ERP 声明 documents（form 源，与待处理同一组函数 express/guide_pending.py；11-25）：先选操作（处理 / 导出 / 删除）与方向（采购 / 销售），清单是对话选择器选的公司与月份里这个方向的全部单据（purchasing / sales.records.rows，网页列表同一个查询与权限，在本对话公司下执行 masters.company.acting，服务端搜索翻页；销售不列收银小票）；处理交采购 / 销售的按单据引导，导出是网页导出同一个工作簿（这家这个月这个方向整张列表）放进对话，删除走允许卡、网页同一个删草稿函数（非草稿跳过，结果卡带网页原句）；离线单测 test_erp_pending_guide；真页面导出、删除（已提交的跳过）两条流程（电脑 / 手机）。差 ERP 改票面进 CC（主会话 11-24 定第二批），所以 ◐；流程 `erp.cc.guide.documents`、`erp.cc.guide.documents-delete` |
 | documents | ERP 代录 | ◐ P2 | 只有服务端 | 同直写那格的声明（modes 含 operator，清单本来就是对话月份）；差改票面，同直写那格 ◐ |
 | company_info | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 company（form 源，本对话公司：加 / 改 / 删备注、设整个公司记住的选择、删公司规则，走公司页同一组函数；删除走允许卡；结果步骤 = 共用 guide.form_result（11-25 C1，名字是备注正文 / 规则名，删除写条数）；真页面加备注 → 结果卡成功带正文、公司备注里真有（电脑 / 手机）；e827c1d07、46522199a、dd298be7e）；只有离线单测 test_cowork_company_guide，页面流程归第 2 步；页面流程 `cowork.cc.guide.company` |
-| company_info | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；没有结果步骤；3bc89a2dc、dd298be7e）；只有离线单测 test_erp_company_guide，页面流程归第 2 步 |
+| company_info | ERP 直写 | ✅ | 只有服务端 | ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；3bc89a2dc、dd298be7e）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是备注正文，删除写条数）；真页面加备注 → 结果卡成功带正文、知识库里真有（实验栈电脑 / 手机两格）；离线单测 test_erp_company_guide；页面流程 `erp.cc.guide.company` |
 | board | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；cc-guided-work 75e9cf2e7、76b646bcf）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是卡片标题）；后台定下的默认看板也用于列表 / 卡片选项（11-25 修：原先列表题零选项卡死）；真页面添加卡片 → 复核 → 确定 → 结果卡成功带标题、看板上真有这张卡（电脑 / 手机）；离线单测 test_cowork_work_guide；页面流程 `cowork.cc.guide.work` |
 | ledger_setup | Cowork 直写 | ○ P4 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
-| stock_report | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；没有复核与结果步骤；cc-guided-stock-card 29625d9d6）；只有离线单测 test_erp_stock_card_guide，页面流程归第 2 步 |
-| add_company | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；没有结果步骤；3bc89a2dc、84db98ec6）；只有离线单测 test_erp_company_guide，页面流程归第 2 步 |
+| stock_report | ERP 直写 | ✅ | 只有服务端 | ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；cc-guided-stock-card 29625d9d6）；结果步骤 = 共用 guide.form_result（11-28 C2，结果卡带文件）；真页面照推荐作答 → 结果卡成功带一份文件、对话里服务端同名（实验栈电脑 / 手机两格）；离线单测 test_erp_stock_card_guide；页面流程 `erp.cc.guide.stock-card` |
+| add_company | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；3bc89a2dc、84db98ec6）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是加的几家，主档还在同步写「同步中」）；只有离线单测 test_erp_company_guide，没有页面流程（实验栈连接目录要造一家未接进 ERP 的公司，没造） |
 | add_company | ERP 直写 · MR.ERP | ⇢公 | 等公司接入 | pearnly_erp_portal 声明了 company_add（chat）；等公司接入（开着） |
 | add_company | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 company_add（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 <!-- cc-coverage:end -->

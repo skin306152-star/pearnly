@@ -93,7 +93,7 @@ _module("pearnly_erp_portal.masters.cc_service", PAGE_MAX=50, require_write=_req
         can_build=lambda user=None: STATE["build"], get=lambda company: types.SimpleNamespace(name=company, company_name="ABC Co"),
         detail=lambda company, period=None: {"notes": [dict(note) for note in STATE["notes"]]},
         note_save=_note_save, note_delete=lambda company, note: STATE["deleted"].append((company, note)) or {"id": note},
-        pending=_pending, create_many=_create_many)
+        pending=_pending, create_many=_create_many, syncing=lambda names: [name for name in names if name in STATE.get("syncing", ())])
 
 
 def _clean(value):
@@ -201,8 +201,9 @@ class Notes(Base):
         found = run.answer(name, {"text": "Uses  branch 00001"})
         lines = {line["key"]: line["value"] for line in found["review"]["lines"]}
         self.assertEqual((lines["company"], lines["text"]), ("ABC Co", "Uses branch 00001"))
-        run.confirm(name, found["version"])
+        done = run.confirm(name, found["version"])
         self.assertEqual(STATE["saved"], [("CO-1", "Uses  branch 00001", None, "cc", SESSION)])
+        self.assertEqual((done["result"]["status"], done["result"]["docnum"]), ("entered", "Uses branch 00001"))  # 共用 form_result
 
     def test_editing_picks_a_note_of_this_company_and_suggests_its_text(self):
         name, found = self.walk("company", {"action": "note_edit"})
@@ -218,8 +219,10 @@ class Notes(Base):
     def test_deleting_a_note_lists_it_on_the_review_and_deletes_it(self):
         name, found = self.walk("company", {"action": "note_delete"}, {"note": "N1"})
         self.assertIn(("note", "Closes books on the 25th"), [(line["key"], line["value"]) for line in found["review"]["lines"]])
-        run.confirm(name, found["version"])
+        done = run.confirm(name, found["version"])
         self.assertEqual(STATE["deleted"], [("CO-1", "N1")])
+        # 结果卡写删掉的那条的正文（删之前取）与删了几条，不出笔记编号
+        self.assertEqual((done["result"]["docnum"], done["result"]["reason_text"]), ("Closes books on the 25th", "intake.delete.done"))
 
     def test_a_note_the_service_refuses_goes_back_with_its_reason(self):
         STATE["refuse"] = "Notes are full"
@@ -247,6 +250,15 @@ class AddCompanies(Base):
         self.assertEqual(STATE["created"], [[{"connection": "", "account_set_key": "9990000000001:00000"},
                                              {"connection": "", "account_set_key": "9990000000055:00000"}]])
         self.assertEqual(len(done["result"]["companies"]), 2)
+        # 结果卡（共用 form_result，C2）：成功、名字是加的几家，主档没在同步就不写「同步中」
+        self.assertEqual((done["result"]["status"], done["result"]["docnum"]), ("entered", "x, x"))
+        self.assertNotIn("reason_text", done["result"])
+
+    def test_the_result_says_syncing_while_the_masters_are_still_syncing(self):
+        STATE["syncing"] = ("CO-0",)
+        name, found = self.walk("company_add", {"companies": [STATE["catalog"][2]["identity"]]})
+        done = run.confirm(name, found["version"])
+        self.assertEqual((done["result"]["docnum"], done["result"]["reason_text"]), ("x", "company.syncExpress.syncing"))
 
     def test_a_company_not_in_the_catalog_is_not_accepted(self):
         name = run.start(SESSION, "company_add")["run"]

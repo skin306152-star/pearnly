@@ -51,6 +51,6 @@ GUIDES = [
           "check": "pearnly_erp_portal.inventory.guide.qty_check"},
      ],
      "draft": "pearnly_erp_portal.inventory.guide.draft", "review": "pearnly_erp_portal.inventory.guide.review",
-     "confirm": "pearnly_erp_portal.inventory.guide.confirm",
+     "confirm": "pearnly_erp_portal.inventory.guide.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "erp_stocktake_count", "expires": ["company"]},
 ]

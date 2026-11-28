@@ -119,16 +119,27 @@ def _session(ctx) -> str:
     return str(ctx.get("session") or "")
 
 
+def _short(text) -> str:
+    return " ".join(str(text or "").split())[:80]
+
+
+def _joiner() -> str:
+    """几家公司名连写：中文、日文用「、」，泰文、英文用逗号（同收款期间那句，`collection.texts.periods_text`）。"""
+    return "、" if str(getattr(frappe.local, "lang", "") or "")[:2] in ("zh", "ja") else ", "
+
+
 def confirm(ctx, values, draft, consent) -> dict:
     service, company = _service(), _company(ctx)
     action = values["action"]
     try:
         if action == NOTE_DELETE:
+            # 结果卡给人看的名字（`guide.form_result` 的 label）：删的那条的正文（删之前取），截到 80 字；写删了几条
+            shown = next((row["name"] for row in note_options(ctx, codes=[values["note"]])["options"]), "")
             found = service.note_delete(company, values["note"])
-            return {"status": "entered", "note": found["id"]}
+            return {"status": "entered", "note": found["id"], "label": _short(shown), "deleted": 1}
         saved = service.note_save(company, values["text"], values.get("note") if action == NOTE_EDIT else None,
                                   origin="cc", session=_session(ctx))
-        return {"status": "entered", "note": saved.get("id") or ""}
+        return {"status": "entered", "note": saved.get("id") or "", "label": _short(values["text"])}
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
@@ -192,6 +203,11 @@ def add_confirm(ctx, values, draft, consent) -> dict:
         frappe.db.rollback()
         frappe.clear_messages()
         return {"returned": {"companies": {"reason": "company_refused", "text": str(error)[:300]}}}
-    return {"status": "entered", "companies": [{"id": item.get("id"), "title": item.get("title") or item.get("label"),
-                                                "created": item.get("created"), "linked": bool(item.get("linked"))}
-                                               for item in made]}
+    companies = [{"id": item.get("id"), "title": item.get("title") or item.get("label"),
+                  "created": item.get("created"), "linked": bool(item.get("linked"))} for item in made]
+    # 结果卡：名字是加的几家（标题连写，截到 80 字）；主档还在同步的写「同步中」（公司页同一个词，`masters.queue` 排上之后
+    # 读取 / 落库都算同步中，同公司页的同步状态）
+    syncing = _service().syncing([item["id"] for item in companies if item["id"]])
+    return {"status": "entered", "companies": companies,
+            "label": _short(_joiner().join(str(item["title"] or "") for item in companies if item["title"])),
+            **({"state_text": _("company.syncExpress.syncing")} if syncing else {})}

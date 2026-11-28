@@ -238,7 +238,7 @@ name = "盘点"
 guide = "stocktake"
 cowork_direct = ["done"]
 cowork_operator = ["out:只做直写"]
-erp_direct = ["half:p4"]
+erp_direct = ["done"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
@@ -248,7 +248,8 @@ page_flows = ["cowork.cc.guide.stocktake"]
 
 [[row.link]]
 cell = "erp_direct"
-basis = "ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；没有结果步骤；b0fcdc66b、e101bb82b）；只有离线单测 test_erp_stocktake_guide，页面流程归第 2 步"
+basis = "ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；b0fcdc66b、e101bb82b）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是盘点名称、删除写张数）；真页面新建 → 结果卡成功带名称、库里真有这份盘点（实验栈电脑 / 手机两格）；离线单测 test_erp_stocktake_guide"
+page_flows = ["erp.cc.guide.stocktake"]
 
 [[row]]
 id = "resolve"
@@ -256,7 +257,7 @@ name = "结果不明核对、待处理"
 guide = "pending"
 cowork_direct = ["done", "half:p2", "wait:cloud"]
 cowork_operator = ["done", "half:p2", "wait:cloud"]
-erp_direct = ["half:p2", "half:p2", "wait:cloud"]
+erp_direct = ["done", "half:p2", "wait:cloud"]
 erp_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
 
 [[row.link]]
@@ -279,7 +280,7 @@ basis = "同本地 Express 那格的声明（面向 MR.ERP）；Cowork 的 MR.ER
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；没有结果步骤；离线单测 test_erp_pending_guide，页面流程真点卡从题到结果（本地 Express）"
+basis = "ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是交出那张的「单号 · 对方」）；离线单测 test_erp_pending_guide，页面流程真点卡从题到结果（本地 Express）"
 page_flows = ["erp.cc.guide.pending"]
 
 [[row.link]]
@@ -399,7 +400,7 @@ name = "公司资料、记住的选择、知识库"
 guide = "company"
 cowork_direct = ["done"]
 cowork_operator = ["out:只做直写"]
-erp_direct = ["half:p4"]
+erp_direct = ["done"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
@@ -409,7 +410,8 @@ page_flows = ["cowork.cc.guide.company"]
 
 [[row.link]]
 cell = "erp_direct"
-basis = "ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；没有结果步骤；3bc89a2dc、dd298be7e）；只有离线单测 test_erp_company_guide，页面流程归第 2 步"
+basis = "ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；3bc89a2dc、dd298be7e）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是备注正文，删除写条数）；真页面加备注 → 结果卡成功带正文、知识库里真有（实验栈电脑 / 手机两格）；离线单测 test_erp_company_guide"
+page_flows = ["erp.cc.guide.company"]
 
 [[row]]
 id = "board"
@@ -439,12 +441,13 @@ name = "收发存报表导出"
 guide = "stock_card"
 cowork_direct = ["out:Cowork 无库存业务"]
 cowork_operator = ["out:Cowork 无库存业务"]
-erp_direct = ["half:p4"]
+erp_direct = ["done"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "erp_direct"
-basis = "ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；没有复核与结果步骤；cc-guided-stock-card 29625d9d6）；只有离线单测 test_erp_stock_card_guide，页面流程归第 2 步"
+basis = "ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；cc-guided-stock-card 29625d9d6）；结果步骤 = 共用 guide.form_result（11-28 C2，结果卡带文件）；真页面照推荐作答 → 结果卡成功带一份文件、对话里服务端同名（实验栈电脑 / 手机两格）；离线单测 test_erp_stock_card_guide"
+page_flows = ["erp.cc.guide.stock-card"]
 
 [[row]]
 id = "add_company"
@@ -457,7 +460,7 @@ erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；没有结果步骤；3bc89a2dc、84db98ec6）；只有离线单测 test_erp_company_guide，页面流程归第 2 步"
+basis = "ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；3bc89a2dc、84db98ec6）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是加的几家，主档还在同步写「同步中」）；只有离线单测 test_erp_company_guide，没有页面流程（实验栈连接目录要造一家未接进 ERP 的公司，没造）"
 
 [[row]]
 id = "not_now"

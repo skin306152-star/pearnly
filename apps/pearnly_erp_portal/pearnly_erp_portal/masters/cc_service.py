@@ -579,6 +579,18 @@ def create_many(items) -> list:
     return out
 
 
+SYNCING = ("queued", "reading", "syncing")  # 主档同步此刻在走（`express.masters` QUEUED / READING / SYNCING；MR.ERP 同一组字段）
+
+
+def syncing(names) -> list:
+    """这几家里主档还在同步的（公司页同步状态同一个字段 ``express_sync_state``）；CC「添加公司」结果卡写「同步中」用。"""
+    names = [name for name in names or () if name]
+    if not names:
+        return []
+    return frappe.get_all(COMPANY, filters={"name": ["in", names], "express_sync_state": ["in", SYNCING]}, pluck="name",
+                          limit_page_length=len(names))
+
+
 def _by_tax(rows) -> dict:
     """现有公司按「税号 + 分店」（同 `express.companies.missing` 的写法规整，含停用的）。"""
     from pearnly_erp_portal.express import contracts

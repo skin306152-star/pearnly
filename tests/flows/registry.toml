@@ -3122,3 +3122,48 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
 ]
+
+[[flow]]
+id = "erp.cc.guide.stocktake"
+title = "ERP 版 CC 盘点引导（直写）真页面：新建 → 仓 → 名称 → 复核 → 确定 → 结果卡成功带名称；库里真有这份盘点"
+module = "scripts/flows/erp_cc_guide_stocktake.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_guide.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/guide.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.company"
+title = "ERP 版 CC 公司资料引导（直写）真页面：添加备注 → 复核 → 确定 → 结果卡成功带正文；公司知识库里真有这一条"
+module = "scripts/flows/erp_cc_guide_company.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_guide.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/guide.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.stock-card"
+title = "ERP 版 CC 收发存报表引导（直写）真页面：照推荐作答 → 确定 → 结果卡成功带一份文件；对话里真有这份文件"
+module = "scripts/flows/erp_cc_guide_stock_card.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_guide_card.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/guide_card.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]

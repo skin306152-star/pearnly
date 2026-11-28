@@ -272,6 +272,18 @@ def _new_product(ctx, count, values) -> dict:
     return {"status": "entered", "docnum": count, "product": made["name"], "created": bool(made.get("created"))}
 
 
+def _label(count) -> str:
+    """结果卡上这份盘点给人看的名字（盘点选项同一个：标题，没有标题用盘点单号；`guide.form_result` 的 label）。"""
+    if not count:
+        return ""
+    try:
+        found = _counts().get_count(count)
+    except (frappe.ValidationError, frappe.DoesNotExistError, frappe.PermissionError):
+        frappe.clear_messages()
+        return ""
+    return str(found.get("title") or found.get("name") or "")[:80]
+
+
 def confirm(ctx, values, draft, consent) -> dict:
     counts = _counts()
     action = values["action"]
@@ -280,21 +292,23 @@ def confirm(ctx, values, draft, consent) -> dict:
         with _acting(ctx):
             if action == NEW:
                 made = counts.create_count(title=values["title"], warehouse=values["warehouse"])
-                return {"status": "entered", "docnum": made["name"], "rows": made.get("rows")}
+                return {"status": "entered", "docnum": made["name"], "label": str(values["title"] or made["name"])[:80],
+                        "rows": made.get("rows")}
             if action == COUNT:
-                return {"status": "entered", "docnum": count, "recorded": _record(ctx, count, values["rows"],
-                                                                                  values.get("mode") or ADD)}
+                return {"status": "entered", "docnum": count, "label": _label(count),
+                        "recorded": _record(ctx, count, values["rows"], values.get("mode") or ADD)}
             if action == NEW_PRODUCT:
-                return _new_product(ctx, count, values)
+                return {**_new_product(ctx, count, values), "label": _label(count)}
             if action == CLOSE:
                 review_token = counts.review_count(count).get("review_token")
                 done = counts.close_count(count, review_token=review_token)
-                return {"status": "entered", "docnum": count, "count_status": done.get("status")}
+                return {"status": "entered", "docnum": count, "label": _label(count), "count_status": done.get("status")}
             if action == ADJUST:
                 made = counts.adjustment_draft(count)
                 return {"status": "entered", "docnum": made.get("doc_no") or made["name"], "adjustment": made["name"]}
+            label = _label(count)  # 删掉之后就查不到了
             counts.delete_count(count)
-            return {"status": "entered", "deleted": [count]}
+            return {"status": "entered", "deleted": [count], "label": label}
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
         frappe.db.rollback()
         frappe.clear_messages()

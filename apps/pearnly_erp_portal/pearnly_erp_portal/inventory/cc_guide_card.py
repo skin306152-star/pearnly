@@ -25,5 +25,5 @@ GUIDES = [
           "when": {"key": "report", "value": "by_warehouse"}, "options": "pearnly_erp_portal.inventory.guide_card.warehouse_options"},
      ],
      "draft": "pearnly_erp_portal.inventory.guide_card.draft", "confirm": "pearnly_erp_portal.inventory.guide_card.confirm",
-     "tool": "erp_stock_card_export", "expires": ["company"]},
+     "result": "pearnly_core.assistant.guide.form_result.result", "tool": "erp_stock_card_export", "expires": ["company"]},
 ]

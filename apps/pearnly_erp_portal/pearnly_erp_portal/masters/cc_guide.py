@@ -45,7 +45,7 @@ GUIDES = [
           "default": "pearnly_erp_portal.masters.guide.text_default", "check": "pearnly_erp_portal.masters.guide.text_check"},
      ],
      "draft": "pearnly_erp_portal.masters.guide.draft", "review": "pearnly_erp_portal.masters.guide.review",
-     "confirm": "pearnly_erp_portal.masters.guide.confirm",
+     "confirm": "pearnly_erp_portal.masters.guide.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "erp_company_note_save", "expires": ["company"]},
     {"id": "company_add", "label_key": "guide.business.company_add", "icon": "building-2", "order": 90,
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
@@ -56,6 +56,6 @@ GUIDES = [
           "options": "pearnly_erp_portal.masters.guide.pending_options"},
      ],
      "draft": "pearnly_erp_portal.masters.guide.add_draft", "review": "pearnly_erp_portal.masters.guide.add_review",
-     "confirm": "pearnly_erp_portal.masters.guide.add_confirm",
+     "confirm": "pearnly_erp_portal.masters.guide.add_confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "erp_company_add"},
 ]

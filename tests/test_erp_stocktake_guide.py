@@ -246,7 +246,8 @@ class New(Base):
         lines = {line["key"]: line["value"] for line in found["review"]["lines"]}
         self.assertEqual((lines["warehouse"], lines["title"]), ("WH2 name", "Year end"))
         done = run.confirm(name, found["version"])
-        self.assertEqual((STATE["created"], done["result"]["docnum"]), ([("Year end", "WH2")], "SC9"))
+        # 结果卡（共用 form_result，C2）：名字是这份盘点的标题，不是盘点单号
+        self.assertEqual((STATE["created"], done["result"]["docnum"]), ([("Year end", "WH2")], "Year end"))
 
 
 class Count(Base):
@@ -329,6 +330,8 @@ class CloseAdjustDelete(Base):
         done = run.confirm(name, found["version"])
         self.assertEqual(STATE["closed"], [("SC1", f"tok{STATE['reviews']}")])
         self.assertEqual(done["result"]["count_status"], "Closed")
+        self.assertEqual((done["result"]["status"], done["result"]["docnum"]),
+                         ("entered", next(row["title"] for row in STATE["counts"] if row["name"] == "SC1")))
 
     def test_adjust_offers_closed_counts_and_makes_the_draft(self):
         name, found = self.walk({"action": "adjust"})
@@ -341,8 +344,9 @@ class CloseAdjustDelete(Base):
         name, found = self.walk({"action": "delete"})
         self.assertEqual([row["code"] for row in self.questions(found)["count"]["options"]], ["SC1"])
         found = run.answer(name, {"count": "SC1"})
-        run.confirm(name, found["version"])
+        done = run.confirm(name, found["version"])
         self.assertEqual(STATE["deleted"], ["SC1"])
+        self.assertEqual(done["result"]["reason_text"], "intake.delete.done")  # 删了几张（共用 form_result）
 
 
 if __name__ == "__main__":
