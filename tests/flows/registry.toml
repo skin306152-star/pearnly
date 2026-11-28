@@ -3167,3 +3167,31 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/guide_card.py",
   "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
 ]
+
+[[flow]]
+id = "erp.cc.guide.company-add"
+title = "ERP 版 CC 添加公司引导（直写）真页面：勾连接里一份账套 → 复核 → 确定 → 结果卡成功带公司名与「同步中」；库里真建了这家并排上同步"
+module = "scripts/flows/erp_cc_guide_company_add.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_guide.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/guide.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.company-add.sync-failed"
+title = "ERP 版 CC 添加公司结果卡：添加后主档同步失败 → 打开对话，结果卡写成功 · 公司名 · 同步失败（不再写同步中）"
+module = "scripts/flows/erp_cc_guide_company_add_failed.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/guide.py",
+]

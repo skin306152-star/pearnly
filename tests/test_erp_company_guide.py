@@ -93,7 +93,7 @@ _module("pearnly_erp_portal.masters.cc_service", PAGE_MAX=50, require_write=_req
         can_build=lambda user=None: STATE["build"], get=lambda company: types.SimpleNamespace(name=company, company_name="ABC Co"),
         detail=lambda company, period=None: {"notes": [dict(note) for note in STATE["notes"]]},
         note_save=_note_save, note_delete=lambda company, note: STATE["deleted"].append((company, note)) or {"id": note},
-        pending=_pending, create_many=_create_many, syncing=lambda names: [name for name in names if name in STATE.get("syncing", ())])
+        pending=_pending, create_many=_create_many, sync_states=lambda names: {name: STATE["sync"][name] for name in names if name in STATE.get("sync", {})})
 
 
 def _clean(value):
@@ -254,11 +254,20 @@ class AddCompanies(Base):
         self.assertEqual((done["result"]["status"], done["result"]["docnum"]), ("entered", "x, x"))
         self.assertNotIn("reason_text", done["result"])
 
-    def test_the_result_says_syncing_while_the_masters_are_still_syncing(self):
-        STATE["syncing"] = ("CO-0",)
+    def test_the_result_follows_the_masters_sync_each_time_the_card_is_read(self):
+        """主会话 11-28：同步中 → 页面过一会儿再取；同步完「已同步」；没成写公司页同一个词（不把没成显示成没事）。"""
+        STATE["sync"] = {"CO-0": "queued"}
         name, found = self.walk("company_add", {"companies": [STATE["catalog"][2]["identity"]]})
         done = run.confirm(name, found["version"])
-        self.assertEqual((done["result"]["docnum"], done["result"]["reason_text"]), ("x", "company.syncExpress.syncing"))
+        self.assertEqual((done["result"]["docnum"], done["result"]["reason_text"], done["result"].get("wait")),
+                         ("x", "company.syncExpress.syncing", True))
+        for state, word in (("ready", "company.syncExpress.ready"), ("failed", "company.syncExpress.failed"),
+                            ("offline", "company.syncExpress.offline"), ("weird", "company.syncExpress.failed")):
+            STATE["sync"]["CO-0"] = state
+            result = run.view(self.docs[name])["result"]
+            with self.subTest(state=state):
+                self.assertEqual((result["status"], result["reason_text"]), ("entered", word))
+                self.assertNotIn("wait", result)
 
     def test_a_company_not_in_the_catalog_is_not_accepted(self):
         name = run.start(SESSION, "company_add")["run"]

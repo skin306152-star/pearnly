@@ -547,10 +547,10 @@ desktop_version: 1.12.21
 | 19 | 任务看板 | ✅ | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
 | 20 | MR.ERP 导入设置、库存科目组、重读账套 | ○ P4 | —（只做直写） | —（ERP 无此设置） | —（只做直写） |
 | 21 | 收发存报表导出 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ✅ | —（只做直写） |
-| 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
+| 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ✅ · ⇢公 · ⇢云 | —（只做直写） |
 | 23 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **90 格**：✅ 31、◐ 16、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
+范围内共 **90 格**：✅ 32、◐ 15、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
 
 按证据：**真机通过 5** · **真模型通过 1** · **只有服务端 41** · **没做 6**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
 
@@ -645,7 +645,7 @@ desktop_version: 1.12.21
 | board | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；cc-guided-work 75e9cf2e7、76b646bcf）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是卡片标题）；后台定下的默认看板也用于列表 / 卡片选项（11-25 修：原先列表题零选项卡死）；真页面添加卡片 → 复核 → 确定 → 结果卡成功带标题、看板上真有这张卡（电脑 / 手机）；离线单测 test_cowork_work_guide；页面流程 `cowork.cc.guide.work` |
 | ledger_setup | Cowork 直写 | ○ P4 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | stock_report | ERP 直写 | ✅ | 只有服务端 | ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；cc-guided-stock-card 29625d9d6）；结果步骤 = 共用 guide.form_result（11-28 C2，结果卡带文件）；真页面照推荐作答 → 结果卡成功带一份文件、对话里服务端同名（实验栈电脑 / 手机两格）；离线单测 test_erp_stock_card_guide；页面流程 `erp.cc.guide.stock-card` |
-| add_company | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；3bc89a2dc、84db98ec6）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是加的几家，主档还在同步写「同步中」）；只有离线单测 test_erp_company_guide，没有页面流程（实验栈连接目录要造一家未接进 ERP 的公司，没造） |
+| add_company | ERP 直写 · 本地 | ✅ | 只有服务端 | ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；3bc89a2dc、84db98ec6）；结果步骤 = 共用 guide.form_result + 主档同步事实状态（11-28 C2，名字是加的几家；每次取卡现读：同步中并过一会儿再取 / 已同步 / 同步失败等公司页同一个词）；真页面勾一份新报来的账套 → 结果卡成功带公司名与同步中、库里建了并排上同步；同步失败那条结果卡写同步失败（实验栈电脑 / 手机）；离线单测 test_erp_company_guide；页面流程 `erp.cc.guide.company-add`、`erp.cc.guide.company-add.sync-failed` |
 | add_company | ERP 直写 · MR.ERP | ⇢公 | 等公司接入 | pearnly_erp_portal 声明了 company_add（chat）；等公司接入（开着） |
 | add_company | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 company_add（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 <!-- cc-coverage:end -->

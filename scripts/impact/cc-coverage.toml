@@ -455,12 +455,13 @@ name = "添加公司（从连接里的账本添加）"
 guide = "company_add"
 cowork_direct = ["out:现有公司选择窗的页面功能（没核）"]
 cowork_operator = ["out:现有公司选择窗的页面功能（没核）"]
-erp_direct = ["half:p4", "wait:onboard", "wait:cloud"]
+erp_direct = ["done", "wait:onboard", "wait:cloud"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；3bc89a2dc、84db98ec6）；结果步骤 = 共用 guide.form_result（11-28 C2，名字是加的几家，主档还在同步写「同步中」）；只有离线单测 test_erp_company_guide，没有页面流程（实验栈连接目录要造一家未接进 ERP 的公司，没造）"
+basis = "ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；3bc89a2dc、84db98ec6）；结果步骤 = 共用 guide.form_result + 主档同步事实状态（11-28 C2，名字是加的几家；每次取卡现读：同步中并过一会儿再取 / 已同步 / 同步失败等公司页同一个词）；真页面勾一份新报来的账套 → 结果卡成功带公司名与同步中、库里建了并排上同步；同步失败那条结果卡写同步失败（实验栈电脑 / 手机）；离线单测 test_erp_company_guide"
+page_flows = ["erp.cc.guide.company-add", "erp.cc.guide.company-add.sync-failed"]
 
 [[row]]
 id = "not_now"

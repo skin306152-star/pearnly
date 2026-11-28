@@ -239,7 +239,7 @@ class RepositoryTests(unittest.TestCase):
 
     def test_the_state_is_reported_as_it_is(self):
         found = gate.counts(self.rows, self.evidence)
-        self.assertEqual(found["done"], 31)
+        self.assertEqual(found["done"], 32)
         by_id = {r["id"]: r for r in self.rows}
         # 11-28 C2：ERP 盘点、公司资料、收发存、待处理接共用结果步骤并有真页面流程
         self.assertEqual([by_id[row]["erp_direct"][0] for row in ("stocktake", "company_info", "stock_report", "resolve")],

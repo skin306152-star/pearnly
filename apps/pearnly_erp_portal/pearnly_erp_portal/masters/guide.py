@@ -205,9 +205,34 @@ def add_confirm(ctx, values, draft, consent) -> dict:
         return {"returned": {"companies": {"reason": "company_refused", "text": str(error)[:300]}}}
     companies = [{"id": item.get("id"), "title": item.get("title") or item.get("label"),
                   "created": item.get("created"), "linked": bool(item.get("linked"))} for item in made]
-    # 结果卡：名字是加的几家（标题连写，截到 80 字）；主档还在同步的写「同步中」（公司页同一个词，`masters.queue` 排上之后
-    # 读取 / 落库都算同步中，同公司页的同步状态）
-    syncing = _service().syncing([item["id"] for item in companies if item["id"]])
+    # 结果卡：名字是加的几家（标题连写，截到 80 字）；主档同步的事实状态每次取卡时现读（:func:`add_result`）
     return {"status": "entered", "companies": companies,
-            "label": _short(_joiner().join(str(item["title"] or "") for item in companies if item["title"])),
-            **({"state_text": _("company.syncExpress.syncing")} if syncing else {})}
+            "label": _short(_joiner().join(str(item["title"] or "") for item in companies if item["title"]))}
+
+
+# 主档同步状态 → 公司页同一个词（`company.js` SYNC_STATES / sync_key）；排队 / 读取 / 落库都算「同步中」、页面过一会儿再取
+IN_PROGRESS = ("queued", "reading", "syncing")
+SYNC_WORDS = {"ready": "company.syncExpress.ready", "offline": "company.syncExpress.offline",
+              "outdated": "company.syncExpress.outdated", "failed": "company.syncExpress.failed"}
+
+
+def add_result(ctx, draft):
+    """添加公司的结果卡（共用 `guide.form_result`）加主档同步的事实状态，每次取卡现读：还在同步写「同步中」并让页面过一会儿再取；
+    同步完写「已同步」；没成写公司页同一个词（同步失败 / 未连接电脑 / CC 桌面版需更新）。几家状态不同时，有一家还在同步就是同步中，
+    否则列出没成的那几种，全成了才写已同步。没开始同步的公司（没接账本）不写。"""
+    from pearnly_core.assistant.guide import form_result
+
+    out = form_result.result(ctx, draft)
+    if not out or out.get("status") != form_result.ENTERED:
+        return out
+    states = _service().sync_states([item.get("id") for item in out.get("companies") or ()])
+    if not states:
+        return out
+    if any(state in IN_PROGRESS for state in states.values()):
+        word, wait = _("company.syncExpress.syncing"), True
+    else:
+        keys = {state if state in SYNC_WORDS else "failed" for state in states.values()}  # 认不得的同公司页算失败
+        bad = [key for key in ("failed", "offline", "outdated") if key in keys]
+        word, wait = (" · ".join(_(SYNC_WORDS[key]) for key in bad) if bad else _(SYNC_WORDS["ready"])), False
+    text = " · ".join(part for part in (str(out.get("reason_text") or ""), word) if part)
+    return {**out, "reason_text": text, **({"wait": True} if wait else {})}

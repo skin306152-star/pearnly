@@ -56,6 +56,6 @@ GUIDES = [
           "options": "pearnly_erp_portal.masters.guide.pending_options"},
      ],
      "draft": "pearnly_erp_portal.masters.guide.add_draft", "review": "pearnly_erp_portal.masters.guide.add_review",
-     "confirm": "pearnly_erp_portal.masters.guide.add_confirm", "result": "pearnly_core.assistant.guide.form_result.result",
+     "confirm": "pearnly_erp_portal.masters.guide.add_confirm", "result": "pearnly_erp_portal.masters.guide.add_result",
      "tool": "erp_company_add"},
 ]
