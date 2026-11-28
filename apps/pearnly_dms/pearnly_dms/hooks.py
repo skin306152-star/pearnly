@@ -347,3 +347,6 @@ pearnly_navigation = [{'product': 'dms',
   'shortcuts': ['ctrl+s'],
   # 除我们自己的页面（pearnly-*）与本人个人页外允许打开的框架视图（标准路由前两段）；没有 = 框架路由一律换成首页。
   'routes': []}]
+
+# 站外 LINE 表面随部署同步（pearnly_core.line_surfaces；deploy-run.sh 的 surfaces 步骤逐站对照、有漂移才发布、发布后回读）
+pearnly_line_surfaces = [{"product": "dms", "module": "pearnly_dms.menu.rich_menu"}]

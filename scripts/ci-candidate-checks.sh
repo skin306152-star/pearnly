@@ -37,6 +37,7 @@ offline() {
   # 11-09 清点出没人跑、要镜像依赖的存量单测（清单在脚本里）
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/run-offline-tests.py --image
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_menu_publish_lock.py
+  offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_line_surfaces.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_core_line_token.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_web_multipart.py
   offline_py -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_upload_files_on_disk.py

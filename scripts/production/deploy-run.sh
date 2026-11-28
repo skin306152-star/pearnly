@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 生产统一部署的服务器端（在生产机上跑）：同步部署工具 → 核对 → ERP / Cowork / DMS 依次激活 → 基础层 → 回读。
+# 生产统一部署的服务器端（在生产机上跑）：同步部署工具 → 核对 → ERP / Cowork / DMS 依次激活 → 站外 LINE 表面同步 → 基础层 → 回读。
 #
 # 由本机 `scripts/production/deploy.sh` 经一次 SSH 后台启动（nohup，日志不经 SSH 回传）；也可在服务器上手工跑：
 #   nohup bash deploy-run.sh ghcr.io/skin306152-star/pearnly/frappe@sha256:<64位> <main 完整 SHA> </dev/null >/dev/null 2>&1 &
@@ -101,6 +101,23 @@ for product in erp cowork dms; do
   rc=$?
   tail -2 "$STATE/activate-$product-$short.log"
   if [[ $rc -ne 0 ]]; then tail -25 "$STATE/activate-$product-$short.log"; fail "activate-product.sh $product exited $rc"; fi
+done
+
+# 站外 LINE 表面（11-26 ris 富菜单 9 月后从没更新的事故）：三个产品都换上新镜像后，每个产品网页容器里对这个产品的
+# 全部站点逐站对照「LINE 上现挂的 / 这一版代码应有的」，有漂移才发布、发布后回读；没有渠道凭据的站点跳过并列出。
+# 发布前的原配置打成 BEFORE 行进日志（可原样交回 restore 回退，旧菜单从不删）；任何一站出错或回读仍不一致 → 部署失败。
+step=surfaces; set_status "running $step"
+for product in erp cowork dms; do
+  log "LINE surfaces $product: publish where this release differs, then read back"
+  docker exec -w /home/frappe/frappe-bench/sites "pearnly-production-$product-web-1" \
+    /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces sync --product "$product" \
+    </dev/null > "$STATE/surfaces-$product-$short.log" 2>&1
+  rc=$?
+  grep -E '^(BEFORE|SITE|SUMMARY) ' "$STATE/surfaces-$product-$short.log"
+  if [[ $rc -ne 0 ]]; then
+    tail -25 "$STATE/surfaces-$product-$short.log"
+    fail "LINE surfaces $product exited $rc (SUMMARY above names the site; roll a published site back with: docker exec -w /home/frappe/frappe-bench/sites pearnly-production-$product-web-1 /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces restore --product $product --site <site> --surface <surface> --before '<config JSON of its BEFORE line>')"
+  fi
 done
 
 step=foundation; set_status "running $step"

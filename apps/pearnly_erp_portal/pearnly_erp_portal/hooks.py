@@ -719,3 +719,6 @@ pearnly_guides = ["pearnly_erp_portal.express.cc_guides.GUIDES", "pearnly_erp_po
                   "pearnly_erp_portal.inventory.cc_stock_guides.GUIDES"]
 # 引导菜单按这段对话公司的账本种类过滤（声明 ledgers；共用 assistant.guide.registry.ledger_of）
 pearnly_guide_ledger = ["pearnly_erp_portal.express.conversation.guide_ledger"]
+
+# 站外 LINE 表面随部署同步（pearnly_core.line_surfaces；deploy-run.sh 的 surfaces 步骤逐站对照、有漂移才发布、发布后回读）
+pearnly_line_surfaces = [{"product": "erp", "module": "pearnly_erp_portal.integrations.line_menu"}]

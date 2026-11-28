@@ -12,6 +12,7 @@
 #     ERP / Cowork 从 LINE 打开的入口不登录走一遍不出 404（check-liff-endpoints.py，只读、不要密钥；11-03 子路径落地 404 事故）；
 #   - 产品地图里标了上线必验的入口：每个正式租户 × 每一行的探针走一遍（check-tenant-entries.py，只读、不登录；
 #     导出 product-map.json 在镜像构建时生成、随部署工具同步过来；11-04 产品地图 E 块）；
+#   - 站外 LINE 表面（富菜单）：三个产品每个站点 LINE 上现挂的与这一版代码应有的一致（pearnly_core.line_surfaces check；没渠道凭据的跳过并列出）；
 #   - mariadb 内存只用 docker stats 看，不 exec 进数据库容器。
 # 这一批特有的表、字段、补丁检查不在这里，按发布记录另做。退出码：0 全部通过，1 有问题（逐项打印）。
 set -u
@@ -150,6 +151,16 @@ else
   printf '%s' "$liff_rows" | python3 "$ROOT/scripts/production/check-liff-endpoints.py" --stdin \
     || problem "LIFF endpoint or LINE entry check failed (lines above)"
 fi
+
+echo "-- LINE surfaces: what LINE shows equals this release (rich menus; pearnly_core.line_surfaces check)"
+for product in erp cowork dms; do
+  out=$(docker exec -w /home/frappe/frappe-bench/sites "pearnly-production-$product-web-1" \
+    /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces check --product "$product" </dev/null 2>&1)
+  rc=$?
+  summary=$(printf '%s\n' "$out" | sed -n 's/^SUMMARY //p' | tail -1)
+  echo "  $product ${summary:-（没有 SUMMARY）}"
+  [[ $rc == 0 && -n "$summary" ]] || { printf '%s\n' "$out" | tail -8 | sed 's/^/    /'; problem "LINE surfaces $product differ from this release or could not be read"; }
+done
 
 echo "-- product map: must-verify entries on every formal tenant"
 map_export="$ROOT/scripts/production/product-map.json"

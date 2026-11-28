@@ -1,0 +1,381 @@
+# 站外写入点登记（scripts/check-external-writes.py 守门；11-28 菜单随部署同步任务）。
+# 生产代码里每个「调 LINE / Keycloak / Cloudflare 且带写动词」的函数必须在这里登记一条，说明它随部署怎么保持与代码一致：
+#   deploy-sync  每次部署自动同步并回读（必须是 hooks pearnly_line_surfaces 声明的模块）
+#   drift-check  部署不重写，但部署前 / 后有内容级检查、对不上即拦部署（note 写哪一项检查）
+#   runtime      按事件 / 按人写，内容由当前代码现算或与代码版本无关
+#   token / probe  换令牌 / 只读校验接口，不改站外设置
+#   teardown     拆租户时删除
+#   manual       只能人手、纳入不了（note 必须写原因与谁来做）
+# 新增这类函数而不登记、登记了但函数已不在，都会被拦。
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::_link"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::_request"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::create"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::delete_owned"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::ensure_line_person"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::release_line_person"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::reset_password"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/account/member_provider.py::unlink_line"
+kind = "runtime"
+surface = "Keycloak 成员账号与 LINE 关联"
+note = "控制面按成员操作（建号、改密、关联 / 解除 LINE）随人变化，与代码版本无关；每小时对账另管 LINE 关联"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/onboarding/line_liff.py::_token"
+kind = "token"
+surface = "LINE Login 频道令牌"
+note = "换取短期令牌，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/onboarding/line_liff.py::ensure"
+kind = "drift-check"
+surface = "LIFF 落地地址 / 尺寸 / 作用域"
+note = "开户、改渠道时按 desired() 对齐；部署前后 check-liff-endpoints.py 核落地地址并拦部署。尺寸 / 作用域不纳入部署同步：LINE Login 密钥只在本机控制面，生产机没有；desired() 10-05 后没变过，改它时要同批在控制面对全部租户重跑 ensure（盘点第 7 项）"
+
+[[write]]
+target = "apps/pearnly_control/pearnly_control/onboarding/line_liff.py::remove"
+kind = "teardown"
+surface = "LIFF"
+note = "拆租户时删本部署的 LIFF，与版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::admin_token"
+kind = "token"
+surface = "Keycloak 管理令牌"
+note = "换取令牌，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::token"
+kind = "token"
+surface = "Keycloak 管理令牌"
+note = "换取令牌，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::verify_password"
+kind = "probe"
+surface = "Keycloak 密码校验"
+note = "用令牌接口验证当前密码，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::create_oidc_client"
+kind = "drift-check"
+surface = "站点 OIDC 客户端"
+note = "开户 / repool 时建；部署前 check-external-config K2 / K3 按形状与密钥核对并拦部署（盘点第 10 项）"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::delete_oidc_client"
+kind = "teardown"
+surface = "站点 OIDC 客户端"
+note = "拆租户 / repool 删旧客户端"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::create_user"
+kind = "runtime"
+surface = "Keycloak 用户与会话"
+note = "按用户操作，随人变化，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::delete_user"
+kind = "runtime"
+surface = "Keycloak 用户与会话"
+note = "按用户操作，随人变化，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::kill_session"
+kind = "runtime"
+surface = "Keycloak 用户与会话"
+note = "按用户操作，随人变化，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::send_invite_email"
+kind = "runtime"
+surface = "Keycloak 用户与会话"
+note = "按用户操作，随人变化，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/keycloak_admin.py::set_password"
+kind = "runtime"
+surface = "Keycloak 用户与会话"
+note = "按用户操作，随人变化，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::_feedback_begin"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::_post_reply"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::fire"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::push"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::reply_sender"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::send"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::start_loading"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::start_loading_background"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::webhook"
+kind = "runtime"
+surface = "LINE 消息 / 加载动画"
+note = "按事件发消息，内容由当前代码现算，部署后自然是新版本"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::access_token"
+kind = "token"
+surface = "LINE 频道令牌"
+note = "换取令牌，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/line.py::verify_id_token"
+kind = "probe"
+surface = "LINE ID 令牌校验"
+note = "LINE 的校验接口，只读"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/password.py::_admin_token"
+kind = "token"
+surface = "Keycloak 管理令牌"
+note = "换取令牌，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/sessions.py::_admin_token"
+kind = "token"
+surface = "Keycloak 管理令牌"
+note = "换取令牌，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/password.py::_verify_current_password"
+kind = "probe"
+surface = "Keycloak 密码校验"
+note = "只验证，不改站外设置"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/password.py::change_password"
+kind = "runtime"
+surface = "Keycloak 用户密码与会话"
+note = "按用户操作，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/password.py::refuse_on_native_account"
+kind = "runtime"
+surface = "Keycloak 用户密码与会话"
+note = "按用户操作，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/sessions.py::_kill_keycloak_session"
+kind = "runtime"
+surface = "Keycloak 用户密码与会话"
+note = "按用户操作，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_core/pearnly_core/sessions.py::logout_everywhere"
+kind = "runtime"
+surface = "Keycloak 用户密码与会话"
+note = "按用户操作，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_cowork/pearnly_cowork/line/menu.py::publish"
+kind = "deploy-sync"
+surface = "LINE 富菜单"
+note = "hooks pearnly_line_surfaces 声明；每次部署 surfaces 步骤逐站对照、有漂移才发布、发布后回读（盘点第 1–3 项）"
+
+[[write]]
+target = "apps/pearnly_cowork/pearnly_cowork/line/menu.py::sync"
+kind = "runtime"
+surface = "个人富菜单挂载"
+note = "按绑定 / 权限 / 手机语言挂已发布的那套；publish() 末尾 reconcile() 给全部绑定用户排重挂（盘点第 4 项）"
+
+[[write]]
+target = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py::publish"
+kind = "deploy-sync"
+surface = "LINE 富菜单"
+note = "hooks pearnly_line_surfaces 声明；每次部署 surfaces 步骤逐站对照、有漂移才发布、发布后回读（盘点第 1–3 项）"
+
+[[write]]
+target = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py::sync"
+kind = "runtime"
+surface = "个人富菜单挂载"
+note = "按绑定 / 权限 / 手机语言挂已发布的那套；publish() 末尾 reconcile() 给全部绑定用户排重挂（盘点第 4 项）"
+
+[[write]]
+target = "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py::publish"
+kind = "deploy-sync"
+surface = "LINE 富菜单"
+note = "hooks pearnly_line_surfaces 声明；每次部署 surfaces 步骤逐站对照、有漂移才发布、发布后回读（盘点第 1–3 项）"
+
+[[write]]
+target = "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py::_sync_locked"
+kind = "runtime"
+surface = "个人富菜单挂载"
+note = "按绑定 / 权限 / 手机语言挂已发布的那套；publish() 末尾 reconcile() 给全部绑定用户排重挂（盘点第 4 项）"
+
+[[write]]
+target = "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py::restore"
+kind = "deploy-sync"
+surface = "LINE 富菜单"
+note = "部署同步的回退入口（BEFORE 行）"
+
+[[write]]
+target = "apps/pearnly_dms/pearnly_dms/line/out.py::_drop"
+kind = "runtime"
+surface = "LINE 消息"
+note = "按事件回复 / 推送，与代码版本无关"
+
+[[write]]
+target = "apps/pearnly_dms/pearnly_dms/line/out.py::show_result"
+kind = "runtime"
+surface = "LINE 消息"
+note = "按事件回复 / 推送，与代码版本无关"
+
+[[write]]
+target = "infrastructure/production/bootstrap-auth.py::main"
+kind = "drift-check"
+surface = "Keycloak 账号池设置"
+note = "人手跑；部署前 check-external-config K1 逐键核对并拦部署。SMTP 不读回：含密码，发信失败另有告警链（盘点第 11 项）"
+
+[[write]]
+target = "infrastructure/production/configure-ai-entry.py::configure"
+kind = "drift-check"
+surface = "pearnly-ai 客户端、租户退出跳转"
+note = "人手跑；部署前 check-external-config K4 / K2 核对并拦部署（盘点第 13 项）"
+
+[[write]]
+target = "infrastructure/production/configure-ai-entry.py::allow_logout_back"
+kind = "drift-check"
+surface = "pearnly-ai 客户端、租户退出跳转"
+note = "人手跑；部署前 check-external-config K4 / K2 核对并拦部署（盘点第 13 项）"
+
+[[write]]
+target = "infrastructure/production/configure-member-identity.py::__init__"
+kind = "token"
+surface = "Keycloak 管理令牌"
+note = "换取令牌"
+
+[[write]]
+target = "infrastructure/production/configure-member-identity.py::configure"
+kind = "drift-check"
+surface = "员工身份代理（pearnly-cowork 池）"
+note = "人手跑一次；部署前 check-external-config 读两个池的身份提供方并按分类核对"
+
+[[write]]
+target = "infrastructure/production/site-step.py::set_webhook"
+kind = "drift-check"
+surface = "Messaging webhook 地址"
+note = "地址由站点名算出、代码改不动它；部署前 check-external-config L1 内容相等 + active 并拦部署（盘点第 5 项）"
+
+[[write]]
+target = "infrastructure/production/site-step.py::check_webhook"
+kind = "probe"
+surface = "Messaging webhook 测试推送"
+note = "开户回读：LINE 的测试推送，不改设置"
+
+[[write]]
+target = "infrastructure/production/site-step.py::delete"
+kind = "teardown"
+surface = "租户站外对象"
+note = "拆租户时删，与版本无关"
+
+[[write]]
+target = "infrastructure/production/site-step.py::purge_site_objects"
+kind = "teardown"
+surface = "租户站外对象"
+note = "拆租户时删，与版本无关"
+
+[[write]]
+target = "infrastructure/production/site-step.py::stateless_token"
+kind = "token"
+surface = "LINE 无状态令牌"
+note = "换取令牌"
+
+[[write]]
+target = "scripts/production/configure-line-login.py::__init__"
+kind = "token"
+surface = "Keycloak 管理令牌"
+note = "换取令牌"
+
+[[write]]
+target = "scripts/production/configure-line-login.py::configure_realm"
+kind = "drift-check"
+surface = "Keycloak 账号池 LINE 设置"
+note = "set_line / 人手跑；部署前 check-external-config K5 verify_realm 并拦部署（盘点第 8 项）"
+
+[[write]]
+target = "scripts/production/configure-line-login.py::configure_site"
+kind = "drift-check"
+surface = "Keycloak LINE 身份提供方"
+note = "set_line 时写；部署前 K5 按 idp_representation 比并拦部署（盘点第 9 项）"
+
+[[write]]
+target = "scripts/production/external-config-collect.py::__init__"
+kind = "token"
+surface = "Keycloak 只读客户端令牌"
+note = "只读收集脚本换令牌"

@@ -224,6 +224,18 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
      `configure-line-login` / `site-step` 导入，不另写。`same` / `shape` 不对、缺入口登记、客户端密钥不一致、Keycloak 或登记读不到 → 拦部署，没有绕过开关；
      `presence`、LINE 一时连不上、测试租户切在测试机 → 只报告。`[ext]` 里新登记的一节没有对应检查也拦（`test-check-external-config.py` 同时核）。
      LINE 的 redelivery、频道关联、LIFF 尺寸 / 作用域（LINE Login 频道密钥只在控制面）读不到，每次列在「读不到」里，留在开户清单与真机单。
+10. 站外表面随部署同步（11-28，[记录](../work/2026-11-26-deploy-line-menu-sync.md)；起因：ris 的 DMS 富菜单 9 月开户后从没随部署更新）：
+   - 产品在自己的 `hooks.py` 声明 `pearnly_line_surfaces = [{"product": …, "module": …}]`（ADR-009）；声明的模块给 `SURFACE` / `CONFIG` /
+     `ready` / `wanted` / `drift` / `publish` / `restore`，`wanted()` 与 `publish()` 共用一份散列算法。共用跑法 `pearnly_core.line_surfaces`
+     （`python -m pearnly_core.line_surfaces check|sync|restore --product <产品>`，在产品网页容器的 sites 目录里逐站跑）。
+   - **部署时同步**：`deploy-run.sh` 三个产品激活后、基础层前的 `surfaces` 步骤逐站 `sync`：有漂移才发布，发布前把原配置打成 `BEFORE` 行进日志
+     （原样交回 `restore` 可回退，旧菜单从不删），发布后再 `drift()` 回读，仍不一致 / 出错 → 部署失败（状态 `failed surfaces`）。
+     没有渠道凭据的站点（DMS 另要 LIFF）跳过并列在 `SUMMARY`。`deploy-readback.sh` 再 `check` 一遍，有漂移即 PROBLEM。
+   - **演练与部署前预览**：`deploy.sh` 的租户配置对比同一次 SSH 里按线上正在跑的代码 `check`，打印每个产品一致几项、会发布哪些、跳过哪些（不拦；
+     本批改了菜单时部署按新代码再算，可能更多）。
+   - **登记闸门**（`scripts/check-external-writes.py`，CI 同名步骤）：生产代码里调 LINE / Keycloak / Cloudflare 且带写动词的函数必须在
+     `scripts/external-writes.toml` 登记 kind（`deploy-sync` / `drift-check` / `runtime` / `token` / `probe` / `teardown` / `manual`）与 note；
+     新增不登记、登记了函数已不在、`deploy-sync` 却没在 hooks 声明、声明的模块缺函数 → 拦。
 
 ## CC 覆盖总表
 

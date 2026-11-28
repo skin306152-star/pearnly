@@ -121,6 +121,15 @@ def _image(variant, language) -> bytes:
                                     f"rich-{variant}{suffix}.png")).read_bytes()
 
 
+def _release(language, variant):
+    """这一套菜单这一版的 body（带内容散列名）与图：``publish()`` 与 ``wanted()`` 共用，散列只有这一份算法。"""
+    body = payload(variant == "query", language)
+    image = _image(variant, language)
+    revision = hashlib.sha256(json.dumps(body, sort_keys=True).encode() + image).hexdigest()[:12]
+    body["name"] = f"pearnly-dms-{language}-{variant}-{revision}"
+    return body, image
+
+
 def publish():
     """Idempotently publish every language × variant. Never delete a previous release's menu."""
     from frappe.installer import update_site_config
@@ -132,10 +141,7 @@ def publish():
         result = {}
         for language in LANGUAGES:
             for variant in VARIANTS:
-                body = payload(variant == "query", language)
-                image = _image(variant, language)
-                revision = hashlib.sha256(json.dumps(body, sort_keys=True).encode() + image).hexdigest()[:12]
-                body["name"] = f"pearnly-dms-{language}-{variant}-{revision}"
+                body, image = _release(language, variant)
                 menu_id = existing.get(body["name"])
                 if not menu_id:
                     menu_id = _request("POST", "richmenu", body=body, session=http)["richMenuId"]
@@ -150,6 +156,49 @@ def publish():
         frappe.conf[CONFIG] = result
         reconcile()
         return result
+
+
+# ── 随部署同步（``pearnly_core.line_surfaces``；hooks ``pearnly_line_surfaces`` 声明） ──────────────────
+SURFACE = "rich_menu"
+
+
+def ready() -> str:
+    """能不能发：有渠道凭据且配了 LIFF（菜单里账号两格要 LIFF，开户 ``set_line`` 同一条件）；空串 = 能。"""
+    if not line.can_send():
+        return "no LINE channel credentials"
+    return "" if frappe.conf.get("pearnly_line_liff_id") else "no LIFF"
+
+
+def wanted() -> dict:
+    """这一版代码每个键应挂的菜单名（与 ``publish()`` 同一算法）。"""
+    return {key(language, variant): _release(language, variant)[0]["name"]
+            for language in LANGUAGES for variant in VARIANTS}
+
+
+def drift() -> dict:
+    """只读：每个键的菜单名对照，外加官方号默认菜单（未绑定的人看到的）是不是这一版的泰文基础版、
+    兼容旧键 ``basic`` / ``query`` 是不是跟着泰文两套。"""
+    want = wanted()
+    current = dict(frappe.conf.get(CONFIG) or {})
+    listed = {item["richMenuId"]: item["name"] for item in _request("GET", "richmenu/list").get("richmenus", [])}
+    default = (_request("GET", "user/all/richmenu", missing_ok=True) or {}).get("richMenuId") or ""
+    behind = {k for k, name in want.items() if current.get(k) and listed.get(current[k]) != name}
+    for legacy, modern in (("basic", "th:basic"), ("query", "th:query")):
+        if current.get(modern) and current.get(legacy) != current.get(modern):
+            behind.add(legacy)
+    return {"behind": sorted(behind), "missing": sorted(k for k in want if not current.get(k)),
+            "default": bool(default) and listed.get(default) == want[key("th", "basic")]}
+
+
+def restore(before: dict) -> None:
+    """回退到部署日志里的 BEFORE 配置（旧菜单从没删过）：站点配置、官方号默认菜单换回原值，再排重挂。"""
+    from frappe.installer import update_site_config
+
+    if before.get("basic"):
+        _request("POST", "user/all/richmenu/" + before["basic"])
+    update_site_config(CONFIG, before)
+    frappe.conf[CONFIG] = before
+    reconcile()
 
 
 def published_state() -> dict:

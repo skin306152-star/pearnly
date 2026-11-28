@@ -235,6 +235,8 @@ jobs:
         run: python3 scripts/check-mixed-ternary.py && python3 tests/test_check_mixed_ternary.py && node --test tests/test-serials-register.cjs
       - name: LINE button labels are at most 20 characters in every language (LINE cuts longer ones; a cut word is a defect)
         run: python3 scripts/check-line-labels.py && python3 tests/test_check_line_labels.py
+      - name: Every function that writes to LINE, Keycloak or Cloudflare is registered with how it stays equal to the code, and rich menus are declared for deploy-time sync (ris's menu never followed a deploy after September, 11-26)
+        run: python3 scripts/check-external-writes.py && python3 tests/test_check_external_writes.py
       - name: Verify MR.ERP master defaults are read from the company, never hard-coded
         run: python3 tests/test_cowork_mrerp_masters.py
       - name: MR.ERP rules shared in pearnly_core import no product and reach the network only from the session and the import; Cowork push preparation stays pure

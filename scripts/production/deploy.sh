@@ -29,6 +29,8 @@
 #   2. 放镜像：gh workflow run stage-production.yml --ref <标记> -f digest=…，等它跑完（只把镜像拉到生产机，不启动）。
 #   3. 激活：一次 SSH 把本提交里的 deploy-run.sh 传上去、nohup 后台启动（脚本内容取自 git 里这个提交，服务器上还会与镜像里那份再比一次）。
 #      deploy-run.sh 照旧逐个激活 ERP / Cowork / DMS / 基础层，之间等可用内存 ≥ 8 GB，每 10 秒记内存，最后跑 deploy-readback.sh。
+#      三个产品激活后、基础层前同步站外 LINE 表面（富菜单：有漂移才发布、发布后回读，不一致即失败；没凭据的站点跳过并列出）；
+#      演练与部署前那次只读 SSH 顺带按线上代码预览会发布哪些（不拦）。
 #   4. 看进度：一条 SSH 长连接在服务器那头 tail 日志，部署结束自己断开；中途断线等 120 秒再接，最多 5 次。不在本机循环反复新建 SSH。
 #   5. 回读通过后跑登录后端到端（e2e_gate：测试租户、本机无头浏览器）；不通过停下，没测到只打印。
 # 任何一步失败立刻停下，打印现在停在哪、生产受没受影响、下一步怎么处理；不自动回滚。
@@ -178,7 +180,30 @@ config_gate() {
   python3 "$tmp/scripts/check-product-map.py" --export "$tmp/product-map.json" ||
     { rm -rf "$tmp"; stop "提交 $short 的产品地图导不出来" "生产没动" "python3 scripts/check-product-map.py 看地图错在哪"; }
   b64=$(base64 < "$tmp/product-map.json" | tr -d '\n')
-  # 站外设置对比（11-05）：这个提交有那几个脚本才跑；单独打包，免得更早的标记连租户配置对比都跳过
+  # 站外 LINE 表面预览（11-28，不拦）：按线上正在跑的代码对照每个站点 LINE 上现挂的富菜单。真部署时 deploy-run.sh 的
+# surfaces 步骤换上新镜像后按新代码再算一遍、有漂移才发布并回读，回读不一致部署失败。这里只报「至少会发布哪些」与跳过的站点。
+surfaces_note() {
+  local rows=$1
+  [[ -n "$rows" ]] || { say "站外 LINE 表面：生产机没回结果（不拦，真部署时 surfaces 步骤照常对照并发布）"; return 0; }
+  python3 - "$rows" <<'PY'
+import json, sys
+for row in sys.argv[1].splitlines():
+    product, _, data = row.strip().partition(" ")
+    if not data or data == "none":
+        print(f"  {product}: 线上镜像还没有 pearnly_core.line_surfaces（这一版部署后才有），部署时按新代码对照并发布")
+        continue
+    s = json.loads(data)
+    drift = s["drift"]
+    print(f"  {product}: 一致 {len(s['ok'])} 项；部署时会发布 {len(drift)} 项" + ("：" + "、".join(drift) if drift else ""))
+    for label, why in sorted(s["skipped"].items()):
+        print(f"    跳过 {label}：{why}")
+    for label, why in sorted(s["failed"].items()):
+        print(f"    读不出 {label}：{why}")
+PY
+  say "站外 LINE 表面预览完（按线上正在跑的代码；本批若改了菜单，部署时按新代码再算，可能比这里多）"
+}
+
+# 站外设置对比（11-05）：这个提交有那几个脚本才跑；单独打包，免得更早的标记连租户配置对比都跳过
   local collect=
   if git -C "$REPO" archive "$sha" $EXTERNAL_FILES 2>/dev/null | tar -x -C "$tmp" 2>/dev/null &&
       [[ -f "$tmp/scripts/production/external-config-collect.py" ]]; then
@@ -193,9 +218,14 @@ for c in \$(docker ps --format '{{.Names}}' | grep '^pearnly-production-'); do
   at=\$(docker inspect -f '{{.State.StartedAt}}' \$c); [ \"\$(date -d \"\$at\" +%s)\" -gt \"\$last\" ] && echo \"__MANUAL \$c \$at\"
 done; fi
 $collect
+for p in erp cowork dms; do
+  o=\$(docker exec -w /home/frappe/frappe-bench/sites pearnly-production-\$p-web-1 /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces check --product \$p </dev/null 2>&1 | sed -n 's/^SUMMARY //p' | tail -1)
+  echo \"__SURF \$p \${o:-none}\"
+done
 exit \$rc" < "$tmp/scripts/production/check-tenant-config.py" 2> "$tmp/sites.json") || rc=$?
   printf '%s\n' "$out" | sed -n 's/^__EXT //p' > "$tmp/external.json"
-  printf '%s\n' "$out" | grep -v '^__MANUAL\|^__EXT' | sed 's/^/  │ /'
+  printf '%s\n' "$out" | grep -v '^__MANUAL\|^__EXT\|^__SURF' | sed 's/^/  │ /'
+  surfaces_note "$(printf '%s\n' "$out" | sed -n 's/^__SURF //p')"
   manual=$(printf '%s\n' "$out" | sed -n 's/^__MANUAL //p')
   if [[ "$manual" == unknown ]]; then
     say "  ⚠ 生产机上还没有回读通过的时间记录（这一版之后的第一次部署会记下）"
@@ -468,6 +498,10 @@ case "$status" in
   "failed config")
     stop "激活前的租户配置对比没过（上面 BLOCK 行）" "生产服务没动（镜像已放上生产机）" \
       "改租户配置或改地图分类后：scripts/production/deploy.sh --tag $tag --digest $digest --skip-stage" ;;
+  "failed surfaces")
+    stop "三个产品已激活，站外 LINE 表面同步或回读没过（上面 SUMMARY / FAILED 行写了哪一站）" \
+      "不自动回滚；没发布的站点菜单仍是旧的，已发布的站点在日志里有 BEFORE 行" \
+      "看 $REMOTE_STATE/surfaces-<产品>-$short.log；要回退某站用 FAILED 行里的 restore 命令；修好后 deploy.sh --tag $tag --digest $digest --skip-stage 重跑" ;;
   "failed revision"|"failed sync-tooling"|"failed start")
     stop "激活前的核对没过（${status}）" "生产服务没动；看上面日志的 FAILED 行" ;;
   "failed erp"|"failed cowork"|"failed dms"|"failed foundation")
