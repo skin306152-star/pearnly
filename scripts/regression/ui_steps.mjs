@@ -134,9 +134,21 @@ try {
           .map((e) => name(e) + ": " + (e.innerText || "").trim().slice(0, 80)),
         icons: [...document.querySelectorAll(".pearnly-field-help")].filter(seen).map((e) => name(e) + ": " + (e.getAttribute("aria-label") || ""))}; })()`,
       returnByValue: true }, sessionId).catch(() => ({}));
+    // CC 手机页任何画面都不许横向滚动（11-28 iPhone：看不见的测量层把对话区撑到 1000 多 px，整页能左滑走）：根节点，以及
+    // 占半屏以上、能横滚的滚动区（对话区这类整页区域；标签条这类刻意横滚的窄条、回复里的表格与代码块不算），可滚宽度都不得大于自身宽度
+    const hscroll = job.mobile ? await send("Runtime.evaluate", { expression: `(() => { if (!location.pathname.startsWith("/assistant")) return [];
+      const out = []; const root = document.documentElement;
+      if (root.scrollWidth > root.clientWidth + 1) out.push("document " + root.scrollWidth + " > " + root.clientWidth);
+      for (const el of document.querySelectorAll("body *")) {
+        if (el.clientHeight < innerHeight / 2 || el.scrollWidth <= el.clientWidth + 1) continue;
+        if (!/auto|scroll/.test(getComputedStyle(el).overflowX) || el.closest(".aui-md, pre")) continue;  // 回复里的表格、代码块本就横滚
+        out.push((el.getAttribute("data-slot") || el.tagName.toLowerCase() + "." + String(el.className).split(" ")[0]) + " " + el.scrollWidth + " > " + el.clientWidth);
+      }
+      return out; })()`, returnByValue: true }, sessionId).catch(() => ({})) : null;
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
       error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs],
-      field_help: help?.result?.value?.below || [], field_icons: help?.result?.value?.icons || [] }));
+      field_help: help?.result?.value?.below || [], field_icons: help?.result?.value?.icons || [],
+      hscroll: hscroll?.result?.value || [] }));
     // 页面脚本本身超时或调试连接断了：后面的步骤都跑不了，整格停下（不再耗到外面的总超时）
     // 顺带探一下卡在哪一层：页面还能不能跑一句最简单的脚本（不能 = 页面自己忙死，例如脚本死循环，算产品问题）、浏览器本身还应不应答
     if (result.driverError) {

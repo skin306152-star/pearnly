@@ -813,7 +813,7 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
         prepared.append(params_camera)
         # 相机那一遍读的是它自己那份准备里的码（每次准备都换新码的流程，例如盘点当场新建物料）
         runs.append((params_camera, next(c for c in params_camera["cases"] if c["key"] == "by_barcode")["scan"]))
-    checks, page_errors, below, icons = [], [], set(), set()
+    checks, page_errors, below, icons, hscroll = [], [], set(), set(), set()
     for run_params, code in runs:
         run_params = run_params or params
         sid = lab.session(site, user)
@@ -833,6 +833,7 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
                         + ([f"{r.get('step')}: {r['value']['error']}"] if isinstance(r.get("value"), dict) and r["value"].get("error") else [])]
         below |= {item for r in results for item in r.get("field_help") or []}
         icons |= {item for r in results for item in r.get("field_icons") or []}
+        hscroll |= {f"{r.get('step')}: {item}" for r in results for item in r.get("hscroll") or []}
         label = "camera" if code else "typed"
         checks += [dict(c, run=label) for c in module.judge(run_params, results, code)]
         checks += [dict(c, run=label, saved_check=True) for c in module.verify(lab, manifest, run_params, code)]
@@ -841,6 +842,8 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
     # ERP / Cowork 字段说明要在标题旁的说明图标里（11-02），还写在字段下方的就是漏了（登记的例外不算，见 `ui_steps.mjs`）
     checks.append({"case": "field descriptions below fields", "seen": sorted(below), "ok": not below})
     checks.append({"case": "field descriptions in the info icon (record only)", "seen": sorted(icons), "ok": True})
+    # CC 手机页不许横向滚动（`ui_steps.mjs` 每一步量根节点与半屏以上的滚动区；电脑宽度不量）
+    checks.append({"case": "no horizontal scroll on the CC phone page", "seen": sorted(hscroll), "ok": not hscroll})
     checks.append({"case": "client errors in Error Log", "seen": after - before["client"], "ok": after == before["client"]})
     checks.append({"case": "server errors in Error Log (record only)", "seen": lab.server_errors(site, before["at"]), "ok": True})
     return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": all(c["ok"] for c in checks),

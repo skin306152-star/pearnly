@@ -120,6 +120,13 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn('<DropdownMenuTrigger asChild>{more}</DropdownMenuTrigger>', body)
         self.assertIn('{t("more")}', body)
         self.assertIn('aria-hidden inert className="cc-business-measure"', body)
+        # 量宽度那一排自身零宽并裁掉溢出：绝对定位的看不见元素也算进对话区的可滚动范围，整排摆开会让手机上整页能左滑走
+        # （11-28 iPhone）；按钮保持自然宽度，量出的数不变
+        css = read("globals.css")
+        ruler = css[css.index(".cc-business-measure {"):css.index("}", css.index(".cc-business-measure {"))]
+        for rule in ("position: absolute", "width: 0", "height: 0", "overflow: hidden", "visibility: hidden"):
+            self.assertIn(rule, ruler)
+        self.assertIn(".cc-business-measure > * { flex: none; }", css)
         # 描边小按钮有边框（以前 outline 没落到样式上，看着像纯文字）
         self.assertIn('"data-outline": variant === "outline"', read("components/ui/button.tsx"))
         self.assertIn(".cc-btn-sm[data-outline] { border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-surface); }",

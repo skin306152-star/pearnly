@@ -1967,8 +1967,14 @@
   /* 描边小按钮（Button variant="outline" size="sm"，输入框上方的业务菜单与「写入」）：白底细边框，同文字按钮 .cc-btn */
   .cc-btn-sm[data-outline] { border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-surface); }
   .cc-btn-sm[data-outline]:hover, .cc-btn-sm[data-outline][data-state="open"] { background: var(--cc-bg-hover); }
-  /* 业务菜单量宽度的那一排：看不见、不占位，只给每颗按钮自然宽度（thread.tsx useMenuFit） */
-  .cc-business-measure { position: absolute; inset-inline-start: 0; top: 0; display: flex; gap: var(--cc-space-8); visibility: hidden; pointer-events: none; }
+  /* 业务菜单量宽度的那一排：看不见、不占位，只给每颗按钮自然宽度（thread.tsx useMenuFit）。
+     自身零宽零高并裁掉溢出：绝对定位的元素即使看不见也算进祖先的可滚动范围，整排摆开（ERP 约 1000px）会让手机上的对话区
+     能横向滑走（11-28 iPhone）；按钮 flex: none 保持自然宽度，量出的数不变 */
+  .cc-business-measure {
+    position: absolute; inset-inline-start: 0; top: 0; width: 0; height: 0; overflow: hidden;
+    display: flex; gap: var(--cc-space-8); visibility: hidden; pointer-events: none;
+  }
+  .cc-business-measure > * { flex: none; }
   /* 手机（按钮排查 G10）：44 高、左右 14、全圆、14px、图标 16；电脑 24 不变 */
   :root[data-cc-touch] .cc-btn-sm {
     height: var(--cc-tap); padding-inline: var(--cc-btn-sm-px-phone); border-radius: var(--cc-radius-full); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);
