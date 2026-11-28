@@ -1,18 +1,11 @@
 # 入口背后的模块里开拦截时还没有流程的（scripts/flows/coverage.py，主会话 10-29 B 方案）：改到时只提醒。
 # 只许减少：补上流程后对应条目必须删掉；不许新加。
-apps/pearnly_control/pearnly_control/__init__.py
 apps/pearnly_control/pearnly_control/account/__init__.py
 apps/pearnly_control/pearnly_control/account/identity_pools.py
 apps/pearnly_control/pearnly_control/account/member_provider.py
 apps/pearnly_control/pearnly_control/account/member_service.py
-apps/pearnly_control/pearnly_control/assistant_entry/__init__.py
-apps/pearnly_control/pearnly_control/assistant_entry/contracts.py
 apps/pearnly_control/pearnly_control/assistant_entry/entry.py
 apps/pearnly_control/pearnly_control/assistant_entry/registry.py
-apps/pearnly_control/pearnly_control/assistant_entry/routes.py
-apps/pearnly_control/pearnly_control/billing.py
-apps/pearnly_control/pearnly_control/billing_auth.py
-apps/pearnly_control/pearnly_control/billing_remote.py
 apps/pearnly_control/pearnly_control/features.py
 apps/pearnly_control/pearnly_control/infra.py
 apps/pearnly_control/pearnly_control/onboarding/__init__.py
@@ -20,11 +13,6 @@ apps/pearnly_control/pearnly_control/onboarding/assistant.py
 apps/pearnly_control/pearnly_control/onboarding/line_ids.py
 apps/pearnly_control/pearnly_control/onboarding/line_liff.py
 apps/pearnly_control/pearnly_control/onboarding/teardown_members.py
-apps/pearnly_control/pearnly_control/payments/history.py
-apps/pearnly_control/pearnly_control/payments/pricing.py
-apps/pearnly_control/pearnly_control/payments/topup.py
-apps/pearnly_control/pearnly_control/payments/transactions.py
-apps/pearnly_control/pearnly_control/payments/usage.py
 apps/pearnly_control/pearnly_control/pearnly_control/doctype/pearnly_deployment/pearnly_deployment.py
 apps/pearnly_core/pearnly_core/account/line_login_contract.py
 apps/pearnly_core/pearnly_core/account/member_client.py

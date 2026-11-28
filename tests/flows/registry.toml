@@ -1823,6 +1823,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/desk/home.js",
   "apps/pearnly_core/pearnly_core/billing_www.py",
   "apps/pearnly_core/pearnly_core/payments/history.py",
+  "apps/pearnly_control/pearnly_control/billing_api.py",
 ]
 
 [[flow]]
@@ -1866,6 +1867,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/desk/home.js",
   "apps/pearnly_core/pearnly_core/billing_www.py",
   "apps/pearnly_core/pearnly_core/payments/history.py",
+  "apps/pearnly_control/pearnly_control/billing_api.py",
 ]
 
 [[flow]]
