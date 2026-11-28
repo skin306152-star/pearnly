@@ -127,6 +127,7 @@ class GuideMenuTests(unittest.TestCase):
         for rule in ("position: absolute", "width: 0", "height: 0", "overflow: hidden", "visibility: hidden"):
             self.assertIn(rule, ruler)
         self.assertIn(".cc-business-measure > * { flex: none; }", css)
+        self.assertIn("for (const el of ruler.children) watch.observe(el);", thread)  # 0×0 的那一排本身观察不到宽度变化
         # 描边小按钮有边框（以前 outline 没落到样式上，看着像纯文字）
         self.assertIn('"data-outline": variant === "outline"', read("components/ui/button.tsx"))
         self.assertIn(".cc-btn-sm[data-outline] { border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-surface); }",

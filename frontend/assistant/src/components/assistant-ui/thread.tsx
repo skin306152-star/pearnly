@@ -585,7 +585,8 @@ function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HT
     count();
     const watch = new ResizeObserver(count);
     watch.observe(box);
-    watch.observe(ruler);
+    // 量宽度那一排自身是 0×0（不撑宽对话区，globals.css），字体晚到等变化看每颗按钮
+    for (const el of ruler.children) watch.observe(el);
     return () => watch.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, first]);
