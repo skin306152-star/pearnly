@@ -525,6 +525,26 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual(stored.call_args.kwargs["expires_in_sec"], _snapshot.SERIAL_WAIT)
         self.assertEqual(ERRORS, [])
 
+    def test_a_deadlock_landing_the_read_retries_only_the_landing(self):
+        """④ code-review 5：落快照撞 1213（按客户锁的行与放行按单号锁的行顺序交叉）：只重来落库，不再登录 MR.ERP 读一次，读好了。"""
+        ledger.request("CO-1", dict(BOOK), "C0001")
+        reads, landed = [], []
+        read = lambda lease, key, customer, menu="": reads.append(key) or {  # noqa: E731
+            "items": receivables.parse_bills(SELBILL), "menus": {}, "error": None}
+
+        def flaky(company, book_key, items, read_at=None, customer=""):
+            landed.append(book_key)
+            if len(landed) == 1:
+                raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+            SNAPSHOT.append((company, book_key, customer, items))
+
+        with _network(), patch.object(receivables, "read", read), patch.object(_snapshot, "replace", flaky), \
+                patch("pearnly_core.transaction.conflicts.time.sleep"):
+            ledger.run_read("CO-1", "15:1", "C0001")
+        self.assertEqual((len(reads), len(landed), len(SNAPSHOT)), (1, 2, 1))
+        self.assertEqual(ERRORS, [])
+        self.assertEqual(ledger.request("CO-1", dict(BOOK), "C0001"), "ready")
+
     def test_prepare_full_partial_two_invoices_transfer_discount(self):
         doc = collection(cash="100.00")
         payload = ledger.prepare(doc)["payload"]

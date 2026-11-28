@@ -261,14 +261,25 @@ def _read(company, book_key, customer) -> str:
         frappe.db.commit()
     if found.get("items") is None:
         return snapshot.FAILED
+    from pearnly_core.transaction import conflicts
+
+    items = [{**item, "customer": customer} for item in found["items"]]
     try:
-        snapshot.replace(company, book_key, [{**item, "customer": customer} for item in found["items"]], None, customer)
+        # 落快照撞 1213（`snapshot._replace` 先锁这位客户的行、再锁别的客户名下的同一张，与放行时按单号升序加锁交叉；11-28 ④
+        # code-review）：只整笔重来落库这一段，不再登录 MR.ERP 再读一次；用尽照旧当读失败
+        conflicts.retried(_land, company, book_key, customer, items)
     except snapshot.Busy:
         # 等不到这本账套的串行锁（另一路一直没提交）：不是读失败，什么都还没落（`snapshot.replace` 先拿锁），当成还在读
         frappe.db.rollback()
         return snapshot.READING
-    frappe.db.commit()
     return snapshot.READY
+
+
+def _land(company, book_key, customer, items):
+    from pearnly_erp_portal.collection import snapshot
+
+    snapshot.replace(company, book_key, items, None, customer)
+    frappe.db.commit()
 
 
 # ── 写账 ─────────────────────────────────────────────────────────────────────
