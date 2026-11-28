@@ -201,8 +201,13 @@ def _board_same_gap(site, rounds, results, service, card, prefix):
     frappe.db.commit()
 
 
+ONLY = set()  # ``--only 格名,格名``：只跑这几格
+
+
 def guarded(results, name, function, *args):
     """一格出错不挡别的格：记成这格不过、带上错误。"""
+    if ONLY and name not in ONLY:
+        return
     try:
         function(*args)
     except Exception as error:  # noqa: BLE001
@@ -457,6 +462,279 @@ def amend_vs_payment(site, rounds, results, web):
         tally(results, label, good, {"box": box, "status": row.status, "paid": paid, "reversed": reversed_})
 
 
+def _private_file(tag):
+    """本人上传的一份私有文件（附件、LINE 原件用）。"""
+    import io
+
+    from pypdf import PdfWriter
+
+    writer, buffer = PdfWriter(), io.BytesIO()
+    writer.add_blank_page(72, 72)
+    writer.add_metadata({"/Title": secrets.token_hex(16)})  # 每份内容不同（不和别的 File 共用盘上那份）
+    writer.write(buffer)
+    file = frappe.get_doc({"doctype": "File", "file_name": f"{TAG}-{tag}-{secrets.token_hex(3)}.pdf", "is_private": 1,
+                           "content": buffer.getvalue()})
+    file.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return file
+
+
+def _stale_then(delay, function):
+    """一路请求：开头先做一次普通读（读视图从这里起，同网页请求 / LINE 回调开头读会话、绑定），等 ``delay`` 秒再做事。"""
+    import time
+
+    def run():
+        frappe.db.sql("select count(*) from `tabERP Company`")
+        time.sleep(delay)
+        return function()
+    return run
+
+
+def line_card_submit_vs_cancel(site, rounds, results):
+    """B ② E10：同一张 LINE 待提交卡，网页「提交」（`api_submit_line_intake`）与 LINE「取消」（`handlers._save_card` + `cancel_card`）
+    同时到，两种先后各半。判：只有一路生效——要么入了账（卡已确认、单据在、原件还挂在单据上），要么取消了（卡已取消、没有单据）；
+    不许「卡显示已取消、单据却入了账 / 原件被删」，也不许漏出 LinkValidation / 1213 / 417。"""
+    from pearnly_erp_portal.integrations import api as intake_api, handlers, intake, line_out
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    frappe.db.set_value("ERP Company", co, "express_enabled", 0)  # 不排写账（本格只看卡片与单据）
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    replies = []
+    line_out.reply = lambda token, messages: replies.append(messages) or True
+    for index in range(rounds):
+        file = _private_file("LC")
+        card = frappe.get_doc({"doctype": intake.DOCTYPE, "status": intake.READY, "direction": "purchase", "sent_by": user,
+                               "line_user_id": "U" + "b" * 32, "source": "line", "company": co, "result": "{}",
+                               "source_file_name": file.name, "received_at": frappe.utils.now_datetime()})
+        card.insert(ignore_permissions=True)
+        frappe.db.commit()
+        payload = {"supplier": supplier, "doc_date": frappe.utils.nowdate(), "currency": "THB", "fx_rate": 1, "has_vat": 1,
+                   "price_mode": "exclusive", "doc_kind": "purchase_invoice", "is_paid": 0, "update_stock": 0,
+                   "doc_no": f"{TAG}-LC-{secrets.token_hex(3)}",
+                   "lines": [{"item_type": "service", "description": f"{TAG} line card", "qty": 1, "unit": "งาน",
+                              "unit_price": 500, "vat_rate": 7}]}
+        first, second = (0.3, 0.8) if index % 2 else (0.8, 0.3)
+        box = _threads(site, user, [
+            ("submit", _stale_then(first, lambda: intake_api.api_submit_line_intake(card.name, json.dumps(payload)))),
+            ("cancel", _stale_then(second, lambda: handlers._save_card(card.name, "", intake.cancel_card)))])
+        frappe.db.rollback()
+        row = frappe.db.get_value(intake.DOCTYPE, card.name, ["status", "purchase"], as_dict=True)
+        attached = frappe.db.get_value("File", file.name, ["attached_to_name"], as_dict=True)
+        on_disk = os.path.exists(frappe.utils.get_site_path("private", "files", os.path.basename(file.file_url)))
+        docs = frappe.get_all("Purchase Document", filters={"request_id": "line-intake:" + card.name}, pluck="name")
+        entered = row.status == intake.CONFIRMED and docs == [row.purchase] and attached \
+            and attached.attached_to_name == row.purchase and on_disk
+        cancelled = row.status == intake.CANCELLED and not docs
+        leaked = {k: v["error"] for k, v in box.items() if "error" in v and any(word in v["error"] for word in PITFALLS)}
+        tally(results, "erp.line_card_submit_vs_cancel", (entered or cancelled) and not leaked,
+              {"order": "submit first" if index % 2 else "cancel first", "card": row, "docs": docs, "file": attached,
+               "on_disk": on_disk, "box": box})
+        for name in docs:
+            frappe.db.set_value("Purchase Document", name, "status", "void", update_modified=False)
+        frappe.db.commit()
+
+
+def _collection_seed():
+    """收款格的数据（同 `scripts/flows/collection_lib.seed` 的做法）：收款员、账套收款类型、一位本格专用客户与一张未收清发票。"""
+    from pearnly_erp_portal.collection import service, snapshot
+    from pearnly_erp_portal.express import facts
+    from pearnly_erp_portal.masters import company as companies
+
+    frappe.set_user(erp_user())
+    co = companies.active_company() or frappe.db.get_value("ERP Company", {}, "name")
+    frappe.db.set_value("ERP Company", co, "express_enabled", 1)
+    collector = erp_user()  # 实验栈的会计账号带「收款员」岗位
+    row = frappe.db.get_value("ERP Company", co, ["name", "company_name", "tax_id", "branch"], as_dict=True)
+    book = service.book_for(row, frappe.utils.nowdate())
+    data = dict(facts.load(book["key"]) or {})
+    data.update(receipt_types=[{"code": "02", "prefix": "CH", "name": "รับเงินสด", "name_en": "", "bank": "", "account": "1111-00",
+                                "account_issue": ""}], cash_account="1111-00",
+                salesmen=data.get("salesmen") or [{"code": "S1", "name": "lab"}])
+    data.setdefault("receipt_run", {"prefix": "RE", "next": "2400001", "department": "HQ"})
+    if not any(isinstance(item, dict) and item.get("code") == "HQ" for item in data.get("departments") or []):
+        data["departments"] = list(data.get("departments") or []) + [{"code": "HQ", "name": "HQ"}]
+    facts.save(book["key"], data)
+    code = ("CB" + secrets.token_hex(3)).upper()
+    frappe.get_doc({"doctype": "ERP Customer", "customer_name": f"{TAG} collect {code}", "express_company": co,
+                    "express_code": code, "is_active": 1}).insert(ignore_permissions=True)
+    docnum = ("IV" + secrets.token_hex(3)).upper()
+    snapshot.replace(co, book["key"], [{"docnum": docnum, "rectyp": "3", "docdat": frappe.utils.nowdate(), "customer": code,
+                                         "salesman": "S1", "department": "", "net": "1000.00", "received": "0.00",
+                                         "remaining": "1000.00"}], frappe.utils.now_datetime().isoformat(), customer=code)
+    frappe.db.commit()
+    return co, collector, book["key"], code, docnum
+
+
+def _collection_cleanup(collector, book_key, customer):
+    from pearnly_erp_portal.collection import contracts, service
+
+    frappe.set_user(collector)
+    for name in frappe.get_all("ERP Collection", filters={"customer": customer, "status": ["in", [contracts.DRAFT, contracts.QUEUED,
+                                                                                                 contracts.FAILED]]}, pluck="name"):
+        try:
+            service.withdraw(name)
+        except Exception:  # noqa: BLE001
+            frappe.db.rollback()
+    frappe.set_user("Administrator")
+    frappe.db.delete("ERP Receivable Snapshot", {"book_key": book_key, "customer": customer})
+    frappe.db.commit()
+
+
+def collection_edit_vs_release(site, rounds, results):
+    """B ② E11：同一笔收款草稿，网页「改」（`api_collection_save`）与 LINE / CC「确认放行」（`service.release`，调用方的读视图更早）
+    同时到，两种先后各半。判：只有一路按版本生效——改成了（版本 2、仍是草稿、放行回 changed）或放行了（待写入、改那路被拒）；
+    不许两路都算成，也不许漏出 1213 / 417 / 500。"""
+    from pearnly_erp_portal.collection import api as collection_api, contracts, service
+
+    co, collector, book_key, customer, docnum = _collection_seed()
+    try:
+        for index in range(rounds):
+            frappe.set_user(collector)
+            made = service.create_draft(co, customer, [{"docnum": docnum, "amount": "400"}], cash="400")
+            frappe.db.commit()
+            first, second = (0.3, 0.8) if index % 2 else (0.8, 0.3)
+            box = _threads(site, collector, [
+                ("save", _stale_then(first, lambda: collection_api.api_collection_save(
+                    made["name"], made["version"], [{"docnum": docnum, "amount": "300"}], cash="300"))),
+                ("release", _stale_then(second, lambda: service.release(made["name"], made["version"], f"line:{TAG}-{index}")))])
+            frappe.db.rollback()
+            row = frappe.db.get_value("ERP Collection", made["name"], ["status", "draft_version"], as_dict=True)
+            released = (box.get("release") or {}).get("ok") or {}
+            saved = "ok" in (box.get("save") or {})
+            leaked = {k: v["error"] for k, v in box.items() if "error" in v and any(word in v["error"] for word in PITFALLS)}
+            good = (saved and row.status == contracts.DRAFT and int(row.draft_version) == 2
+                    and released.get("status") == "changed") or \
+                (released.get("status") == "released" and row.status == contracts.QUEUED and not saved
+                 and int(row.draft_version) == 1)
+            tally(results, "erp.collection_edit_vs_release", good and not leaked,
+                  {"order": "save first" if index % 2 else "release first", "row": row, "box": box})
+            _collection_cleanup(collector, book_key, customer)
+            frappe.db.delete("ERP Receivable Snapshot", {"book_key": book_key, "customer": customer})
+            frappe.db.commit()
+            co, collector, book_key, customer, docnum = _collection_seed()
+    finally:
+        _collection_cleanup(collector, book_key, customer)
+
+
+def collection_double_release(site, rounds, results):
+    """B ② E11（管钱）：同一张发票（未收 1000）两笔草稿各收 1000，两路同时放行、读视图都早于对方提交。判：最多放行一笔，
+    另一笔回 invalid（超收）；不许两笔都放行（同一张发票收两遍）。"""
+    from pearnly_erp_portal.collection import contracts, service
+
+    for index in range(rounds):
+        co, collector, book_key, customer, docnum = _collection_seed()
+        try:
+            frappe.set_user(collector)
+            drafts = [service.create_draft(co, customer, [{"docnum": docnum, "amount": "1000"}], cash="1000") for _ in range(2)]
+            frappe.db.commit()
+            box = _threads(site, collector, [
+                ((draft["name"]), _stale_then(0.3 + 0.4 * position, lambda draft=draft, position=position: service.release(
+                    draft["name"], draft["version"], f"line:{TAG}-dr-{index}-{position}")))
+                for position, draft in enumerate(drafts)])
+            frappe.db.rollback()
+            statuses = [frappe.db.get_value("ERP Collection", draft["name"], "status") for draft in drafts]
+            queued = statuses.count(contracts.QUEUED)
+            leaked = {k: v["error"] for k, v in box.items() if "error" in v and any(word in v["error"] for word in PITFALLS)}
+            tally(results, "erp.collection_double_release", queued == 1 and not leaked, {"statuses": statuses, "box": box})
+        finally:
+            _collection_cleanup(collector, book_key, customer)
+
+
+def file_delete_rolled_back(site, rounds, results):
+    """删 File 后事务被回滚（整笔重来、用尽回「请稍后重试」）：File 记录回来了，盘上那份也还在；删了并提交：两样都没了。
+    修前 Frappe 在 on_trash 当场删盘，回滚后记录在、盘上没了（附件打不开）。"""
+    frappe.set_user(erp_user())
+    for _ in range(rounds):
+        file = _private_file("FR")
+        path = frappe.utils.get_site_path("private", "files", os.path.basename(file.file_url))
+        frappe.delete_doc("File", file.name, ignore_permissions=True)
+        frappe.db.rollback()
+        kept = bool(frappe.db.exists("File", file.name)) and os.path.exists(path)
+        frappe.delete_doc("File", file.name, ignore_permissions=True)
+        frappe.db.commit()
+        gone = not frappe.db.exists("File", file.name) and not os.path.exists(path)
+        tally(results, "erp.file_delete_rolled_back", kept and gone, {"kept_after_rollback": kept, "gone_after_commit": gone})
+
+
+def b2_pitfalls(site, rounds, results):
+    """11-26 第一版「先锁后读」踩过的两个坑（附件 LinkValidationError、子表间隙锁 QueryDeadlockError）在 B ② 改过的每个入口上专门验：
+    采购 / 销售同一张单同时到 付款 ×2、挂附件、删附件、补开凭证（采购）、旧接口付款 / 标已付（采购）；草稿同时删两遍 + 挂附件。
+    判：任何一路都不许漏出这两种坑或 417 / 500 原文；业务拒绝（已删、已作废、超付）可以。附件删掉后盘上那份还在、提交后才删。"""
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import api as purchase_api, suppliers
+    from pearnly_erp_portal.sales import api as sales_api, entry as sales_entry
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    frappe.db.set_value("ERP Company", co, "express_enabled", 0)
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    sale = {"company": co, "doc_date": frappe.utils.nowdate(), "doc_kind": "receipt", "buyer_name": f"{TAG} buyer", "vat_rate": 0,
+            "has_vat": 0, "lines": [{"item_type": "service", "description": f"{TAG} service", "qty": 1, "unit": "งาน",
+                                     "unit_price": 1000}]}
+
+    def pay(api, name, amount):
+        payload = {"amount": amount, "method": "cash"}
+        if api is purchase_api.api_purchase_payment:
+            payload["request_id"] = f"{TAG}-pf-{secrets.token_hex(4)}"  # 销售收款没有请求号
+        return lambda: api(name, json.dumps(payload))
+
+    for _ in range(rounds):
+        purchase = _purchase(co, supplier, "PF")
+        sold = sales_entry.post(dict(sale), request_id=f"{TAG}-pfs-{secrets.token_hex(6)}")["name"]
+        frappe.db.commit()
+        pre = {"purchase": _private_file("PFa"), "sale": _private_file("PFs")}
+        purchase_api.api_purchase_attachments(purchase, json.dumps([{"file": pre["purchase"].name, "kind": "bill"}]))
+        sales_api.api_sale_attachments(sold, json.dumps([{"file": pre["sale"].name, "kind": "bill"}]))
+        frappe.db.commit()
+        fresh = {"purchase": _private_file("PFb"), "sale": _private_file("PFt"), "draft": _private_file("PFd")}
+        draft = _purchase(co, supplier, "PFD")
+        frappe.db.set_value("Purchase Document", draft, "status", "draft", update_modified=False)  # 识别后待确认的那种草稿
+        frappe.db.commit()
+        calls = [
+            ("p.pay1", pay(purchase_api.api_purchase_payment, purchase, 100)),
+            ("p.pay2", pay(purchase_api.api_purchase_payment, purchase, 100)),
+            ("p.attach", lambda: purchase_api.api_purchase_attachments(purchase, json.dumps([{"file": fresh["purchase"].name,
+                                                                                               "kind": "bill"}]))),
+            ("p.remove", lambda: purchase_api.api_remove_purchase_attachment(purchase, pre["purchase"].name)),
+            ("p.voucher", lambda: purchase_api.api_purchase_voucher(purchase, "substitute_receipt")),
+            ("p.old_pay", lambda: purchase_api.api_pay_purchase(name=purchase, amount=50, method="cash")),
+            ("s.pay1", pay(sales_api.api_sale_payment, sold, 100)),
+            ("s.pay2", pay(sales_api.api_sale_payment, sold, 100)),
+            ("s.attach", lambda: sales_api.api_sale_attachments(sold, json.dumps([{"file": fresh["sale"].name, "kind": "bill"}]))),
+            ("s.remove", lambda: sales_api.api_remove_sale_attachment(sold, pre["sale"].name)),
+        ]
+        calls += [("d.delete1", lambda: purchase_api.api_delete_purchase_drafts(json.dumps([draft]))),
+                      ("d.delete2", lambda: purchase_api.api_delete_purchase_drafts(json.dumps([draft]))),
+                      ("d.attach", lambda: purchase_api.api_purchase_attachments(draft, json.dumps([{"file": fresh["draft"].name,
+                                                                                                     "kind": "bill"}])))]
+        box = _threads(site, user, calls)
+        frappe.db.rollback()
+        leaked = {k: v["error"] for k, v in box.items() if "error" in v and any(
+            word in v["error"] for word in (*PITFALLS, "Document has been modified", "Deadlock", "1213"))}
+        # 删掉的附件：File 记录没了、盘上那份也没了（提交后删）；没删掉的（被拒）两样都在
+        disk = {}
+        for key, file in pre.items():
+            exists = bool(frappe.db.exists("File", file.name))
+            path = frappe.utils.get_site_path("private", "files", os.path.basename(file.file_url))
+            shared = bool(frappe.db.exists("File", {"file_url": file.file_url, "name": ["!=", file.name]}))
+            disk[key] = (exists, os.path.exists(path), shared)
+        consistent = all(record == on_disk or (on_disk and shared) for record, on_disk, shared in disk.values())
+        tally(results, "erp.b2_pitfalls", not leaked and consistent,
+              {"leaked": leaked, "disk": disk, "others": {k: v.get("error", "ok")[:120] for k, v in box.items()}})
+        frappe.db.set_value("Purchase Document", purchase, "status", "void", update_modified=False)
+        frappe.db.set_value("ERP Sales Document", sold, "status", "void", update_modified=False)
+        frappe.db.commit()
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
@@ -467,6 +745,11 @@ def erp(site, rounds):
     guarded(results, "erp.same_doc_writes", same_doc_writes, site, rounds, results)
     guarded(results, "erp.amend_vs_payment_web", amend_vs_payment, site, rounds, results, True)
     guarded(results, "erp.amend_vs_payment_internal", amend_vs_payment, site, rounds, results, False)
+    guarded(results, "erp.line_card_submit_vs_cancel", line_card_submit_vs_cancel, site, rounds, results)
+    guarded(results, "erp.b2_pitfalls", b2_pitfalls, site, rounds, results)
+    guarded(results, "erp.file_delete_rolled_back", file_delete_rolled_back, site, rounds, results)
+    guarded(results, "erp.collection_edit_vs_release", collection_edit_vs_release, site, rounds, results)
+    guarded(results, "erp.collection_double_release", collection_double_release, site, rounds, results)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
@@ -723,6 +1006,8 @@ def push_state_withdrawn(site, rounds, results, history):
 def main(argv):
     product, site = argv[0], argv[1]
     rounds = int(argv[argv.index("--rounds") + 1]) if "--rounds" in argv else 10
+    if "--only" in argv:
+        ONLY.update(argv[argv.index("--only") + 1].split(","))
     connect(site)
     results = {"erp": erp, "billing": billing, "cowork": cowork}[product](site, rounds)
     ok = all(cell["bad"] == 0 for cell in results.values())
