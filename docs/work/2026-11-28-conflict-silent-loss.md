@@ -592,3 +592,5 @@
 - 全格各 3 轮：ERP 36 格、Cowork 7 格全过。前一轮（挂 9c821c3c2）ERP 12 格报 1054 `Unknown column 'ledger_word'`：保存时账本栏回填（`ledger_guard.keep_current`）按 `ledger_` 前缀从元数据取列，把不落库的虚字段也读了，采购 / 销售 / 出入库一保存就失败。改成跳过虚字段，`LedgerGuardSkipsVirtualFields` 用三张单据真实的 DocType 定义核（修前红、修后绿）。离线替身的元数据里没有这个字段，所以只有实验栈抓得到。
 - 出入库筛选真库核：入库方向 19 张（另造 8 种状态组合，事后回滚），每档列表与逐张判定一致、合计一致，迟到写成落「结果不明」档；出库方向实验库里没有接 Express 的单（0 张，只核了不报错）。
 - 库里有 LINE 按用户排队分支单向迁移留下的新表与新字段（`Pearnly LINE Lane`、事件行几列），本分支的格子都不受影响。
+
+浏览器实测（实验站，账号 acc.erp@…，界面中文）：采购列表「筛选」→ 字段「Express 状态」→ 第一次值框是灰的（官方 `base_control.js` 见 `is_virtual` 就禁用）。改共用 `pearnly_core/public/desk/list.js`：只对页面在 `filter_fields` 里声明的字段，交给筛选的副本去掉 `is_virtual`（937d5ef17）。重挂后下拉列「录入中 / 成功 / 失败 / 结果不明」，选「失败」应用后 1605 → 22 条，清掉筛选后恢复；控制台只有实验站一直有的 socket.io Unauthorized。采购 / 销售 / 入库三页页面冒烟（`scripts/smoke/run.py --target local`，站点名换成实验站）通过。**list.js 是共用件**：变基后 `check-impact.py` 会多出共用列表的入口，逐入口实测时一并测。
