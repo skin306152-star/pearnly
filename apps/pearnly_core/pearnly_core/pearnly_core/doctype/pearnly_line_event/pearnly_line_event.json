@@ -9,25 +9,118 @@
   "event_id",
   "status",
   "source",
+  "line_user_id",
   "column_break_main",
+  "arrived_at",
+  "line_timestamp",
+  "set_index",
+  "attempts",
+  "lease_until",
+  "section_content",
+  "content",
   "detail"
  ],
  "fields": [
-  {"fieldname": "event_id", "fieldtype": "Data", "in_list_view": 1, "label": "Event ID", "reqd": 1, "unique": 1, "columns": 5, "description": "The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice."},
-  {"default": "processing", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "processing\ndone\nignored\nfailed", "reqd": 1, "columns": 2},
-  {"fieldname": "source", "fieldtype": "Data", "label": "Source", "columns": 3},
-  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "detail", "fieldtype": "Small Text", "label": "Description"}
+  {
+   "fieldname": "event_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Event ID",
+   "reqd": 1,
+   "unique": 1,
+   "columns": 4,
+   "description": "The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice."
+  },
+  {
+   "default": "processing",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "queued\nprocessing\ndone\nignored\nfailed\nexpired",
+   "reqd": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "label": "Source",
+   "columns": 2
+  },
+  {
+   "fieldname": "line_user_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "LINE User ID",
+   "columns": 2
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "arrived_at",
+   "fieldtype": "Datetime",
+   "label": "Arrived At"
+  },
+  {
+   "fieldname": "line_timestamp",
+   "fieldtype": "Long Int",
+   "label": "LINE Timestamp"
+  },
+  {
+   "default": "0",
+   "fieldname": "set_index",
+   "fieldtype": "Int",
+   "label": "Image Set Index"
+  },
+  {
+   "default": "0",
+   "fieldname": "attempts",
+   "fieldtype": "Int",
+   "label": "Attempts"
+  },
+  {
+   "fieldname": "lease_until",
+   "fieldtype": "Datetime",
+   "label": "Lease Until"
+  },
+  {
+   "fieldname": "section_content",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "JSON",
+   "label": "Content"
+  },
+  {
+   "fieldname": "detail",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-18 00:00:00.000000",
+ "modified": "2026-11-28 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly LINE Event",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  }
  ],
  "sort_field": "creation",
  "sort_order": "DESC",

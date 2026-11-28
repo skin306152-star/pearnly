@@ -397,12 +397,14 @@ permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query
 persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]
 
 # Durable OCR backlog repair; second-level ETA delivery uses execution.dispatch.
-# 每分钟：识别队列补投递；CC 对话里挂着等后台结论的调用到上限交回、结束了却没交回的补交（assistant.waits）。
-scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep", "pearnly_core.assistant.waits.sweep"],
+# 每分钟：识别队列补投递；CC 对话里挂着等后台结论的调用到上限交回、结束了却没交回的补交（assistant.waits）；
+# LINE 按用户的道有排队却没人持道的交短队列（line_lane.lane.sweep）。每天删处理完 7 天的 LINE 事件行（line_lane.lane.prune）。
+scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep", "pearnly_core.assistant.waits.sweep",
+                                           "pearnly_core.line_lane.lane.sweep"],
                              # 导出文件 1 小时过期：每 10 分钟删一次过期的。
                              "*/10 * * * *": ["pearnly_core.exports.service.sweep"]},
                     "hourly": ["pearnly_core.account.line_login.reconcile"],
-                    "daily": ["pearnly_core.execution.work.prune_checkpoints"]}
+                    "daily": ["pearnly_core.execution.work.prune_checkpoints", "pearnly_core.line_lane.lane.prune"]}
 
 # 导出文件的下载响应不进缓存（与 Cowork 原件下载同一做法）；所有原生下载的中文 / 泰文文件名按 RFC 5987 写进响应头。
 after_request = ["pearnly_core.exports.service.protect_response", "pearnly_core.exports.service.encode_filename",

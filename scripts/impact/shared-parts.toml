@@ -193,9 +193,11 @@ entries = ["dms.liff.id-scan"]
 
 [[part]]
 id = "line"
-name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
-paths = ["apps/pearnly_core/pearnly_core/line.py"]
-markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
+name = "LINE 收发与等待三个点（webhook 收件、按用户一条道、reply / push / batch）"
+paths = ["apps/pearnly_core/pearnly_core/line.py", "apps/pearnly_core/pearnly_core/line_lane/lane.py",
+         "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_line_event/pearnly_line_event.json",
+         "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_line_lane/pearnly_line_lane.json"]
+markers = ["pearnly_core.line.", "line_lane import lane", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection", "erp.line.precheck-questions", "cowork.line.precheck-questions"]
 not_entries = { "apps/pearnly_core/pearnly_core/line_ui/receipt.py" = "等结果的回执（共用件 line-receipt）只用 start_loading / reply / reply_sender，入口见 line-receipt 的 entries", "apps/pearnly_core/pearnly_core/line_surfaces/__init__.py" = "部署时富菜单对照与同步（只用 line.request 读菜单图、不收发消息），由 tests/test_line_surfaces.py 与部署 surfaces 步骤回读覆盖", "apps/pearnly_cowork/pearnly_cowork/line/menu_surface.py" = "部署时 Cowork 富菜单对照（只用 line.can_send），同上", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu_surface.py" = "部署时 ERP 富菜单对照（只用 line.can_send），同上" }
@@ -215,7 +217,7 @@ name = "LINE 会话状态"
 paths = ["apps/pearnly_core/pearnly_core/line_session.py"]
 markers = ["pearnly_core.line_session", "import line_session", ", line_session", "line_session as store"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "erp.line.collection", "erp.line.precheck-questions"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "erp.line.collection", "erp.line.precheck-questions", "cowork.line.precheck-questions"]
 
 [[part]]
 id = "line-binding"

@@ -1,0 +1,33 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:line_user_id",
+ "creation": "2026-11-28 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "line_user_id",
+  "column_break_main",
+  "holder",
+  "lease_until"
+ ],
+ "fields": [
+  {"fieldname": "line_user_id", "fieldtype": "Data", "in_list_view": 1, "label": "LINE User ID", "reqd": 1, "unique": 1, "columns": 4},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "holder", "fieldtype": "Data", "in_list_view": 1, "label": "Holder", "columns": 3},
+  {"fieldname": "lease_until", "fieldtype": "Datetime", "in_list_view": 1, "label": "Lease Until", "columns": 3}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-28 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly LINE Lane",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

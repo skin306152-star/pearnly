@@ -12,6 +12,9 @@ apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py	send	ERP Collectio
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	queue	$doctype	判断	误报（11-28 B ②）：读的是本事务里刚保存的那张单（新建或已加锁的草稿），自己的写读得到；网页提交入口另在拿 post 锁后 commit
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit	ERP LINE Intake	借函数	误报（11-28 B ②）：写的字段名由卡片方向（采购 / 销售）决定，方向建卡后不变；卡片行已先锁后读（_owned(lock=True)），重复提交由 post 的加锁查重挡住
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit_chat	ERP LINE Intake	借函数	误报（11-28 B ②）：同 submit
+apps/pearnly_core/pearnly_core/line_lane/lane.py	drain	Pearnly LINE Event	跨函数	误报：name 只是排队中最早那条的事件号，认领用带条件的 UPDATE（status='queued' 才改、rowcount 判输赢），不按读到的值写回（11-28 LINE 按用户排队）
+apps/pearnly_core/pearnly_core/line_lane/lane.py	_run	Pearnly LINE Event	判断	误报：waited 由到达时刻算（行写入后不再改），过期 / 认领都是带 status='queued' 条件的 UPDATE（11-28 LINE 按用户排队）
+apps/pearnly_core/pearnly_core/line_lane/lane.py	_run	Pearnly LINE Event	跨函数	误报：handled 是处理器的结论，_finish 是带 status='processing' 条件的 UPDATE，被判中断的不改回（11-28 LINE 按用户排队）
 apps/pearnly_core/pearnly_core/line_session.py	update_session	Pearnly LINE Session	跨函数	误报：读在 serialized 块里（get_session 走 for update 加锁读），改完 set_session 写回（11-28 ④ A1 L5）
 apps/pearnly_core/pearnly_core/line_session.py	clear_session	Pearnly LINE Session	判断	误报：marker 来自 _row(for_update=True) 加锁读（11-28 ④ A1.3 S0）
 apps/pearnly_core/pearnly_core/line_session.py	consume_nonce	Pearnly LINE Session	跨函数	误报：claimed 来自 _comparison_row 加锁读、比对 nonce 后写回（11-28 ④ A1.3 S0）

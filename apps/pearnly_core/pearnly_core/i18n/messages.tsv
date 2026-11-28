@@ -1159,3 +1159,6 @@ Too many rows	超出可填行数	จำนวนแถวเกินกำห�
 No longer available	已不可选	ไม่มีให้เลือกแล้ว	選択できなくなりました	guide.refused.not offered
 Over the limit	超出上限	เกินจำนวนที่กำหนด	上限を超えています	guide.refused.over max
 Not a file in this conversation	不是本对话的文件	ไม่ใช่ไฟล์ในบทสนทนานี้	この会話のファイルではありません	guide.refused.not in this conversation
+Arrived At	到达时间	เวลาที่ได้รับ	受信日時
+LINE Timestamp	LINE 时间戳	เวลาจาก LINE	LINE タイムスタンプ
+Image Set Index	图片组序号	ลำดับในชุดรูปภาพ	画像セット内の順番

@@ -24,6 +24,7 @@ import json
 import logging
 import threading
 import time
+from datetime import timedelta
 from urllib.parse import quote
 
 import frappe
@@ -484,7 +485,9 @@ def reply_or_push(to: str, messages: list, reply_token: str = "", *,
 #: Redis 里的哈希键：`{日期}|{种类}` → 条数。只计数，不发消息、不写数据库。
 USAGE_HASH = "pearnly:line:usage"
 USAGE_KINDS = ("reply_ok", "reply_rejected", "reply_failed", "reply_unknown",
-               "push_ok", "push_failed", "push_deduped")
+               "push_ok", "push_failed", "push_deduped",
+               # 按用户的道（line_lane）：排队超时才轮到 / 处理到一半进程没了（都是罕见的真故障）
+               "lane_expired", "lane_interrupted")
 
 
 def _count(kind: str) -> None:
@@ -616,8 +619,10 @@ FEEDBACK_SECONDS = 60
 FEEDBACK_EVENTS = ("message", "postback")
 
 
-def _feedback_begin(event: dict):
-    """给这个事件起"超时才显示三个点"的计时；不需要（群组、没渠道、本机镜像）返回 None。"""
+def _feedback_begin(event: dict, delay: float = FEEDBACK_DELAY):
+    """给这个事件起"超时才显示三个点"的计时；不需要（群组、没渠道、本机镜像）返回 None。
+
+    `delay` 是还要等多久：在道里排过队的事件（`line_lane`）已经等过的那段要扣掉，排久了一开始就显示。"""
     source = event.get("source") or {}
     user_id = source.get("userId") or ""
     if event.get("type") not in FEEDBACK_EVENTS or source.get("type", "user") != "user" or not user_id:
@@ -647,7 +652,7 @@ def _feedback_begin(event: dict):
         finally:
             state["sent"].set()
 
-    state["timer"] = threading.Timer(FEEDBACK_DELAY, fire)
+    state["timer"] = threading.Timer(max(0.0, delay), fire)
     state["timer"].daemon = True
     state["timer"].start()
     return state
@@ -668,8 +673,9 @@ def _feedback_settle(to: str = "") -> None:
         state["sent"].wait(3)
 
 
-def _dispatch_with_feedback(event: dict) -> bool:
-    state = _feedback_begin(event)
+def _dispatch_with_feedback(event: dict, waited: float = 0.0) -> bool:
+    """`waited`：这条事件在道里排了多少秒（三个点的计时从到达算起）。"""
+    state = _feedback_begin(event, delay=FEEDBACK_DELAY - max(0.0, waited or 0.0))
     frappe.local.pearnly_line_feedback = state
     try:
         return _dispatch(event)
@@ -894,7 +900,21 @@ def webhook():
         frappe.local.response.http_status_code = 400
         return {"ok": False, "error": "bad_json"}
 
-    for event in payload.get("events") or []:
+    from pearnly_core.line_lane import lane as line_lane
+
+    # 一对一的事件只收件：落一行排进本人的道，提交后回 200，由道按到达序逐条处理（line_lane 模块头）。
+    # 群组等没有用户的事件照旧当场处理。
+    arrived = line_lane.utcnow()
+    users: list = []
+    for index, event in enumerate(payload.get("events") or []):
+        user = line_lane.user_of(event)
+        if user:
+            # 同一请求里的几条差 1 微秒，保住请求内的先后；当场提交，后面群组事件处理失败的回滚不冲掉它
+            if line_lane.store(event, user, arrived + timedelta(microseconds=index)):
+                frappe.db.commit()
+                if user not in users:
+                    users.append(user)
+            continue
         event_id = event.get("webhookEventId") or ""
         if not _claim_event(event_id, source="line_webhook"):
             continue  # 重投的旧事件，跳过
@@ -902,11 +922,15 @@ def webhook():
             handled = _dispatch_with_feedback(event)
             _finish_event(event_id, "done" if handled else "ignored")
         except Exception as e:
+            # 先回滚处理器做了一半的库内写，再记日志、记 failed（log_error 不提交，回滚在后会把它冲掉）
+            frappe.db.rollback()
             frappe.log_error(
                 title="LINE 事件处理失败",
-                message=f"event={event_id}\n{str(e)[:600]}",
+                message=f"event={event_id}\nhandler={getattr(e, 'pearnly_line_handler', '')}\n{str(e)[:600]}",
             )
             _finish_event(event_id, "failed", str(e)[:400])
+    for user in users:
+        line_lane.start(user)
 
     return {"ok": True}
 
@@ -929,6 +953,10 @@ def _dispatch(event: dict) -> bool:
             if handler(event):
                 return True
         except Exception as e:
-            frappe.log_error(title="LINE 处理器执行失败", message=f"{path}: {e}"[:600])
+            # 不在这里记日志：调用方要先回滚处理器做了一半的写，日志在回滚之后记（log_error 不提交）
+            try:
+                e.pearnly_line_handler = path
+            except Exception:  # noqa: BLE001
+                pass
             raise  # The event receipt must record failure, never an ignored success.
     return False
