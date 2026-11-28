@@ -34,3 +34,15 @@
   「结果不明 · 结果未确认，请先在 Express 中核对，再决定是否重新推送」+【查看结果】，不给【编辑】。MR.ERP 的原因行是 MR.ERP 核对句。
 - Cowork `card_save.outcome`：改用录入列表 / 复核页同一判据 `push.unknown.is_unknown`（含推送记录标了结果不明、原因是 ERR_TECHNICAL 的）。
 - 真机：ERP 三条（11-25）的文字多了原因行，要在三星上复看一次；Cowork 入口仍没测到。
+
+## 真机记录（11-28 三星复看，cc-coverage-5）
+
+被测：本地组合 c33ad3576（= 本分支 7474b324f，含网页结果不明 37f728f91 与状态词，再摘入 `pearnly/mrerp-unknown-check` 38c4e2417），测试机1 testenv
+lab-start（线上镜像 4cf9c586，实时源码），先 cowork 后 erp 各一次，测完 lab-stop、三域名回线上、定时任务恢复。没有真推：在测试副本里把票 / 单直接落成
+结果不明（Cowork：测试票推送记录 unknown，测后删票；ERP：PUR-2026-212653 改 held + `cc_desktop.result_unknown`，测后还原 written）。
+截图 `~/pearnly-devtools/handoff-1128/cov5-cowork-*.png`、`cov5-erp-*.png`。
+
+真机记录 | cowork.line.postback.cowork_result | 2026-11-28 | 7474b324f | 三星 SM-A146P + LINE Cowork-test | 通过 | 被测组合 c33ad3576；识别卡片「保存」回「结果不明」+ 只有【查看结果】（没有【编辑】、不说失败）；点【查看结果】同样回「结果不明」+【查看结果】 |
+真机记录 | erp.line.postback.erp_save | 2026-11-28 | 7474b324f | 三星 SM-A146P + LINE ERP-TEST | 通过 | 被测组合 c33ad3576；TS6911-0014 卡片「保存」回「结果不明 · 结果未确认，请先在 Express 中核对，再决定是否重新推送」+ 只有【查看结果】 |
+真机记录 | erp.line.postback.erp_result | 2026-11-28 | 7474b324f | 三星 SM-A146P + LINE ERP-TEST | 通过 | 被测组合 c33ad3576；点【查看结果】回同一句核对句 + 只有【查看结果】 |
+真机记录 | erp.line.postback.erp_cancel | 2026-11-28 | 7474b324f | 三星 SM-A146P + LINE ERP-TEST | 通过 | 被测组合 c33ad3576；卡片「取消」不作废，回同一句核对句 + 只有【查看结果】 |
