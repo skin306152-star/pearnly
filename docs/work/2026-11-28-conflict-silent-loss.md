@@ -421,3 +421,34 @@
 | `erp.stale_job_receipt`（每轮一张采购单、两件真写账件。A：旧件 J1 被领着，本连接是电脑回报 J1 写成那笔事务、读视图先建好，另一路把单据换成新件 J2 排上并提交，本连接记 J1 写成；B：J2 被领着，另一路把单据改成失败并提交，本连接记 J2 写成） | 0/10（A 记成已写入 + J1、J2 照样交电脑（兜底说要）；B 照记已写入） | 10/10（A 转人工、J1 单号留着、J2 仍排着但领单兜底不要、再交不排第三件；B 转人工、J2 单号记上；两张单号各在写账件表自己那一行） |
 
 实验格换的替身：主档同步（`masters.queue / forget`）、挂对方档 / 存货码（只修前会走到）；回执直接调 `push.job_changed`（写账件行先改成 success + 单号，同 `jobs.acknowledge` 记成功后交回产品那一份），没走电脑的 `acknowledge` 网络入口；建单时把公司临时设成不接 Express（不让后台自动排件），跑完复原。巡检、再写一次、选一次只在离线验。跑完测试单据作废、写账件与错误日志清掉（核过为 0），ERP 栈挂在本工作树。
+
+### ④ code-review（medium，24e3f1e3f...64b991eae）六条处理
+
+修前对照树 `b4r-before`（= 3aa7c4838，本轮起点；24e3f1e3f 上还没有账套串行锁与这几处写法，不能当这几条的修前）。
+
+1. **账套串行锁等不到被当成「请求无效」**（`collection/snapshot.py`，676c3c1d3）。现象：拿着某本账套快照串行锁的进程被杀，锁 120 秒才过期；`Busy` 继承 `ValidationError`，CC 交写后回执（`push.job_changed` → `apply_balances`）时机器通道 `machine._run` 把它映射成 400「请求无效」，CC 不退避重来，收款停在写入中；MR.ERP 读未收单落快照时当成读失败；列发票先 `land_ready`、再 `request`，各等 30 秒。改法：`Busy` 改继承 `conflicts.Exhausted`（机器通道照已有约定回 503「忙」，CC 下一轮再交同一份回执；网页 `conflicts.attempt` 回「请稍后重试」），共用层 `machine.py` / `conflicts.py` 没动，CC 桌面版约定不变（`test_companion_contract` 142 条照过）；`land_ready` 等不到回「正在读取」，`open_invoices` 这次不再进 `request` 等第二遍；MR.ERP `_read` 等不到回「正在读取」，`run_read` 把这一态只记 30 秒（过后再问就重读），不当失败。`check-impact --base 3aa7c4838` 命中共用件：无。
+2. **「再写一次」普通读盖掉「正在导入」**（`mrerp/push.send`，520abd469）。现象：`send` 的读视图早于任务领取提交，读到「排队中 + 空原因」，把原因改回空、又排一次导入；导入回来 `_conclude` 判不是本次领取，转成结果不明。改法：`send` 开头加锁读现值再判再写（`answer` → `send` 同受益）。
+3. **作废 × 写入核不上丢单号**（`mrerp/push._conclude`，1e2c15d60，原有问题）。现象：导入期间作废、导入成了但合计核不上（mismatch，原因空），落进「清账本栏」那支，MR.ERP 单号丢了。改法：作废分支用已算好的 `written`（含 mismatch），一并转「写进去后作废」、单号留着。收款一侧核不上仍记已写入、原因带码，不受影响。
+4. **Cowork MR.ERP 选项缓存整份写回**（`connections/service.observe_mrerp_menus / observe_mrerp_masters`）：**不是真问题，没改**。两处都经 `_read` = `connections.state.read`，默认 `lock=True`：先 `get_value(for_update=True)`、再 `get_doc(for_update=True)`（锁定版 Frappe `document.py` 走 `SELECT … FOR UPDATE`，实验栈镜像核过），读到的是最新整份、合并本账套那一格后写回，与 ERP 侧 A2 #17 改后的写法一样。runner 的 `_remember_menus` 在导入之后的新事务里只锁这一行连接，没有第二把锁、也不整份 `save`，撞不出 1213 / 保存前比对；它本来就是只给选择入口用的缓存、出错回滚记日志，不包 `retried`。
+5. **MR.ERP 读未收单落快照撞 1213 记失败**（`collection/mrerp._read`，69d60ebf7）。改法：落库那段（`snapshot.replace` + 提交）包 `conflicts.retried`，只重来落库，不再登录 MR.ERP 读一次；用尽照旧当读失败。`_replace` 两段加锁的顺序没改：按客户那段要先加锁读才知道这位客户名下有哪些单号，合成一次升序锁得先多锁整本账套的行（加锁读会锁住扫过的每一行），代价比偶发 1213 + 重来大；网页 / LINE / CC 当场落与每分钟落的路径原来就在 `retried` / `attempt` 里。
+6. **LINE 收单取件后记原件抛别的错留孤儿**（`integrations/intake._fetch`，e9d49ea96）。改法：`_keep_source` 抛冲突以外的错（校验失败、1205 等锁超时）时先回滚、`_forget` 删掉已单独提交的 File 登记（提交后删盘上那份、排任务删存放处那份），再原样抛。
+
+- **离线**（每条修前红、修后绿）：test_erp_collection +2（写后回执遇账套锁被占抛「用尽」而不是 `ValidationError`；列发票只等一次锁、两件读回都还在）；test_erp_mrerp_collection +2（落快照等不到锁 → 正在读取、只记 30 秒、不记日志；落快照撞一次 1213 → 只重来落库、MR.ERP 只读一次）；test_erp_mrerp_direct +2（旧读视图上的「再写一次」回已在排队、不再排导入、记成已写入；作废 × mismatch → 写进去后作废、单号留着）；test_line_intake +1（记原件抛校验错 → 删登记、原样抛；在实验栈镜像里跑）。另跑过：test_erp_collection 93、test_erp_collection_line 70、test_erp_collection_cc 42、test_erp_collection_guide 22、test_erp_mrerp_collection 43、test_erp_mrerp_direct 58、test_erp_mrerp_stock 12、test_erp_express_direct 230、test_cc_desktop_channel 60、test_companion_contract 142、test_erp_write_precheck 34、test_snapshot_reset、test_conflict_catch_sites、test_conflict_silent_loss、test_ledger_instant_sync、`test_line_intake` + `test_cc_intake` 171；check-architecture、check-unbounded-queries、check-conflict-catch、check-unlocked-overwrite --extended（新增 0）、check-copy（新增 / 改动 0）过。基线里没有这几处的行，未删行。
+
+| 格 | 修前（b4r-before = 3aa7c4838） | 修后 |
+|---|---|---|
+| `erp.snapshot_busy_book`（本进程直接拿住这本账套的串行锁不放、等锁改 2 秒。一半轮次：CC 写后回执经真 `machine._run`，判回 503、锁放了再交一次记成已写入；另一半：整本与按客户两件读回都已读好时列发票，判只等一次锁、说正在读取、两件读回都还在） | 0/10（回执回 400「请求无效」） | 10/10（676c3c1d3） |
+| `erp.mrerp_resend_while_importing`（任务领取提交「正在导入」后、导入替身停住，本连接以领取前的读视图调 `send`） | 0/10（`send` 回 sent、又排一次导入，导入回来转成结果不明 `ERR_MOVED_DURING_IMPORT`） | 10/10（520abd469：回已在排队、不排导入、记成已写入 + 单号） |
+
+回归（挂 e9d49ea96，各 3 轮，全过）：`erp.snapshot_double_land`、`erp.snapshot_balances_stale`、`erp.snapshot_busy_book`、`erp.mrerp_conclusion_conflict`、`erp.mrerp_poll_stale`、`erp.mrerp_collection_conclusion_conflict`、`erp.mrerp_resend_while_importing`、`erp.collection_edit_vs_release`、`erp.collection_double_release`、`erp.line_intake_save_conflict`、`erp.cc_intake_save_conflict`、`erp.stale_job_receipt`；`cowork.mrerp_ack_conflict`、`cowork.recon_result_conflict`、`cowork.folder_push_vs_human`。没测到：MR.ERP 读未收单等锁 / 撞 1213（第 1、5 条那一支）只做了离线，实验站没有 MR.ERP 公司与连接；第 6 条只做了离线；CC 桌面版真机收到 503 后的退避没在真机上看。ERP、Cowork 两套栈都挂在本工作树。
+
+#### code-review 小表
+
+| 发现 | 真问题 | 修了 | 耗时 |
+|---|---|---|---|
+| 1 账套锁等不到当成请求无效 / 等两次 / MR.ERP 读当失败 | 是 | 是 | 约 17 分钟（17:46–18:03，6 条合计，含两个实验格对比与回归） |
+| 2 再写一次普通读盖掉正在导入 | 是 | 是 | 同上 |
+| 3 作废 × 写入核不上丢单号 | 是 | 是 | 同上 |
+| 4 Cowork 选项缓存整份写回 | 否（已是加锁读） | 否 | 同上 |
+| 5 落快照两段加锁、MR.ERP 读无重试 | 部分（无重试是真的；加锁顺序不改） | 加重试 | 同上 |
+| 6 记原件抛别的错留孤儿 | 是 | 是 | 同上 |
