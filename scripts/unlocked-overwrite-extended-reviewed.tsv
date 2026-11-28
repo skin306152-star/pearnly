@@ -7,3 +7,8 @@ apps/pearnly_cowork/pearnly_cowork/companies/automation.py	on_readback	Cowork Co
 apps/pearnly_dms/pearnly_dms/intake/customer_attempt.py	_settle	Pearnly Push Log	判断	误报：在 Redis 锁里先 commit 结束读视图再读状态，读到的是最新值（11-28 B ③）
 apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py	choose_book	ERP Express Choice	跨函数	误报：记的是用户这次选的账套（从现查的选项里取），按公司 + 主题键覆盖写，后选的为准是本意（11-28 B ③）
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	void	$doctype	跨函数	误报：单据行在作废事务里已锁、账本栏改为加锁读（11-28 B ③ 已修）；写回的是已写入的出入库单的作废载荷与件号，单据内容写入后不变
+apps/pearnly_core/pearnly_core/express_operator/api.py	start	Pearnly Express Operator Task	跨函数	已修（11-28 B ②）：「还在准备中」改用加锁读判（锁住任务行）；found 只取月份与是否失效等展示用值
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py	send	ERP Collection	跨函数	误报（11-28 B ②）：在放行的同一事务里读刚保存的收款记录（_own 先锁后读、加锁整份读），本事务自己的写读得到
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	queue	$doctype	判断	误报（11-28 B ②）：读的是本事务里刚保存的那张单（新建或已加锁的草稿），自己的写读得到；网页提交入口另在拿 post 锁后 commit
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit	ERP LINE Intake	借函数	误报（11-28 B ②）：写的字段名由卡片方向（采购 / 销售）决定，方向建卡后不变；卡片行已先锁后读（_owned(lock=True)），重复提交由 post 的加锁查重挡住
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit_chat	ERP LINE Intake	借函数	误报（11-28 B ②）：同 submit

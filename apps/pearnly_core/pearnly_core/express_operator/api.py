@@ -246,8 +246,12 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
     if not isinstance(answers, dict) or not isinstance(groups, dict) or not isinstance(again, list):
         frappe.throw(_("Invalid request"))
     if task:
+        # 「还在准备中」用加锁读判（11-28 B ②）：写入计划在 CC 的事务里调这里，读视图早已建立，普通读是旧状态；
+        # 加锁读拿别人刚提交的状态并锁住任务行，两路同时交单只有一路交得出去
+        locked = frappe.db.get_value(tasks.DOCTYPE, {"name": tasks._own_name(task, for_update=True)}, ["company", "status"],
+                                     as_dict=True, for_update=True)
         found = tasks.read(task)
-        if found["company"] != company or found["status"] != "preparing":
+        if locked.company != company or locked.status != "preparing":
             frappe.throw(_("Invalid request"))
         if found.get("expired"):
             frappe.throw(_(tasks.EXPIRED))  # 已失效的任务不交单（B04）：写入计划的「写入」照这句告诉用户另开一个
