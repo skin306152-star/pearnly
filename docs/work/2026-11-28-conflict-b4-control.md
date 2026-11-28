@@ -1,5 +1,7 @@
 # ④ B8 控制面 LINE 解绑 / 改绑删了别的租户刚挂上的专用身份（11-28）
 
+> **状态：未完成，不能合。** 分支推上远端只为留底。离线单测已过；流程还没跑（不用长期控制面样板，改在一次性控制面站点上跑，主会话 11-28 定）。
+
 分支 pearnly/conflict-b4-control（起点 51686e58b），工作树 `.claude/worktrees/b4-control`。只做 ④ 清单 B8：
 `apps/pearnly_control/pearnly_control/account/member_service.py` 的 `unlink_line`、`link_line`、`_person_lock`、`_release`，入口
 `member_api.execute`。与 ④ 主记录 `2026-11-28-conflict-silent-loss.md` 分开写，避免两个分支改同一份文件。
