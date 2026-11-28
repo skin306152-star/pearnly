@@ -32,6 +32,10 @@ class Base(unittest.TestCase):
                                        create=True))
         self.enterContext(patch.object(frappe, "throw", side_effect=self.reject))
         self.enterContext(patch.object(frappe, "set_user", lambda user: setattr(frappe.session, "user", user)))
+        # 卡片保存 / 取消整笔重来（`conflicts.retried`，11-28 B ②）：替身里没有请求上下文的 frappe.local.flags
+        from pearnly_core.transaction import conflicts
+
+        self.enterContext(patch.object(conflicts, "_error_message", return_value=conflicts._UNSET))
         self.enterContext(patch("pearnly_core.line.reply", side_effect=lambda token, messages: self.replies.append(messages) or True))
         self.enterContext(patch("pearnly_core.line.reply_or_push",
                                 side_effect=lambda to, messages, token="", **kw: self.replies.append(messages) or True))
@@ -1920,8 +1924,9 @@ class Web(Base):
         frappe.db.exists.return_value = True
         frappe.db.get_value.side_effect = lambda doctype, name, fields=None, **kw: (
             frappe._dict(name="FILE-1", file_name="a.jpg", file_url="/private/files/a.jpg") if doctype == "File"
-            else "Acme Co" if doctype == "ERP Supplier" else None)
-        self.enterContext(patch.object(frappe, "get_doc", side_effect=lambda doctype, name=None: self.doc))
+            else "Acme Co" if doctype == "ERP Supplier"
+            else name if doctype == intake.DOCTYPE and kw.get("for_update") else None)  # `_owned(lock=True)` 的加锁读
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=lambda doctype, name=None, **kw: self.doc))
         self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
         self.enterContext(patch.object(intake, "now", lambda: "2026-09-25 23:00:00"))
         self.active = self.enterContext(patch("pearnly_erp_portal.masters.company.active_company", return_value="CO-1"))
@@ -2033,6 +2038,30 @@ class CardSave(Web):
     def press(self):
         handlers._postback("U1", "buyer", "a=erp_save&n=LI-1", "tok")
         return self.replies[-1][0]
+
+    def test_save_and_cancel_end_the_callback_read_view_retry_whole_and_commit_before_replying(self):
+        # 11-28 B ②：回调开头读过绑定、权限（读视图已建），锁卡片前先提交；撞冲突整笔重来；回 LINE 前已提交
+        from pearnly_core.transaction import conflicts
+
+        seen = []
+        for act in (None, intake.cancel_card):
+            frappe.db.commit.reset_mock()
+            calls = []
+
+            def recorded(name, calls=calls):
+                calls.append(frappe.db.commit.call_count)
+                if len(calls) == 1:
+                    raise frappe.QueryDeadlockError("deadlock")
+                return {"cancelled": True}
+
+            target = "cancel_card" if act else "save_card"
+            with patch.object(intake, target, side_effect=recorded), patch.object(conflicts.time, "sleep"), \
+                    patch.object(conflicts, "_drop_messages"), \
+                    patch("pearnly_core.line.reply", side_effect=lambda token, messages: seen.append(
+                        (target, frappe.db.commit.call_count)) or True):
+                handlers._save_card("LI-1", "tok", getattr(intake, target) if act else None)
+            self.assertEqual(calls, [1, 1], target)  # 两次都在开头那次提交之后；第一次撞死锁整笔重来
+            self.assertEqual(seen[-1], (target, 2))  # 回 LINE 时已提交第二次
 
     def test_save_posts_the_card_through_the_edit_page_submit(self):
         reply = self.press()

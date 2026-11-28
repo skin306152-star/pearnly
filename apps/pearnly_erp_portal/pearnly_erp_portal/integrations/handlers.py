@@ -133,8 +133,14 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
 def _save_card(name, reply_token, act=None):
     """卡片「保存」：提交成功回单号；有要人定的项、或提交时报错（缺仓库、按台未登记、非本人…）就不入账，回原因 + 「编辑」。
     ``act`` = ``intake.cancel_card`` 时是卡片「取消」：回「已取消」（已入账的回原单号）。点过取消再点保存同样只回「已取消」。"""
+    from pearnly_core.transaction import conflicts
+
     try:
-        result = (act or intake.save_card)(name)
+        # 同网页入口（11-28 B ②）：锁卡片之前先结束这次回调开头的读视图（到这里只读过绑定、权限），撞冲突整笔重来；
+        # 成功先提交、再回 LINE（回了「已保存 / 已取消」就一定落了库）
+        frappe.db.commit()
+        result = conflicts.retried(act or intake.save_card, name)
+        frappe.db.commit()
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         text = frappe.utils.strip_html(str(error) or "") or _("Not permitted")
