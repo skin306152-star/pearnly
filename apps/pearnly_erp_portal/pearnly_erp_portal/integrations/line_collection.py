@@ -239,6 +239,12 @@ def _amount(value) -> Decimal:
     return contracts.money(value)
 
 
+def _cash(payload) -> Decimal:
+    """会话里记的现金：抵减大于发票时是负数（差额退现金，原生 RE0000034），其余同 :func:`_amount`。"""
+    text = str(payload.get("cash") or "").strip()
+    return -_amount(text[1:]) if text.startswith("-") else _amount(text or 0)
+
+
 def _explain(error) -> str:
     from pearnly_erp_portal.collection import texts
 
@@ -632,7 +638,7 @@ def _answer_invoices_done(line_user_id, payload, value, reply_token):
 
 
 def _paid(payload) -> Decimal:
-    return _amount(payload.get("cash") or 0) + sum((_amount(row["amount"]) for row in payload.get("methods") or []),
+    return _cash(payload) + sum((_amount(row["amount"]) for row in payload.get("methods") or []),
                                                    contracts.ZERO)
 
 
@@ -650,10 +656,10 @@ def _catalog(payload) -> dict:
 def _unused(payload) -> list:
     """还能加的方式：``[(值, 名称)]``（现金一次、每种转账一次）。"""
     found, used = _catalog(payload), {row["prefix"] for row in payload.get("methods") or []}
-    if found.get("single") and (_amount(payload.get("cash") or 0) or any(
+    if found.get("single") and (_cash(payload) or any(
             row.get("role") == contracts.TRANSFER for row in payload.get("methods") or [])):
         return []  # 账本是 MR.ERP：一笔只收一种钱（现金或一个银行），选过就不再加；折扣另算
-    out = [(CASH, _("Cash"))] if found.get("cash") and not _amount(payload.get("cash") or 0) else []
+    out = [(CASH, _("Cash"))] if found.get("cash") and not _cash(payload) else []
     return out + [(row["prefix"], row.get("label") or row["name"]) for row in found.get("transfers") or []
                   if row["prefix"] not in used]
 
