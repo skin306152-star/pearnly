@@ -117,7 +117,7 @@ class Register(Base):
         self.assertEqual(devices.dead_devices(devices.now()), [dead["device"]])
         self.register("other@x", KEY_B)
         self.assertTrue(frappe.db.get_value(devices.DEVICE, dead["device"], "retired_at"))
-        self.assertEqual(frappe.db.get_value(devices.DEVICE, dead["device"], "retired_by"), "auto")
+        self.assertEqual(frappe.db.get_value(devices.DEVICE, dead["device"], "retired_by"), devices.AUTO_RETIRER)  # 真用户（"auto" 过不了 User 链接校验）
         self.assertIsNone(frappe.db.get_value(devices.DEVICE, kept["device"], "retired_at"))
         with self.assertRaises(Exception):
             devices.authenticate(dead["token"])

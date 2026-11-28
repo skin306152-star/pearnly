@@ -99,6 +99,8 @@ def register(request_key=None, device_key=None, device_name=None, rekey=False, r
 
 
 DEAD_SCAN_MAX = 500
+# 死记录自动退役记在谁名下：retired_by 是 User 链接，得是真用户（11-28 副本：写 "auto" 报 LinkValidationError，退役整批没做成）
+AUTO_RETIRER = "Administrator"
 
 
 def dead_devices(moment) -> list:
@@ -114,7 +116,7 @@ def dead_devices(moment) -> list:
 
 
 def retire(name, actor, moment) -> bool:
-    """让一台电脑退役：令牌作废、记退役时刻与谁（``auto`` = 死记录自动退役）。已退役的不动，回 False。它若回来，走
+    """让一台电脑退役：令牌作废、记退役时刻与谁（:data:`AUTO_RETIRER` = 死记录自动退役）。已退役的不动，回 False。它若回来，走
     ``register`` 的 ``rejoin``（人亲手点「连接」）作为新电脑。"""
     doc = frappe.get_doc(DEVICE, name)
     if doc.retired_at:
@@ -129,7 +131,7 @@ def retire_dead(moment) -> list:
     done = []
     try:
         for name in dead_devices(moment):
-            if retire(name, "auto", moment):  # loop-query: 死记录逐台退役（DEAD_SCAN_MAX 内、只在登记新电脑时）
+            if retire(name, AUTO_RETIRER, moment):  # loop-query: 死记录逐台退役（DEAD_SCAN_MAX 内、只在登记新电脑时）
                 done.append(name)
     except Exception:  # noqa: BLE001 - 清理死记录不能挡住新电脑登记
         frappe.log_error(title="cc_desktop retire dead devices")
