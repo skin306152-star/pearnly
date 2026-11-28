@@ -833,7 +833,12 @@ def release(name, version, consent) -> dict:
 
     回 ``{"status": "released", "card"}``；卡片之后改过 ``{"status": "changed", "version"}``（重新出卡）；不是草稿
     ``{"status": "not_draft", "card"}``；规则此刻不过（别人刚收了同一张、凭证没补）``{"status": "invalid", "code", "detail"}``。"""
+    head = frappe.db.get_value(DOCTYPE, name, ["book_key", "customer"], as_dict=True) if name else None
+    if head:
+        snapshot.lock_customer(head.book_key, head.customer)  # 锁的顺序：客户的快照行 → 这一笔 → 别的收款记录（预留）
     doc = _own(name, for_update=True)
+    if head and (doc.book_key, doc.customer) != (head.book_key, head.customer):
+        snapshot.lock_customer(doc.book_key, doc.customer)  # 读到锁之间草稿换了客户 / 账套（版本号随后会拒）
     code = contracts.release_check(doc.status, doc.draft_version, version, consent)
     if code == contracts.CHANGED:
         return {"status": "changed", "version": int(doc.draft_version or 0)}

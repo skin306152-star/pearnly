@@ -241,7 +241,9 @@ class DBApi:
             del S.table(doctype)[name]
 
     def sql(self, query, values=(), as_dict=False, pluck=False):
-        return []  # 放行时的行锁（单线程替身不用锁）
+        if "for update" in query.lower():
+            S.locked.append(query.split("`tab", 1)[-1].split("`", 1)[0])  # 放行时的行锁：记下锁的顺序（单线程替身不用锁）
+        return []
 
     def escape(self, value):
         return "'" + str(value).replace("'", "\\'") + "'"
@@ -848,6 +850,37 @@ class Reservations(Base):
         S.locked.clear()
         self.draft("100", user="b@x")
         self.assertEqual(S.locked, [])
+
+    def test_release_locks_the_customer_rows_before_its_own_record_and_others_reservations(self):
+        # 退货减项 × 11-28 B ②：同一位客户两笔同时放行，先锁各自几张、再锁整位客户 / 别人记录的预留会互等（实验栈 1213）；
+        # 固定顺序：这位客户的快照行（发票与抵减单一起）→ 这一笔 → 发票行锁 → 加锁读余额与预留
+        made = self.draft("600")
+        S.locked.clear()
+        service.release(made["name"], made["version"], "line:evt-1")
+        self.assertEqual(S.locked[:3], ["ERP Receivable Snapshot", "ERP Collection", "ERP Receivable Snapshot"], S.locked)
+
+    def test_a_credit_note_ticked_in_two_drafts_is_taken_once_the_later_release_is_stopped(self):
+        # 退货减项 × 11-28 B ②：减项单同发票一样进放行的加锁读与预留，两笔收款都勾满同一张，后放行的那笔超收、仍是草稿
+        snapshot.replace("CO-1", BOOK["key"], [
+            {"docnum": "IV1", "rectyp": "3", "docdat": "2026-10-01", "customer": "2100883", "salesman": "S1",
+             "department": "CPI", "net": "1000.00", "received": "0.00", "remaining": "1000.00"},
+            {"docnum": "IV2", "rectyp": "3", "docdat": "2026-10-05", "customer": "2100883", "salesman": "S2",
+             "department": "", "net": "800.00", "received": "300.00", "remaining": "500.00"},
+            {"docnum": "SR1", "rectyp": "5", "docdat": "2026-10-06", "customer": "2100883", "salesman": "S1",
+             "department": "", "net": "300.00", "received": "0.00", "remaining": "300.00"}], "2026-11-11T03:00:00+00:00",
+            customer="2100883")
+        first = self.draft(invoices=[{"docnum": "IV1", "amount": "1000"}, {"docnum": "SR1", "amount": "300"}], cash="700")
+        second = self.draft(invoices=[{"docnum": "IV2", "amount": "500"}, {"docnum": "SR1", "amount": "300"}], cash="200",
+                            user="b@x")
+        self.as_user("a@x")
+        S.locked.clear()
+        self.assertEqual(service.release(first["name"], first["version"], "line:evt-1")["status"], "released")
+        self.assertTrue({"ERP Receivable Snapshot", "ERP Collection Invoice"} <= set(S.locked), S.locked)
+        self.as_user("b@x")
+        result = service.release(second["name"], second["version"], "line:evt-2")
+        self.assertEqual((result["status"], result["code"]), ("invalid", C.OVER_COLLECTED))
+        self.assertEqual(result["detail"], {"available": {"SR1": "0.00"}})
+        self.assertEqual(frappe.db.get_value("ERP Collection", second["name"], "status"), C.DRAFT)
 
     def test_drafts_do_not_reserve_and_withdrawn_or_failed_ones_release_the_amount(self):
         made = self.draft("600")

@@ -289,6 +289,16 @@ def rows(book_key, customer, limit=200, locked=False):
     return [row for row in found if row.customer == customer]
 
 
+def lock_customer(book_key, customer):
+    """放行先锁这位客户在这本账套的全部快照行（发票与抵减单，按 ``name`` 一个顺序），再锁收款记录、判余额与预留。
+    两笔同一位客户的收款同时放行时在这里排队：先锁各自几张发票、再锁整位客户（或先锁自己的记录、再读别人记录的预留）
+    两路各拿一半互等，实验栈同时起跑 10 轮 9 轮报 1213（11-28 退货减项 × B ②）。"""
+    if not book_key or not customer:
+        return
+    frappe.db.sql(f"SELECT name FROM `tab{DOCTYPE}` WHERE book_key = %s AND customer = %s ORDER BY name FOR UPDATE",
+                  [book_key, customer])
+
+
 def lock(book_key, docnums):
     """放行时锁住这几张发票的快照行（两人同时放行同一张时排队判），回 ``{docnum: 行}``。"""
     if not docnums:
