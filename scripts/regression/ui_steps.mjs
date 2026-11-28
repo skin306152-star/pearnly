@@ -142,15 +142,19 @@ try {
       for (const el of document.querySelectorAll("body *")) {
         if (el.clientHeight < innerHeight / 2 || el.scrollWidth <= el.clientWidth + 1) continue;
         if (!/auto|scroll/.test(getComputedStyle(el).overflowX) || el.closest(".aui-md, pre")) continue;  // 回复里的表格、代码块本就横滚
-        // 说出伸出去最远的那个元素（查根因用；svg 内部的形状不算）
-        const edge = el.getBoundingClientRect().right; let far = null, farRight = edge + 1;
+        // 说出真正伸出去的元素（查根因用）：被裁剪的祖先（overflow 不是 visible）包住的不算，svg 内部形状不算；最远的三个
+        const edge = el.getBoundingClientRect().right; const found = [];
+        const clipped = (kid) => { for (let up = kid.parentElement; up && up !== el; up = up.parentElement) {
+          if (getComputedStyle(up).overflowX !== "visible") return true; } return false; };
         for (const kid of el.querySelectorAll("*")) {
           if (kid instanceof SVGElement && !(kid instanceof SVGSVGElement)) continue;
           const right = kid.getBoundingClientRect().right;
-          if (right > farRight) { far = kid; farRight = right; }
+          if (right > edge + 1 && !clipped(kid)) found.push([right, kid]);
         }
-        const label = (e) => e.getAttribute("data-slot") || e.tagName.toLowerCase() + "." + String(e.className?.baseVal ?? e.className).split(" ")[0];
-        out.push(label(el) + " " + el.scrollWidth + " > " + el.clientWidth + (far ? " (" + label(far) + " right " + Math.round(farRight - edge) + "px)" : ""));
+        found.sort((a, b) => b[0] - a[0]);
+        const label = (e) => e.getAttribute("data-slot") || e.tagName.toLowerCase() + "." + String(e.className?.baseVal ?? e.className).split(" ").slice(0, 2).join(".");
+        const far = found.slice(0, 3).map(([right, kid]) => label(kid) + " +" + Math.round(right - edge) + "px「" + (kid.textContent || "").trim().slice(0, 16) + "」");
+        out.push(label(el) + " " + el.scrollWidth + " > " + el.clientWidth + (far.length ? " (" + far.join("; ") + ")" : ""));
       }
       return out; })()`, returnByValue: true }, sessionId).catch(() => ({})) : null;
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
