@@ -282,6 +282,16 @@ class Flow(Base):
         listed = self.call(cc_tools.recent)
         self.assertEqual((listed["total"], listed["collections"][0]["name"]), (1, made["name"]))
 
+    def test_a_result_unknown_is_unconfirmed_not_failed(self):
+        """主会话 11-25：CC 桌面版写到一半断了（写没写进去不知道）不说失败：结果 unconfirmed + 不再录的定式。"""
+        made = self.make("600")
+        self.agreed(made["document"])
+        self.call(cc_tools.push, document=made["document"])
+        self.jobs.report("J-" + made["name"], "manual", reason=T.C.EXPRESS_UNKNOWN)
+        status = self.call(cc_tools.status, collection=made["name"])
+        self.assertEqual((status["result"], status["note"]), ("unconfirmed", cc_tools.UNCONFIRMED_NOTE))
+        self.assertNotIn("did not take", status["note"])
+
     def test_a_change_after_it_was_said_back_is_not_released(self):
         made = self.make("600")
         planned = self.plan_of(made["document"])
@@ -701,6 +711,9 @@ class MrErpNotes(unittest.TestCase):
         failed = {"status": T.C.FAILED, "ledger": "mrerp"}
         self.assertEqual(cc_tools._refusal_note({}, failed)["note"], cc_tools.MRERP_REFUSED_NOTE)
         self.assertEqual(cc_tools._refusal_note({}, {"status": T.C.FAILED})["note"], cc_tools.REFUSED_NOTE)
+        unknown = {"status": T.C.FAILED, "reason": "mrerp.result_unknown: ERR_TECHNICAL", "ledger": "mrerp"}
+        self.assertEqual(cc_tools._refusal_note({}, unknown)["note"], cc_tools.MRERP_UNCONFIRMED_NOTE)
+        self.assertNotIn("Express", cc_tools.MRERP_UNCONFIRMED_NOTE)
         for note in (cc_tools.MRERP_REFUSED_NOTE, cc_tools.MRERP_QUEUED_NOTE, cc_tools.MRERP_READING_NOTE):
             self.assertNotIn("Express", note)
             self.assertNotIn("CC Desktop", note)

@@ -193,6 +193,16 @@ class Walk(Base):
         self.assertNotIn("wait", result)
 
 
+    def test_a_result_unknown_is_its_own_row_with_the_check_sentence(self):
+        """主会话 11-25：CC 桌面版写到一半断了，结果卡「结果不明」+ 先在 Express 核对那句，不算失败。"""
+        name, found = self.to_review()
+        run.confirm(name, found["version"])
+        draft, _version = guide._draft_name(self.runs[name].draft)
+        self.jobs.report("J-" + draft, "manual", reason="cc_desktop.result_unknown")
+        result = run.view(self.runs[name])["result"]
+        self.assertEqual((result["status"], result["reason_text"]), ("unconfirmed", "express.reason.resultUnknown"))
+
+
 class Checks(Base):
     def test_a_customer_code_differing_only_in_blank_space_is_not_the_customer(self):
         name = run.start(SESSION, "collection")["run"]

@@ -462,12 +462,14 @@ def result(ctx, draft) -> dict:
         view = service.status(name)
         waiting = view["status"] in (contracts.QUEUED, contracts.WRITING) and service.express_waiting(name)
     status = "failed" if view.get("returned") else RESULT.get(view["status"], view["status"])
+    if not view.get("returned") and view.get("result_unknown"):
+        status = "unconfirmed"  # 写没写进去不知道：结果卡「结果不明」+ 核对那句，不算失败（主会话 11-25）
     out = {"status": status, "name": name, "docnum": view["docnum"], "total": view["total"],
            "customer": f"{view['customer']} {view['customer_name']}",
            **({"ledger": "mrerp"} if view.get("ledger") == "mrerp" else {})}  # 账本是 MR.ERP：结果按 MR.ERP 说
     if status == "queued":
         out.update(wait=True, express_wait=bool(waiting))
-    if status == "failed":
+    if status in ("failed", "unconfirmed"):
         out["reason_text"] = view.get("reason_text") or ""
     if view.get("mrerp_voided"):
         # 已写进 MR.ERP 后撤回：单号、在哪个菜单作废、冲过的发票，与要不要重录那一问（同收款页、CC 收款工具）

@@ -20,6 +20,7 @@ CODES = {
     contracts.CHANGED: "The collection changed. Check it again",
     contracts.NOT_DRAFT: "This collection cannot be changed",
     contracts.NOT_WITHDRAWABLE: "This collection cannot be withdrawn",
+    contracts.NOT_RETRYABLE: "This collection cannot be changed",
     contracts.BUSY: "CC Desktop is writing this collection",
     "collection.cc_update_needed": "CC Desktop needs an update",
     "collection.voucher_invalid": "Send a photo of the transfer slip",
@@ -74,6 +75,9 @@ def reason(value) -> str:
     if ack_rules.error_code(value) == "PERIOD_LOCKED":
         return _("express.reason.periodLocked")
     text = str(value or "")
+    if text == contracts.EXPRESS_UNKNOWN:
+        # CC 桌面版写到一半断了：同 ERP 单据弹窗与待处理那句（先在 Express 核对，`express.pending.REASONS`）
+        return _("express.reason.resultUnknown")
     if text in MRERP_CODES:
         return _(CODES[text])
     if text.startswith(("mrerp.", "ERR_MRERP", "ERR_AUTH", "ERR_TECHNICAL", "ERR_BUSINESS", "ERR_UNEXPECTED",

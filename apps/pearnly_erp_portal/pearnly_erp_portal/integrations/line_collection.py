@@ -1116,6 +1116,11 @@ def _status_text(view) -> str:
     status = view.get("status") or ""
     if status == contracts.WRITTEN:
         return f"{_(contracts.status_word(status))} · {view.get('docnum') or ''}"
+    if contracts.result_unknown(status, view.get("reason")):
+        # 结果不明（写没写进去不知道）：不说失败，原因是先去账本核对那句（同网页「收款」页，主会话 11-25）
+        from pearnly_erp_portal.collection import texts
+
+        return f"{_(contracts.RESULT_UNKNOWN)} · {texts.reason(view.get('reason'))}"
     if status == contracts.FAILED:
         return _failed_text(view)
     return f"{view.get('name') or ''} · {_(contracts.status_word(status))}"

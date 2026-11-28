@@ -93,9 +93,27 @@ def _named(note, mrerp) -> str:
     return note.replace("Express", "MR.ERP") if mrerp else note
 
 
+UNCONFIRMED_NOTE = ("unconfirmed: the result is not known (the write may or may not be in Express: CC Desktop lost contact "
+                    "while writing it). Say reason_text as given. Do not call it failed, do not release or withdraw it "
+                    "and do not record it again: on the ERP Collections page it has only Retry, which sends it to the "
+                    "same computer, and that computer does not write it twice.")
+MRERP_UNCONFIRMED_NOTE = ("unconfirmed: the result is not known (MR.ERP took the import but it could not be read back). "
+                          "Say reason_text as given. Do not call it failed and do not record it again.")
+
+
+def _result(view) -> str:
+    """放行之后的结果词；写没写进去不知道的（`contracts.result_unknown`）是 ``unconfirmed``，不算失败（主会话 11-25）。"""
+    if contracts.result_unknown(view.get("status"), view.get("reason")):
+        return direct_push.UNCONFIRMED
+    return RESULT.get(view["status"], view["status"])
+
+
 def _refusal_note(out, view) -> dict:
-    """写前被拒退回草稿 / 写失败：给模型一句定式（说清事实、给选择），不让它自由发挥成「去 Express 建客户」（11-15 真机）。"""
-    if view.get("returned") or view.get("status") == contracts.FAILED:
+    """写前被拒退回草稿 / 写失败：给模型一句定式（说清事实、给选择），不让它自由发挥成「去 Express 建客户」（11-15 真机）。
+    结果不明的另一句（不说失败、不再录）。"""
+    if not view.get("returned") and contracts.result_unknown(view.get("status"), view.get("reason")):
+        out["note"] = MRERP_UNCONFIRMED_NOTE if _mrerp(view) else UNCONFIRMED_NOTE
+    elif view.get("returned") or view.get("status") == contracts.FAILED:
         out["note"] = MRERP_REFUSED_NOTE if _mrerp(view) else REFUSED_NOTE
     return out
 
@@ -285,7 +303,7 @@ def status(tool_input) -> str:
     if "result" not in found:
         return _json(found)
     view = found["result"]
-    out = _refusal_note({**view, "result": RESULT.get(view["status"], view["status"])}, view)
+    out = _refusal_note({**view, "result": _result(view)}, view)
     if view.get("mrerp_voided"):
         out["note"] = VOIDED_NOTE
     return _json(out)
@@ -419,11 +437,11 @@ def push(tool_input) -> str:
                           {"message": texts.explain(contracts.CollectionError(released["code"], released.get("detail")))}
                           if released.get("code") else {})})
     view = _settle(name)
-    result = RESULT.get(view["status"], view["status"])
+    result = _result(view)
     out = {"document": document, "status": result, "collection": view}
     if result == ENTERED:
         out["docnum"] = view["docnum"]
-    elif result == FAILED:
+    elif result in (FAILED, direct_push.UNCONFIRMED):
         out["reason"] = view["reason"]
     elif result == QUEUED and _mrerp(view):
         out["note"] = MRERP_QUEUED_NOTE

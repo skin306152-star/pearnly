@@ -1,6 +1,6 @@
 /* 收款（11-11；用户 11-14 收成一页、一个权限）：本公司在 LINE / CC / 网页录的全部收款与写进 Express（RE）或 MR.ERP（FR）的结果，不分谁录的。
  * 页头「新建」（弹窗 `collection-new.js`，提交即放行）；点一行：草稿开原生弹窗改各张本次收、现金、各方式与折扣、销售员与部门，
- * 副按钮「撤回」；待写入 / 失败的看明细并可「撤回」（同 LINE【撤回】）；已写入的只看。改与撤回只认打开时的版本，别人刚改过回原因。
+ * 副按钮「撤回」；待写入 / 失败的看明细并可「撤回」（同 LINE【撤回】）；写进 Express 结果不明的只给「重试」；已写入的只看。改与撤回只认打开时的版本，别人刚改过回原因。
  * LINE 确认卡【编辑】打开 `pearnly-collections/<记录>`（旧地址 `pearnly-my-collections/<记录>` 转到这里）：那一笔已经不是草稿时
  * 先说「此卡片已失效」。导出、看凭证照旧（共用原件查看器 `desk/viewer.js`）。
  *
@@ -20,7 +20,12 @@
 		// 状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：同 LINE 回执（`collection.contracts.STATUS_WORDS`，契约测试比对）
 		const STATUS_WORDS = {draft: "erp.collection.status.draft", queued: "Entering", writing: "Entering", written: "Succeeded",
 			failed: "Failed", withdrawn: "Cancelled"};
-		const status_label = value => (value ? __(STATUS_WORDS[value] || value) : "");
+		// 结果不明（写没写进去不知道）单列，不并进失败（主会话 11-25，同 `collection.contracts.UNKNOWN_REASONS`）
+		const UNKNOWN_REASONS = ["cc_desktop.result_unknown", "mrerp.result_unknown"];
+		const result_unknown = (value, reason) => value === "failed"
+			&& UNKNOWN_REASONS.some(code => String(reason || "").startsWith(code));
+		const status_label = (value, reason) => (!value ? "" : result_unknown(value, reason) ? __("Result unknown")
+			: __(STATUS_WORDS[value] || value));
 		const source_label = value => (value ? t(`erp.collection.source.${value}`) : "");
 		const money = value => p.money(value);
 		const amount = value => Number(value || 0);
@@ -54,7 +59,10 @@
 			const vouchers = (data.methods || []).filter(item => item.file);
 			// 还没被电脑领走的（待写入、失败）可以撤回（同 LINE【撤回】）
 			// 账本是 MR.ERP 的、已写入的也能撤回：MR.ERP 没有删除导入，撤回后转人工、单号留着（`collection.mrerp.withdraw`）
-			const can_withdraw = ["queued", "failed"].includes(data.status) || (data.ledger === "mrerp" && data.status === "written");
+			// 写进 Express 结果不明的不撤回（Express 里可能已有），只给「重试」：钉回原电脑、按参照号查重再写（`collection.service.retry`）
+			const can_retry = Boolean(data.retryable);
+			const can_withdraw = !can_retry && (["queued", "failed"].includes(data.status)
+				|| (data.ledger === "mrerp" && data.status === "written"));
 			const voided = data.mrerp_voided;
 			const dialog = new frappe.ui.Dialog({title: data.name, size: "large", fields: [
 				...(from_card ? [{fieldtype: "HTML", fieldname: "expired",
@@ -65,7 +73,7 @@
 				shown("collector", __("Collector"), data.collector_name),
 				shown("source", __("Source"), source_label(data.source)),
 				{fieldtype: "Column Break"},
-				shown("status", __("Status"), [status_label(data.status), waiting(data)].filter(Boolean).join(" · ")),
+				shown("status", __("Status"), [status_label(data.status, data.reason), waiting(data)].filter(Boolean).join(" · ")),
 				shown("docnum", data.ledger === "mrerp" ? __("MR.ERP No.") : __("Express No."), data.docnum),
 				shown("book", __("Account Set"), data.book),
 				shown("total", __("Total"), money(data.total)),
@@ -90,7 +98,9 @@
 						label: item.name || item.prefix, click: () => void viewer.show(item.file)})),
 					{fieldtype: "HTML", fieldname: "voucher_preview"}] : []),
 			]});
-			if (can_withdraw) {
+			if (can_retry) {
+				dialog.set_primary_action(__("Retry"), () => void settle(retry(data.name, dialog)));
+			} else if (can_withdraw) {
 				dialog.set_primary_action(__("Withdraw"), () => void settle(withdraw(data.name, dialog)));
 			} else if (voided) {
 				// 已写进 MR.ERP 后撤回：在 MR.ERP 作废后要不要在 ERP 重录（原生确认框）
@@ -202,6 +212,14 @@
 			if (view?.mrerp_voided) ask_again(view.mrerp_voided);
 		}
 
+		async function retry(name, shown) {
+			const view = await p.call(api + "api_collection_retry", {name}, "POST");
+			frappe.utils.play_sound("submit");
+			frappe.show_alert({message: status_label(view?.status || "queued"), indicator: "blue"});
+			shown?.hide();
+			void list?.reload();
+		}
+
 		// 已写进 MR.ERP 后撤回：先说单号与在哪个菜单作废，再问要不要在 ERP 重录（是 → 新建收款）
 		function ask_again(voided, shown) {
 			// 两句都是服务端按当前语言出的（`collection.mrerp.voided_facts`）
@@ -239,9 +257,10 @@
 					format: value => (Number(value) ? String(value) : "")},
 				// 写入结果：写进去了显示 RE 号，否则显示状态（失败的原因在点开的弹窗里）
 				{fieldname: "docnum", width: 110, min_width: 76, label: __("Express"),
-					format: (value, row) => value || status_label(row.status),
+					format: (value, row) => value || status_label(row.status, row.reason),
 					title: (value, row) => waiting(row),
-					cell_class: (value, row) => (row.status === "failed" ? "pearnly-payment-due" : "")},
+					cell_class: (value, row) => (row.status === "failed" && !result_unknown(row.status, row.reason)
+						? "pearnly-payment-due" : "")},
 			],
 			// 列头点一下排序（服务端白名单 `collection.records.SORT_FIELDS`）
 			sort_fields: ["doc_date", "collector", "customer_name", "cash", "transfer", "discount", "docnum"],

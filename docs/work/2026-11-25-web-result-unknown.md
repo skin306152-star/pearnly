@@ -25,6 +25,24 @@
 
 ERP 列表本来没有按 Express 状态筛选，无需拆；ERP 弹窗 Express 结果不明的按钮「重试」实际是钉回原电脑按单号查重再写，不改字（主会话同意）。
 
+## 第 3 条 A：收款 Express 结果不明（11-28 cc-coverage-5，主会话 11-25 批 A）
+
+判据 `collection.contracts.result_unknown`：失败且原因以 `cc_desktop.result_unknown` / `mrerp.result_unknown` 开头；
+`retryable` 只认写进 Express 的（原因恰为 `cc_desktop.result_unknown`）。网页 `collections.js` 同表（契约测试比对 `UNKNOWN_REASONS`）。
+
+| 位置 | 之前 | 之后 |
+|---|---|---|
+| 收款页列表「Express」列、详情「状态」 | 失败（红） | 结果不明（不标红） |
+| 收款页详情「原因」 | 原码 `cc_desktop.result_unknown` | 「结果未确认，请先在 Express 中核对，再决定是否重新推送」（`texts.reason`，ERP 已有词条） |
+| 收款页详情按钮 | 撤回（变已取消，Express 里可能已有 → 重复） | 只给「重试」（`api_collection_retry` → `service.retry` → `push.retry` → 共用 `cc_desktop.jobs.retry`，钉回原电脑；CC 桌面版按参照号查重） |
+| 服务端撤回（网页、LINE【撤回】、CC 撤回工具） | 失败即可撤 | 写进 Express 结果不明的拒（`collection.not_withdrawable`） |
+| LINE 收款结果回执 | 失败 · 原码 | 结果不明 · 核对句 |
+| CC 收款工具 / 收款引导结果卡 | failed + 「Express 没收下」定式 | `unconfirmed` + 不再录定式；结果卡「结果不明」+ 核对句（状态词来自 cc-status-words） |
+| 收款导出「状态」列 | 失败 | 结果不明（其余状态的词不变） |
+
+没做：收款列表「状态」筛选仍是原生 Select（失败档仍含结果不明）——这一档要另加一个不在单据栏位上的筛选值，需要改共用列表筛选，
+没有动；MR.ERP 收款结果不明的出口归 B（另评估）。CC 里没有「重试」工具（CC 说明里让用户到网页收款页点重试），若要对等另开。
+
 ## 与 `pearnly/cc-line-result-unknown`（21fb47a04）的关系
 
 LINE 回执与网页同一张表（`express.contracts.ledger_word`），本分支改了表后 ERP LINE 回执的状态词也变成「结果不明」。

@@ -165,6 +165,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "express.disconnected": act("company_link", "p2"),                   # 断开 Express 时还没写进去：重新连接
     # 等（不用人做事）
     "express.operator_owned": wait("operator_done"),                     # 交给代录、还没录成：等代录录完，直写不接
+    "collection.not_retryable": wait("reported"),                        # 不是写进 Express 结果不明的，不能重试：看结果即可
     "collection.not_draft": wait("reported"),                            # 已放行、不是草稿了：看结果即可
     # 写入计划跳过（assistant.write_plan）
     "not_found": act("not_yours", "p2"),                                 # 不是本人能写的单 / 找不到：说清楚，不编

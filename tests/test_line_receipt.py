@@ -420,6 +420,12 @@ class StatusWordTables(unittest.TestCase):
                          contracts.STATUS_WORDS)
         self.assertEqual([contracts.status_word(status) for status in ("queued", "writing", "written", "failed", "withdrawn")],
                          ["Entering", "Entering", "Succeeded", "Failed", "Cancelled"])
+        # 结果不明（主会话 11-25）：网页与 LINE 同一档，不说失败；LINE 回执先判它再判失败
+        self.assertEqual(contracts.status_word("failed", "cc_desktop.result_unknown"), "Result unknown")
+        self.assertEqual(contracts.status_word("failed", "mrerp.result_unknown: ERR_TECHNICAL"), "Result unknown")
+        line = (ROOT / (ERP + "line_collection.py")).read_text(encoding="utf-8")
+        text = line.split("def _status_text(", 1)[1].split("\ndef ", 1)[0]
+        self.assertLess(text.index("contracts.result_unknown("), text.index("_failed_text(view)"))
 
     def test_line_entering_names_the_computer_it_waits_for_on_its_own_line(self):
         """11-25：排队中钉在一台不在线的电脑上，LINE 回执「录入中」不变，另起一行写单据页同一句「等待电脑 · 名称」。"""

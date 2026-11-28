@@ -43,8 +43,27 @@ STATUS_WORDS = {DRAFT: "erp.collection.status.draft", QUEUED: "Entering", WRITIN
                 FAILED: "Failed", WITHDRAWN: "Cancelled"}
 
 
-def status_word(status) -> str:
-    """收款状态 → 状态词词条（没在表里的原样）。"""
+# 结果不明（写没写进去不知道）单列「结果不明」，不并进失败（主会话 11-25，同 ERP 单据 `express.contracts.UNKNOWN_REASONS`）：
+# 失败且原因是 CC 桌面版写到一半断了（`cc_desktop.jobs.LOST`）或 MR.ERP 导入发出后查不到 / 出错（``mrerp.result_unknown: <码>``）
+RESULT_UNKNOWN = "Result unknown"
+EXPRESS_UNKNOWN = "cc_desktop.result_unknown"
+UNKNOWN_REASONS = (EXPRESS_UNKNOWN, "mrerp.result_unknown")
+
+
+def result_unknown(status, reason="") -> bool:
+    return status == FAILED and str(reason or "").startswith(UNKNOWN_REASONS)
+
+
+def retryable(status, reason="") -> bool:
+    """写进 Express 结果不明的：只给「重试」（共用写账队列 `cc_desktop.jobs.retry` 钉回原电脑再排，CC 桌面版按参照号查重，写过的
+    回原号、一行不写），不给「撤回」（撤回后 Express 里可能已有，再录就重复；主会话 11-25 定 A）。"""
+    return status == FAILED and str(reason or "") == EXPRESS_UNKNOWN
+
+
+def status_word(status, reason="") -> str:
+    """收款状态（与原因）→ 状态词词条（没在表里的原样）。"""
+    if result_unknown(status, reason):
+        return RESULT_UNKNOWN
     return STATUS_WORDS.get(status or "", status or "")
 
 
@@ -92,6 +111,7 @@ CHANGED = "collection.changed"
 CONSENT_MISSING = "collection.consent_missing"
 NOT_DRAFT = "collection.not_draft"
 NOT_WITHDRAWABLE = "collection.not_withdrawable"
+NOT_RETRYABLE = "collection.not_retryable"
 BUSY = "collection.busy"
 SALESMAN_INVALID = "collection.salesman_invalid"
 DEPARTMENT_INVALID = "collection.department_invalid"

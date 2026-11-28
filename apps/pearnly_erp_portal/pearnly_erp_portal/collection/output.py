@@ -4,7 +4,7 @@ from io import BytesIO
 import frappe
 from frappe import _
 
-from pearnly_erp_portal.collection import records
+from pearnly_erp_portal.collection import contracts, records
 
 HEAD = (("name", "ID"), ("doc_date", "Collection Date"), ("collector_name", "Collector"), ("source", "Source"),
         ("customer", "Customer Code"), ("customer_name", "Customer Name"), ("total", "Total"), ("cash", "Cash"),
@@ -26,7 +26,8 @@ def _value(value):
 def _cell(row, key):
     value = row.get(key)
     if key == "status" and value:
-        value = _(f"erp.collection.status.{value}")
+        # 结果不明不写成「失败」（同收款页与 LINE，`contracts.result_unknown`）
+        value = _(contracts.RESULT_UNKNOWN) if contracts.result_unknown(value, row.get("reason")) else _(f"erp.collection.status.{value}")
     elif key == "source" and value:
         value = _(f"erp.collection.source.{value}")
     return _value(value)

@@ -191,6 +191,14 @@ def api_collection_submit(company, customer, invoices, request, cash=0, methods=
 
 
 @frappe.whitelist(methods=["POST"])
+def api_collection_retry(name):
+    """写进 Express 结果不明的一笔再写一次（本公司的，同撤回的权限；`service.retry`）。"""
+    from pearnly_erp_portal.collection import service
+
+    return _explained(service.retry, name)
+
+
+@frappe.whitelist(methods=["POST"])
 def api_collection_withdraw(name):
     """撤回一笔（本公司的，不分谁录的；草稿、待写入、失败的；电脑正在写、已写入的不行），同 LINE【撤回】（`service.withdraw`）。"""
     from pearnly_erp_portal.collection import service

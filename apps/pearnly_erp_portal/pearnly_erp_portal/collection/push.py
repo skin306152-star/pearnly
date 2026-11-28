@@ -103,6 +103,16 @@ def cancel(job):
         jobs.cancel(job, CANCELLED)
 
 
+def retry(job) -> bool:
+    """写进 Express 结果不明的写账件再排一次（共用 `cc_desktop.jobs.retry`：钉回原电脑，CC 桌面版按参照号查重；回执照常经
+    :func:`job_changed` 记回）。不是转人工、原因不是结果不明的不动，回假。"""
+    found = jobs.find_by_name(job) if job else None
+    if not found or found["status"] != "manual" or found.get("reason") != contracts.EXPRESS_UNKNOWN:
+        return False
+    jobs.retry(job)
+    return True
+
+
 def _meta(view):
     """回执的附带信息（每张发票的余额）：共用通道交进来的视图里有就用；没有就读这件作业存下的回执。"""
     found = view.get("receipt")

@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
 import pathlib
+import re
 import sys
 import types
 import unittest
@@ -645,6 +646,11 @@ class FakeJobs:
         S.table(self.JOB)[name]["meta_json"] = json.dumps(meta or {})
         desktop.job_changed(self.view(name))
 
+    def retry(self, name):
+        # 同真的 `cc_desktop.jobs.retry`：转人工的再排，结果不明的钉回原电脑
+        self.rows[name].update(status="queued", reason="", pinned=self.rows[name].get("reason") == C.EXPRESS_UNKNOWN)
+        desktop.job_changed(self.view(name))
+
 
 # 用户 11-14：只有一个「收款」权限（`rules`：collection.view 与 collection.write 同一判据）——boss 是管理员（默认有收款），
 # sales 只有销售岗位、没勾收款：什么都看不到
@@ -965,6 +971,57 @@ class Withdraw(Base):
         with self.assertRaises(C.CollectionError) as caught:
             service.withdraw(queued["name"])
         self.assertEqual(caught.exception.code, C.BUSY)
+
+
+class ResultUnknown(Base):
+    """主会话 11-25 定 A：写进 Express 结果不明（CC 桌面版写到一半断了）的不说失败、不撤回，只给「重试」——同一个共用写账队列
+    `cc_desktop.jobs.retry` 钉回原电脑再排，CC 桌面版按参照号查重（写过的回原号、一行不写）。"""
+
+    def lost(self):
+        made = self.draft("100")
+        service.release(made["name"], 1, "line:evt-1")
+        self.jobs.report("J-" + made["name"], "manual", reason=C.EXPRESS_UNKNOWN)
+        return made["name"]
+
+    def test_the_lost_reason_is_the_shared_queue_one(self):
+        jobs = (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py").read_text(encoding="utf-8")
+        self.assertIn(f'LOST = "{C.EXPRESS_UNKNOWN}"', jobs)
+
+    def test_it_is_result_unknown_not_failed_and_only_retry_is_offered(self):
+        name = self.lost()
+        view = service.status(name)
+        self.assertEqual(view["status"], C.FAILED)
+        self.assertEqual((view["result_unknown"], view["retryable"]), (True, True))
+        self.assertEqual(C.status_word(view["status"], view["reason"]), "Result unknown")
+        self.assertEqual(C.status_word(C.FAILED, "[already_collected] x"), "Failed")
+        with self.assertRaises(C.CollectionError) as caught:
+            service.withdraw(name)
+        self.assertEqual(caught.exception.code, C.NOT_WITHDRAWABLE)
+        self.assertEqual(self.jobs.rows["J-" + name]["status"], "manual")  # 撤回没动写账件
+
+    def test_retry_requeues_the_same_job_on_the_same_computer(self):
+        name = self.lost()
+        view = service.retry(name)
+        self.assertEqual(view["status"], C.QUEUED)
+        self.assertEqual(len(self.jobs.rows), 1)  # 同一件写账，不另排
+        self.assertEqual((self.jobs.rows["J-" + name]["status"], self.jobs.rows["J-" + name]["pinned"]), ("queued", True))
+        self.assertEqual(frappe.db.get_value("ERP Collection", name, "reason"), "")
+
+    def test_retry_is_only_for_result_unknown(self):
+        made = self.draft("100")
+        service.release(made["name"], 1, "line:evt-1")
+        self.jobs.report("J-" + made["name"], "manual", reason="[already_collected] IV1")
+        for name in (made["name"], self.draft("100")["name"]):
+            with self.subTest(name=name), self.assertRaises(C.CollectionError) as caught:
+                service.retry(name)
+            self.assertEqual(caught.exception.code, C.NOT_RETRYABLE)
+
+    def test_the_page_offers_retry_instead_of_withdraw_and_shows_the_word(self):
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
+        web = re.findall(r'"([^"]+)"', page.split("const UNKNOWN_REASONS = [", 1)[1].split("];", 1)[0])
+        self.assertEqual(tuple(web), C.UNKNOWN_REASONS)
+        self.assertIn("const can_withdraw = !can_retry && ", page)
+        self.assertIn('api + "api_collection_retry"', page)
 
 
 class Permissions(Base):
@@ -1600,7 +1657,7 @@ class ExpressWaiting(Base):
         page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
         self.assertIn('row?.status === "queued" && row?.express_wait ? __("express.error.ACCOUNT_BUSY_LOCKED") : ""', page)
         self.assertIn("title: (value, row) => waiting(row)", page)  # 列表悬浮说明
-        self.assertIn("[status_label(data.status), waiting(data)]", page)  # 手机没有悬浮：点开后的内容里也有
+        self.assertIn("[status_label(data.status, data.reason), waiting(data)]", page)  # 手机没有悬浮：点开后的内容里也有
 
     def test_a_card_link_to_a_record_that_is_no_longer_a_draft_says_the_card_expired(self):
         # 卡片有效期 A6：LINE 卡【编辑】打开的那一笔已放行 / 撤回 / 被新卡作废：先说此卡片已失效（同 DMS 编辑页）；列表里点开的照旧只列状态

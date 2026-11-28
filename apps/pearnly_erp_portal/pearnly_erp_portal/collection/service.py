@@ -776,6 +776,8 @@ def _view(doc) -> dict:
             "transfer": contracts.text(doc.transfer or 0), "discount": contracts.text(doc.discount or 0),
             "total": contracts.text(doc.total or 0), "docnum": doc.docnum or "", "reason": doc.reason or "",
             "reason_text": texts.reason(doc.reason) if doc.reason else "",
+            "result_unknown": contracts.result_unknown(doc.status, doc.reason),
+            "retryable": contracts.retryable(doc.status, doc.reason) and not ledger.handles(doc.company),
             "salesman": doc.salesman or "", "department": doc.department or "",
             "balances": frappe.parse_json(doc.balances) if doc.balances else {},
             # 写前被电脑拒、退回草稿（带原因，改了再放行；`push.job_changed`）
@@ -859,7 +861,8 @@ def withdraw(name) -> dict:
     doc = _own(name, for_update=True)
     if ledger.handles(doc.company) and ledger.withdraw(doc):
         return _view(doc)  # 已写进 MR.ERP：转人工、单号留着（写入中的抛 busy）
-    if doc.status not in contracts.WITHDRAWABLE:
+    if doc.status not in contracts.WITHDRAWABLE or contracts.retryable(doc.status, doc.reason):
+        # 写进 Express 结果不明的不撤回（Express 里可能已有），只能「重试」（:func:`retry`）
         raise contracts.CollectionError(contracts.NOT_WITHDRAWABLE, {"status": doc.status})
     from pearnly_erp_portal.collection import push
 
@@ -870,6 +873,17 @@ def withdraw(name) -> dict:
     if doc.job:
         push.cancel(doc.job)
     return _view(doc)
+
+
+def retry(name) -> dict:
+    """写进 Express 结果不明的再写一次（同 ERP 单据弹窗「重试」：共用写账队列 `cc_desktop.jobs.retry` 钉回原电脑再排，CC 桌面版
+    写前按参照号查重，写过的回原号、一行不写；回执照常记回，`push.job_changed`）。别的状态、账本是 MR.ERP 的不行。"""
+    from pearnly_erp_portal.collection import push
+
+    doc = _own(name, for_update=True)
+    if ledger.handles(doc.company) or not contracts.retryable(doc.status, doc.reason) or not push.retry(doc.job):
+        raise contracts.CollectionError(contracts.NOT_RETRYABLE, {"status": doc.status})
+    return _view(frappe.get_doc(DOCTYPE, name))  # 回执已在同一事务里记回（排队中）
 
 
 def discard_draft(name) -> bool:
