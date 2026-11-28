@@ -68,13 +68,14 @@ def steps(params, camera_code=None):
               "business: all[0]?.dataset.business||'', text: all[0]?.innerText.trim()||'', reply: !!all[0]?.closest('[data-role]')};}; ")
     return [
         {"name": "业务菜单", "js": JS + menu + prompt + "const shown=await until(()=>row(),120); "
-         # 完整清单读量宽度的那一排（手机上收进「更多」的也在；那一排看不见，innerText 为空，读 textContent）；点的只找直接摆出来的按钮（11-17 菜单定稿：前 4 项 + 更多）
-         "const labels=[...(row()?.querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')||[])].map(b=>(b.textContent||'').trim()); "
-         "const pick=async(l)=>{const b=[...(row()?.querySelectorAll(':scope > button')||[])].find(x=>x.innerText.trim()===l); b?.click(); await sleep(400);}; "
+         # 完整清单读量宽度的那一排（手机上收进「更多」的也在，menuLabels）；点一律经 pickBusiness：一排里有就点，收进「更多」的开「更多」点
+         # （一排摆几项按真实宽度量，随字体 / 语言变，11-28 本机 Mac 手机格「收款」进了「更多」）
+         "const labels=menuLabels(); "
+         "const pick=async(key)=>{await pickBusiness(key); await sleep(400);}; "
          "const cancel=async()=>{row()?.querySelector('button')?.click(); await sleep(400);}; "
-         "await pick('采购'); const picked={chosen: row()?.dataset.business||'', placeholder: ph(), prompt: said()}; "
+         "await pick('purchase'); const picked={chosen: row()?.dataset.business||'', placeholder: ph(), prompt: said()}; "
          "await cancel(); const cancelled=said(); "
-         "await pick('销售'); const switched=said(); await cancel(); "
+         "await pick('sales'); const switched=said(); await cancel(); "
          "return {shown, labels, picked, cancelled, switched, cleared: row()?.dataset.business ?? null, placeholder: ph(), after: said()};"},
         {"name": "出卡", "js": head + f"const sent=await say({json.dumps(_call(params))}); const shown=await until(()=>{CARD}?.dataset.phase==='ask',200); "
          "await sleep(800); return {...read(), sent, seen: shown, sheet: !!q('[data-slot=\"cc-ask-sheet\"]'), ask: !!q('[data-slot=\"cc-askq\"]')};"},
@@ -89,7 +90,7 @@ def steps(params, camera_code=None):
          "await turnDone(); const result=whole(2); "
          "return {result, card, sent};"},
         {"name": "会话里选业务", "js": JS + menu + prompt + "await until(()=>row(),120); "
-         "const b=[...(row()?.querySelectorAll('button')||[])].find(x=>x.innerText.trim()==='采购'); b?.click(); "
+         "await pickBusiness('purchase'); "
          "await until(()=>said().count>0,40); await sleep(1500); "  # 等服务端记下（POST business）再刷新
          "const sid=new URL(location.href).searchParams.get('c')||''; "
          "const mine=(await listed('chat')).find(x=>x.id===sid)||{}; "

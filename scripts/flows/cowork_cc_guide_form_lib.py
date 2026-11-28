@@ -78,13 +78,7 @@ def open_conversation(params):
 def open_business(business):
     """点业务菜单上的一项；回 {label, clicked, business, keys}。"""
     return {"name": "点菜单", "js": JS + HELP +
-            "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),160); "
-            f"const B={json.dumps(business)}; let b=row().querySelector(`:scope > button[data-business=\"${{B}}\"]`); "
-            "if(!b){const more=row().querySelector(':scope > button[data-slot=\"cc-business-more\"]'); "
-            " more?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); "
-            " await until(()=>q(`[data-slot=\"cc-business-more-menu\"] [data-business=\"${B}\"]`),40); "
-            " b=q(`[data-slot=\"cc-business-more-menu\"] [data-business=\"${B}\"]`);} "
-            "const label=b?b.innerText.trim():''; b?.click(); "
+            f"await until(()=>menuRow(),160); const {{label, via}}=await pickBusiness({json.dumps(business)}); const b=!!via; "
             "await until(()=>card()?.querySelector('[data-slot=\"cc-guide-question\"]'),160); await sleep(500); "
             "return {label, clicked: !!b, business: card()?.dataset.business||'', "
             "keys: [...(card()?.querySelectorAll('[data-slot=\"cc-guide-question\"]')||[])].map(x=>x.dataset.key)};"}

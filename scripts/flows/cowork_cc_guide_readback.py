@@ -50,14 +50,8 @@ def steps(params, camera_code=None):
         {"name": "打开对话", "wait_ms": 6000, "js": JS +
          f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['session'])})),0); return true;"},
         {"name": "点回读", "js": JS + HELP +
-         "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),160); "
-         # 直接摆出来的就点；手机宽度收进「更多」的，先按开「更多」（Radix 菜单认 pointerdown），再点菜单里那一项
-         "let b=row().querySelector(':scope > button[data-business=\"readback\"]'); const direct=!!b; "
-         "if(!b){const more=row().querySelector(':scope > button[data-slot=\"cc-business-more\"]'); "
-         " more?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); "
-         " await until(()=>q('[data-slot=\"cc-business-more-menu\"] [data-business=\"readback\"]'),40); "
-         " b=q('[data-slot=\"cc-business-more-menu\"] [data-business=\"readback\"]');} "
-         "const label=b?b.innerText.trim():''; b?.click(); "
+         # 直接摆出来的就点，手机宽度收进「更多」的开「更多」点（共用 pickBusiness）
+         "await until(()=>menuRow(),160); const {label, via}=await pickBusiness('readback'); const direct=via==='row', b=!!via; "
          "await until(()=>card()?.querySelector('[data-slot=\"cc-guide-question\"]'),160); await sleep(500); "
          "return {label, direct, clicked: !!b, business: card()?.dataset.business||'', status: card()?.dataset.status||'', "
          "keys: [...(card()?.querySelectorAll('[data-slot=\"cc-guide-question\"]')||[])].map(x=>x.dataset.key), "

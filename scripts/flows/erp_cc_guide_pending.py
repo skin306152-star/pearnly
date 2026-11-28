@@ -57,17 +57,13 @@ def steps(params, camera_code=None):
         {"name": "打开直写对话", "wait_ms": 6000, "js": JS +
          f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['clean'])})),0); return true;"},
         # 菜单只摆前 4 项、其余收进「更多」（11-17 定稿）：直接摆出来的就点，否则开「更多」点里面那一项
-        {"name": "点待处理", "js": JS + HELP + "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>composerReady(),120); "
+        {"name": "点待处理", "js": JS + HELP + "const row=menuRow; await until(()=>composerReady(),120); "
          "const shown=await until(()=>row(),120); "
          "if(!shown) return {shown, url: location.href, composer: composerReady(), cards: qa('[data-slot=\"cc-guide-run\"]').length}; "
-         "const labels=[...row().querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')].map(b=>(b.textContent||'').trim()); "
-         "const direct=row().querySelector(':scope > button[data-business=\"pending\"]'); "
-         "if(direct) direct.click(); else { press(row().querySelector(':scope [data-slot=\"cc-business-more\"]')); "
-         " await until(()=>q('[data-slot=\"cc-business-more-menu\"] [data-business=\"pending\"]'),40); "
-         " q('[data-slot=\"cc-business-more-menu\"] [data-business=\"pending\"]')?.click(); } "
+         "const labels=menuLabels(); const direct=(await pickBusiness('pending')).via==='row'; "
          "await until(()=>card()?.dataset.business==='pending'&&card().querySelector('[data-slot=\"cc-guide-option\"]'),120); await sleep(500); "
          "const codes=[...card().querySelectorAll('[data-slot=\"cc-guide-option\"]')].map(o=>o.dataset.code); "
-         "return {shown, labels, direct: !!direct, business: card()?.dataset.business||'', status: card()?.dataset.status||'', codes};"},
+         "return {shown, labels, direct, business: card()?.dataset.business||'', status: card()?.dataset.status||'', codes};"},
         {"name": "选单提交", "js": JS + HELP + f"const want={want}; "
          "const opt=card()?.querySelector('[data-slot=\"cc-guide-option\"][data-code=\"'+want+'\"]'); opt?.click(); await sleep(300); "
          "const submit=[...card().querySelectorAll('button')].find(b=>b.innerText.split('\\n')[0].trim()==='提交'); "

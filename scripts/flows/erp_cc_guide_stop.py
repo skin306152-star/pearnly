@@ -42,10 +42,10 @@ SID = "const sid=new URL(location.href).searchParams.get('c')||''; "
 def _steps(params):
     return [
         {"name": "开对话", "js": JS + f"const sent=await say({json.dumps(params['tag'] + ' 你好')}); await sleep(1500); return {{sent}};"},
-        {"name": "点收款", "js": JS + HELP + "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),120); "
-         "[...row().querySelectorAll('button')].find(b=>b.innerText.trim()==='收款')?.click(); "
+        # 菜单项一律经 pickBusiness（这一排有就点，收进「更多」的开「更多」点）
+        {"name": "点收款", "js": JS + HELP + "await until(()=>menuRow(),120); const picked=await pickBusiness('collection'); "
          "await until(()=>card()&&card().dataset.status==='asking', 120); "
-         "return {status: card()?.dataset.status||'', run: card()?.dataset.run||''};"},
+         "return {picked, status: card()?.dataset.status||'', run: card()?.dataset.run||''};"},
         {"name": "让 CC 工作", "js": JS + HELP + f"const sent=await say({json.dumps(params['tag'] + ' [lab-hold]' + params['tag'] + '[/lab-hold]')}); "
          "const running=await until(()=>q('button.aui-composer-cancel'), 120); "
          "return {sent, running, status: card()?.dataset.status||''};"},
@@ -67,7 +67,8 @@ def judge(params, results, camera_code=None):
     opened, busy = by.get("点收款") or {}, by.get("让 CC 工作") or {}
     stopped, reloaded = by.get("点停止") or {}, by.get("刷新后读卡") or {}
     return [
-        {"case": "点「收款」出引导卡（在问）", "seen": opened, "ok": opened.get("status") == "asking" and bool(opened.get("run"))},
+        {"case": "点「收款」出引导卡（在问）", "seen": opened, "ok": (opened.get("picked") or {}).get("via") in ("row", "more") and opened.get("status") == "asking"
+         and bool(opened.get("run"))},
         {"case": "再说一句：CC 在工作，输入框出停止键", "seen": busy, "ok": bool(busy.get("running"))},
         {"case": "点停止键：不刷新，卡当场换成失效一行", "seen": stopped,
          "ok": bool(stopped.get("clicked")) and stopped.get("run") == opened.get("run") and stopped.get("status") == "expired"},

@@ -73,11 +73,11 @@ def _steps(params):
          "const chosen=await until(()=>!q('[data-slot=\"cc-company-picker\"]')&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(want),80); "
          "return {row: !!row, chosen};"},
         {"name": "开对话", "js": JS + f"const sent=await say({json.dumps(params['tag'] + ' 你好')}); await sleep(1500); return {{sent}};"},
-        {"name": "点收款", "js": JS + HELP + "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),120); "
-         "const labels=[...(row()?.querySelectorAll('button')||[])].map(b=>b.innerText.trim()); "
-         "[...row().querySelectorAll('button')].find(b=>b.innerText.trim()==='收款')?.click(); "
+        # 菜单项一律经 pickBusiness（这一排有就点，收进「更多」的开「更多」点；手机上一排摆几项随字体变，11-28 本机 Mac）
+        {"name": "点收款", "js": JS + HELP + "await until(()=>menuRow(),120); const labels=menuLabels(); "
+         "const picked=await pickBusiness('collection'); "
          "await until(()=>card()&&keys().length, 120); "
-         "return {labels, status: card()?.dataset.status||'', business: card()?.dataset.business||'', keys: keys(), "
+         "return {labels, picked, status: card()?.dataset.status||'', business: card()?.dataset.business||'', keys: keys(), "
          "decided: [...(card()?.querySelectorAll('[data-slot=\"cc-guide-decided\"]')||[])].map(x=>x.innerText.trim())};"},
         {"name": "答第一轮", "js": JS + answer},
         {"name": "答第二轮", "js": JS + answer},
@@ -101,7 +101,8 @@ def judge(params, results, camera_code=None):
     asked = [k for name in ("答第一轮", "答第二轮", "答第三轮") for k, _ok in ((by.get(name) or {}).get("done") or [])]
     return [
         {"case": "业务菜单有「收款」，点了对话里出引导卡（不是模型出的），公司 / 日期 / 账套进「已定」", "seen": menu,
-         "ok": "收款" in (menu.get("labels") or []) and menu.get("status") == "asking" and menu.get("business") == "collection"
+         "ok": "收款" in (menu.get("labels") or []) and (menu.get("picked") or {}).get("via") in ("row", "more")
+         and menu.get("status") == "asking" and menu.get("business") == "collection"
          and "customer" in (menu.get("keys") or []) and len(menu.get("decided") or []) >= 1},
         {"case": "卡上依次问了客户、发票、收款方式", "seen": asked,
          "ok": all(k in asked for k in ("customer", "invoices", "methods"))},

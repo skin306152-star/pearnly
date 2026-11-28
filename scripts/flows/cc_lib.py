@@ -9,6 +9,10 @@
   press(e)                          Radix 下拉按下就开，单发 click 不开
   say(t)                            在当前对话的输入框里写一句并发出（同 cc_chat.py）
   pickCompany(title)                新建页下巴点「公司」，在选择公司弹窗里选这家（名称完全相同；月份随之默认当月）
+  menuLabels()                      输入框上方业务菜单提供的全部项名（直接摆出的 + 收进「更多」的；读量宽度那一排，看不见，取 textContent）
+  pickBusiness(key)                 点业务菜单的一项（data-business）：这一排直接摆着就点，没有就开「更多」点里面那一项；
+                                    回 {label, via: "row" | "more" | ""}。一排摆几项按真实宽度量（字体、语言、视口都会变，11-28 本机 Mac
+                                    手机格「收款」进了「更多」），点菜单项一律经它，不只在这一排里找
   call(m, args, post)               调站点接口（完整点分名），回 message；最多等 60 秒，超时抛「request <接口> timed out」
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
   ownChats(tag, m)                  这一格建的会话（标题含 tag，等异步生成的标题出现，最多 30 秒）；删会话一律用它
@@ -57,6 +61,16 @@ JS = (
     "if(!await until(row,40)){for(const tab of [...box().querySelectorAll('[role=\"tab\"]')]){tab.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0})); if(await until(row,20)) break;}}} "
     "const item=row(); if(!item) return false; item.click(); "
     "return await until(()=>!box()&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(title),80);};"
+    # 业务菜单（文件头 menuLabels / pickBusiness）：「更多」是 Radix 下拉，按下（pointerdown）就开
+    "const menuRow=()=>q('[data-slot=\"cc-business-menu\"]');"
+    "const menuLabels=()=>[...(menuRow()?.querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')||[])].map(b=>(b.textContent||'').trim());"
+    "const pickBusiness=async key=>{const row=menuRow(); if(!row) return {label:'', via:''}; "
+    "const direct=row.querySelector(`:scope > button[data-business=\"${key}\"]`); "
+    "if(direct){const label=direct.innerText.trim(); direct.click(); return {label, via:'row'};} "
+    "const more=row.querySelector(':scope > button[data-slot=\"cc-business-more\"]'); if(!more) return {label:'', via:''}; "
+    "const item=()=>q(`[data-slot=\"cc-business-more-menu\"] [data-business=\"${key}\"]`); "
+    "more.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); "
+    "if(!await until(item,40)) return {label:'', via:''}; const b=item(); const label=b.innerText.trim(); b.click(); return {label, via:'more'};};"
     # 每个请求最多等 60 秒，超时就带着接口名抛错（11-13：一格的请求一直没回，整格挂满 900 秒、看不出卡在哪个请求）
     "const call=async(m,args,post)=>{const body=new URLSearchParams(args||{}); const stop=new AbortController(); "
     "const timer=setTimeout(()=>stop.abort(),60000); try{ const r=await fetch('/api/method/'+m+(post?'':'?'+body),"
