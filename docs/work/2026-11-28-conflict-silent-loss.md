@@ -245,8 +245,10 @@
 
 | 格 | 修前（b4-before = 24e3f1e3f） | 修后 |
 |---|---|---|
-| `erp.snapshot_double_land`（(a) 同一件读回 `request` × `advance`；(b) 同一位客户两次读回同时 `replace`；两种各半） | 2/10（8 轮两行，两种都出现） | 待跑（主窗口占用实验栈，见下） |
-| `erp.snapshot_balances_stale`（写后回执前另一路把 net 1000 → 1200 并提交） | 0/10（已收按旧 net 算成 300） | 待跑 |
+| `erp.snapshot_double_land`（(a) 同一件读回 `request` × `advance`；(b) 同一位客户两次读回同时 `replace`；两种各半） | 2/10（8 轮两行，两种都出现） | 10/10 |
+| `erp.snapshot_balances_stale`（写后回执前另一路把 net 1000 → 1200 并提交） | 0/10（已收按旧 net 算成 300） | 10/10（已收 500） |
+
+修后挂本分支 f4efcba24 迁移：补丁 `v1_35` 执行、`unique_book_key_docnum` 建好（实验栈当时没有重复行）。补丁另在实验栈上专门验：删掉索引、造一组 3 行同单号（读取时刻 01:00 / 03:00 / 空）加 1 行另一单号，执行补丁 → 留 03:00 那行和另一单号那行、删 2 行、错误日志「deleted 2 duplicate rows」、索引重建；再执行一次什么都不改、不再记日志。② 的收款两格（`erp.collection_double_release`、`erp.collection_edit_vs_release`，`release` 调改过的 `lock`）修后各 5 轮全过。
 
 #### 共用件影响清单（`check-impact.py --base 24e3f1e3f`）
 
@@ -254,7 +256,7 @@
 
 | 入口 | 结果 | 依据 / 没测到的原因 |
 |---|---|---|
-| erp.collection.server | 离线通过；实验栈修后待跑 | test_erp_collection 91 条；实验栈两格 |
+| erp.collection.server | 通过 | test_erp_collection 91 条；实验栈本条两格 10/10、② 收款两格 5/5 |
 | erp.line.collection | 离线通过 | test_erp_collection_line 70 条；LINE 真机没测到（要排队） |
 | erp.cc.connect、erp.cc.write、erp.cc.masters、erp.cc.stock-void、cowork.cc.channel、cc.operator.page、erp.cc.companies、erp.cc.chat-push、cc.mrerp-login、erp.mrerp.direct、cc.desktop.bridge、cowork.cc-chat.push、cc.desktop.cloud-express | 没测到 | 只新增 `take`，这些入口不调它；`drop` / `result` 等原函数没改。test_cc_desktop_channel 与其余用通道替身的离线测试全过 |
 
