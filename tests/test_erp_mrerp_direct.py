@@ -717,6 +717,24 @@ class ConclusionConflict(unittest.TestCase):
                          ("written", "", "PG691128-000009"))
         self.assertEqual(len(ENQUEUED), 0)  # 没再排一次导入
 
+    def test_a_mismatched_write_on_a_document_voided_while_importing_keeps_its_number(self):
+        """④ code-review 3：写进了但核不上（mismatch）、导入期间单据作废：同「写进去后作废」转人工、单号留着（修前账本栏清空、单号丢了）。"""
+        from pearnly_erp_portal.express import contracts as E
+
+        doc(ledger_state="queued", ledger_target="mrerp")
+
+        def voided(*args):
+            DB.table(PURCHASE)["PUR-1"].update(status="void", ledger_state=None, ledger_reason="")
+            return {"status": "success", "docnum": "PG691128-000010", "meta": {"verify": {"state": "mismatch"}},
+                    "menus": {}, "masters": {}}
+
+        with _Module({}):
+            sys.modules["pearnly_core.mrerp.push.execute"].execute = voided
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")),
+                         ("held", E.VOIDED_AFTER_WRITE, "PG691128-000010"))
+
     def test_the_poll_rechecks_under_the_lock_before_turning_an_import_unknown(self):
         """巡检普通读列出一张超时的「正在导入」，此间导入刚记成已写入：修前按列出时的旧值盖成结果不明；修后加锁按现值再核、不动。
         仍是超时那次领取的照旧转结果不明。"""

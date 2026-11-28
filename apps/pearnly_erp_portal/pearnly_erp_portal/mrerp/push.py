@@ -334,7 +334,9 @@ def _conclude(doctype, name, values, prepared, book, company):
     landed = written or values["ledger_reason"].startswith(contracts.UNKNOWN)  # 写进了，或可能写进了
     unknown_now = str(row.ledger_reason or "").startswith(contracts.UNKNOWN)
     if row.status == "void":
-        if values["ledger_state"] == express_contracts.WRITTEN:
+        # 写进了的（含写入核不上 mismatch：导入成了、只是合计核不上，原因是空的）一并按「写进去后作废」转人工、单号留着
+        # （11-28 ④ code-review：原来只认 written，mismatch 落进下一支被清空账本栏、MR.ERP 单号丢了）
+        if written:
             values.update(ledger_state=express_contracts.HELD, ledger_reason=express_contracts.VOIDED_AFTER_WRITE,
                           ledger_needed=None)
         elif not values["ledger_reason"].startswith(contracts.UNKNOWN):
