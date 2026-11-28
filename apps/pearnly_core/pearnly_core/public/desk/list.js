@@ -18,7 +18,7 @@
 		if (!df || typeof label !== "function" || df.fieldtype !== "Select") return df;
 		const values = String(df.options || "").split("\n").filter(value => value !== "");
 		return {...df, options: [{value: "", label: ""}, ...values.map(value => ({value, label: label(value) || value}))],
-			formatter: value => p.escape(value === undefined || value === null || value === "" ? "" : label(value) || value)};
+			formatter: value => p.escape(value === undefined || value === null || value === "" ? "" : (label(value) || value))};
 	};
 	p.filter_labelled = labelled;  // 单测用
 	if (NativeFilter && !NativeFilter.pearnly_filter_fields) {
