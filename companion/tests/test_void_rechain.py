@@ -310,10 +310,11 @@ def test_a_count_gain_on_a_master_chain_like_70exp_test_matches_the_native_recor
     assert _master(acct) == before
 
 
-def test_voiding_an_older_cc_count_gain_with_no_lot_on_the_row_does_not_leave_the_master_on_the_voided_lot(book):
+def test_voiding_an_older_cc_count_gain_with_no_lot_on_the_row_does_not_leave_the_master_on_the_voided_lot(book, caplog):
     """11-28 前 CC 写盘盈、挂不上进货批时行上批号是空的；写入时主档已换成本单的批。作废不能照「行上没记批号就不动」留着那一批
-    （101 本回放 T7HENG15 / T7PREMIU：主档指着已作废的 TK），按库存卡写入顺序找回之前的链头。"""
+    （101 本回放 T7HENG15 / T7PREMIU：主档指着已作废的 TK），按库存卡写入顺序找回之前的链头；日志留「旧版盘盈行」标记（已知限制，便于以后定位）。"""
     import datetime as dt
+    import logging
     from test_dbf_stock import _receipt
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
     _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
@@ -323,5 +324,7 @@ def test_voiding_an_older_cc_count_gain_with_no_lot_on_the_row_does_not_leave_th
     res = _write(book, _entry("TK", [_line("ICE01", 2)]))
     assert res.ok, res.error
     _patch_rows(book, res.docnum, MLOTNUM="", RDOCNUM="")  # 旧版写法：没挂上批
-    assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
+    with caplog.at_level(logging.INFO):
+        assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
     assert _master(book) == before
+    assert any("旧版盘盈行" in record.getMessage() and res.docnum in record.getMessage() for record in caplog.records)
