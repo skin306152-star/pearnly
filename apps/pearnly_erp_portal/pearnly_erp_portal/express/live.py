@@ -97,10 +97,21 @@ def touch(company) -> None:
         if frappe.cache.get_value(TOUCH_KEY + company):
             return
         frappe.cache.set_value(TOUCH_KEY + company, 1, expires_in_sec=TOUCH_GAP)
+        from rq.exceptions import InvalidJobOperation
+
         from pearnly_erp_portal.express import masters
 
-        frappe.enqueue("pearnly_erp_portal.express.live.check", queue=masters.lane(), timeout=300,
-                       job_id=f"erp-ledger-touch:{frappe.local.site}:{company}", deduplicate=True, company=company)
+        arguments = {"queue": masters.lane(), "timeout": 300, "job_id": f"erp-ledger-touch:{frappe.local.site}:{company}",
+                     "company": company}
+        try:
+            frappe.enqueue("pearnly_erp_portal.express.live.check", deduplicate=True, **arguments)
+        except InvalidJobOperation:
+            # 去重时同名旧任务刚跑完、状态键刚过期（11-28 生产 Error Log）：锁定版本里 `frappe.enqueue(deduplicate=True)`
+            # 先 `get_job` 取到旧任务（状态已结束），再 `job.delete()`；RQ 2.6.1 `Job.delete` → `_remove_from_registries`
+            # → `is_finished` → `get_status()`（默认 refresh）重读状态键，这时任务哈希已过期、读回空，抛
+            # `InvalidJobOperation("Failed to retrieve status …")`。旧任务已不在，不带去重再排一次；`check` 只是请电脑看一眼
+            # 标记，重复一次无害。
+            frappe.enqueue("pearnly_erp_portal.express.live.check", **arguments)
     except Exception:  # noqa: BLE001 — 只是顺手核一次
         frappe.log_error(title="ERP ledger check-at-use not queued")
 

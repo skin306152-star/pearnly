@@ -152,6 +152,63 @@ class ErpSide(unittest.TestCase):
         self.assertEqual(self.live.watch_books("PCD-1"), ["k1", "k2"])  # CO-3 没有现用账套（同期几份没选过）
 
 
+class _InvalidJobOperation(Exception):
+    """RQ ``rq.exceptions.InvalidJobOperation`` 的替身（本测试不装 RQ）。"""
+
+
+class TouchQueued(unittest.TestCase):
+    """用时再核（`live.touch`）：去重时撞上同名旧任务刚过期（RQ 抛 InvalidJobOperation，11-28 生产 Error Log）→ 不带去重补排一次、
+    不记错误日志；别的出错照旧记。"""
+
+    def setUp(self):
+        from pearnly_erp_portal.express import live
+        self.live, self.calls, self.logged = live, [], []
+        self.failures = []
+        rq_exceptions = sys.modules.get("rq.exceptions")
+        self.invalid = getattr(rq_exceptions, "InvalidJobOperation", None) or _InvalidJobOperation
+        rq = sys.modules.get("rq") or types.ModuleType("rq")
+        exceptions = rq_exceptions or types.SimpleNamespace(InvalidJobOperation=self.invalid)
+
+        def enqueue(method, **kwargs):
+            self.calls.append(kwargs)
+            if self.failures:
+                raise self.failures.pop(0)
+
+        express = sys.modules.get("pearnly_erp_portal.express")
+        masters = types.SimpleNamespace(lane=lambda: "erp-masters")
+        patches = [mock.patch.dict(sys.modules, {"rq": rq, "rq.exceptions": exceptions,
+                                                 "pearnly_erp_portal.express.masters": masters}),
+                   mock.patch.object(express, "masters", masters, create=True),
+                   mock.patch.object(frappe, "enqueue", enqueue, create=True),
+                   mock.patch.object(frappe, "log_error", lambda **kw: self.logged.append(kw.get("title")), create=True),
+                   mock.patch.object(frappe, "local", types.SimpleNamespace(site="t.example"), create=True)]
+        for patcher in patches:
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        frappe.cache.delete_value(live.TOUCH_KEY + "CO-1")
+
+    def test_a_just_expired_old_job_is_queued_again_without_deduplication(self):
+        self.failures = [self.invalid("Failed to retrieve status for job: erp-ledger-touch")]
+        self.live.touch("CO-1")
+        self.assertEqual([call.get("deduplicate") for call in self.calls], [True, None])
+        self.assertEqual({call["job_id"] for call in self.calls}, {"erp-ledger-touch:t.example:CO-1"})
+        self.assertEqual(self.calls[1]["company"], "CO-1")
+        self.assertEqual(self.logged, [])
+        self.live.touch("CO-1")  # 120 秒内不再排
+        self.assertEqual(len(self.calls), 2)
+
+    def test_any_other_failure_is_still_logged(self):
+        self.failures = [RuntimeError("redis down")]
+        self.live.touch("CO-1")
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(self.logged, ["ERP ledger check-at-use not queued"])
+
+    def test_a_failing_second_try_is_logged(self):
+        self.failures = [self.invalid("expired"), RuntimeError("redis down")]
+        self.live.touch("CO-1")
+        self.assertEqual(len(self.calls), 2)
+        self.assertEqual(self.logged, ["ERP ledger check-at-use not queued"])
+
 class MrerpSyncButton(unittest.TestCase):
     """公司页「同步 MR.ERP」（同「同步 Express」，管理员）：人点的入口——排整读、清被踢标记照常登录、做完推给本人。"""
 
