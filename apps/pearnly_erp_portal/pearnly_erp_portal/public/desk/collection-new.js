@@ -231,7 +231,7 @@
 				...(methods?.transfers || []).map((row, index) => ({prefix: row.prefix,
 					amount: extra[`transfer_${index}`]?.get_value() || 0, voucher: vouchers[row.prefix] || ""})),
 				...(methods?.discount ? [{prefix: methods.discount.prefix, amount: extra.discount?.get_value() || 0}] : []),
-			].filter(row => amount(row.amount) > 0);
+			].filter(row => amount(row.amount) !== 0);  // 抵减大于发票时转账可填负数（退给客户，原生 RE0000035）
 			dialog.disable_primary_action();
 			try {
 				await p.call("pearnly_erp_portal.collection.api.api_collection_submit", {company: values.company, customer: values.customer,

@@ -157,11 +157,23 @@ def test_offsets_larger_than_the_invoices_pay_cash_back_like_native_re0000034(ac
     assert (sr["RCVAMT"], sr["REMAMT"], sr["CMPLAPP"]) == (6310.0, 0.0, "Y")
 
 
+def test_offsets_larger_than_the_invoices_pay_back_by_transfer_like_native_re0000035(acct):
+    """转账退（69EXP\\TEST RE0000035：方式行 −20）：方式行 RCVAMT 负数、单头 CHQRCV = CHQPAS 负数、银行流水负数；凭证贷银行科目、借应收。"""
+    res = _write(acct, _pay((("IVP42400241", "1000.00"),), (("BB", "-5310.00"),), (("SR002400054", "5", "6310.00"),)))
+    assert res.ok, res.error
+    head = _head(acct, res.docnum)
+    assert (head["NETAMT"], head["IVCAMT"], head["CSHRCV"], head["CHQRCV"], head["CHQPAS"], head["DOCSTAT"]) == \
+        (-5310.0, -5310.0, 0.0, -5310.0, -5310.0, "M")
+    assert [r["RCVAMT"] for r in _rows(acct, "ARRCPCQ", RCPNUM=res.docnum)] == [-5310.0]
+    assert _journal(acct, res.docnum) == [(" 2", BBL_SA, "1", Decimal("5310.0"), "CPI"), (" 6", AR, "0", Decimal("5310.0"), "CPI")]
+    assert _balance(acct) == 30000.0 + 5310.0
+
+
 @pytest.mark.parametrize("methods, cash", [
-    ((("BB", "-5310.00"),), "0.00"),                    # 转账退负数：没有原生证据
-    ((("BB", "-5000.00"),), "-310.00"),
+    ((("BB", "100.00"),), "-5410.00"),                  # 退款里夹正数行
+    ((), "100.00"),
 ])
-def test_offsets_larger_than_the_invoices_paid_back_other_than_by_cash_are_refused(acct, methods, cash):
+def test_offsets_larger_than_the_invoices_with_a_line_that_collects_are_refused(acct, methods, cash):
     before = _state(acct)
     res = _write(acct, _pay((("IVP42400241", "1000.00"),), methods, (("SR002400054", "5", "6310.00"),), cash=cash))
     assert not res.ok and res.error_code == R.ERR_VALIDATION and _state(acct) == before

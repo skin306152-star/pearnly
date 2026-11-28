@@ -563,7 +563,7 @@ class Contracts(unittest.TestCase):
         self.assertEqual((settled["total"], settled["methods"], settled["cash"]), (Decimal("0.00"), [], Decimal("0.00")))
         cases = [
             ({"invoices": [{"docnum": "SR1", "amount": "300"}]}, C.INVOICES_EMPTY),
-            ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}],
+            ({"invoices": [{"docnum": "IV2", "amount": "300"}, {"docnum": "SR1", "amount": "100"}],
               "methods": [{"prefix": "TR", "amount": "-200"}]}, C.AMOUNT_INVALID),
             ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}], "cash": "-150"},
              C.AMOUNT_MISMATCH),
@@ -578,8 +578,8 @@ class Contracts(unittest.TestCase):
                 C.check(draft, self.offset_rows(), catalog)
             self.assertEqual(caught.exception.code, code)
 
-    def test_offsets_above_the_invoices_pay_the_difference_back_in_cash_only(self):
-        # 原生 69EXP 测试账套 TEST 的 RE0000034（11-28）：净额 < 0 现金记负数；转账退负数没有原生证据
+    def test_offsets_above_the_invoices_pay_the_difference_back_in_cash_or_by_transfer(self):
+        # 原生 69EXP 测试账套 TEST 的 RE0000034 / RE0000036（现金负数）、RE0000035（转账行负数）；支票 Express 不收负数、本来就不列
         catalog = C.catalog(TYPES, CASH_ACCOUNT)
         draft = {"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}]}
         for cash in ("", "-200", "-200.00"):
@@ -587,9 +587,14 @@ class Contracts(unittest.TestCase):
                 checked = C.check({**draft, "cash": cash}, self.offset_rows(), catalog)
                 self.assertEqual((checked["total"], checked["cash"], checked["methods"]),
                                  (Decimal("-200.00"), Decimal("-200.00"), []))
-        with self.assertRaises(C.CollectionError) as caught:
-            C.check({**draft, "methods": [{"prefix": "DC", "amount": "1"}]}, self.offset_rows(), catalog)
-        self.assertEqual(caught.exception.code, C.OFFSETS_EXCEED)
+        # 转账退（原生 RE0000035，转账行负数）
+        checked = C.check({**draft, "methods": [{"prefix": "TR", "amount": "-200"}]}, self.offset_rows(), catalog)
+        self.assertEqual((checked["cash"], [(row["prefix"], row["amount"]) for row in checked["methods"]]),
+                         (Decimal("0.00"), [("TR", Decimal("-200.00"))]))
+        for methods, cash in (([{"prefix": "DC", "amount": "1"}], "-201"), ([{"prefix": "TR", "amount": "100"}], "-300")):
+            with self.subTest(methods=methods), self.assertRaises(C.CollectionError) as caught:
+                C.check({**draft, "methods": methods, "cash": cash}, self.offset_rows(), catalog)
+            self.assertEqual(caught.exception.code, C.OFFSETS_EXCEED)
         with self.assertRaises(C.CollectionError) as caught:
             C.check(draft, self.offset_rows(), C.catalog(TYPES, ""))
         self.assertEqual(caught.exception.code, C.CASH_ACCOUNT_MISSING)

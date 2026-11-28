@@ -134,7 +134,7 @@ METHOD_DUPLICATE = "collection.method_duplicate"
 METHODS_TOO_MANY = "collection.methods_too_many"
 CASH_ACCOUNT_MISSING = "collection.cash_account_missing"
 DISCOUNT_ONLY = "collection.discount_only"
-OFFSETS_EXCEED = "collection.offsets_exceed_invoices"   # 抵减大于发票（净额 < 0）又选了现金以外的方式：原生只退现金
+OFFSETS_EXCEED = "collection.offsets_exceed_invoices"   # 抵减大于发票（净额 < 0）又夹了折扣或正数：退款只能现金 / 转账退
 VOUCHER_MISSING = "collection.voucher_missing"
 CHANGED = "collection.changed"
 CONSENT_MISSING = "collection.consent_missing"
@@ -376,7 +376,7 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
     规则：至少一张发票、最多 :data:`MAX_INVOICES` 张、不重复；每张收 > 0 且不超过此刻能收的（部分收可以）；方式按前缀认、
     不重复、每种 > 0；收现金要这本账套有现金科目；发票合计 − 抵减单合计 = 现金 + 各方式（含折扣）；只有折扣、没有收到钱的拒；
     抵减单（:func:`is_offset`）同发票逐张核、可部分抵；正好抵平（净额 0）不要方式；抵减大于发票（净额 < 0）差额退现金
-    （原生 RE0000034，现金记负数，``cash`` 不填或填这个负数都按它），选了别的方式拒（:data:`OFFSETS_EXCEED`），账套没现金科目同收现金；
+    （原生 RE0000034，现金记负数，``cash`` 不填也按它）或转账退（RE0000035，转账填负数）；夹了折扣或正数拒（:data:`OFFSETS_EXCEED`）；
     ``require_vouchers``（放行时）每种转账都要有凭证。"""
     invoices = list(draft.get("invoices") or [])
     if not invoices:
@@ -420,17 +420,18 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
         voucher = str(row.get("voucher") or "").strip()
         if require_vouchers and role == TRANSFER and not voucher:
             raise CollectionError(VOUCHER_MISSING, {"prefix": item["prefix"]})
+        raw = str(row.get("amount") or "").strip()
+        amount = -money(raw[1:], allow_zero=False) if raw.startswith("-") else money(raw, allow_zero=False)  # 负数只在退款时成立，下面核
         out_methods.append({"code": item["code"], "prefix": item["prefix"], "name": item["name"], "role": role,
-                            "amount": money(row.get("amount"), allow_zero=False), "voucher": voucher})
+                            "amount": amount, "voucher": voucher})
     offset = sum((row["amount"] for row in out_invoices if is_offset(row["rectyp"])), ZERO)
     total = sum((row["amount"] for row in out_invoices if not is_offset(row["rectyp"])), ZERO) - offset
     if total < 0:
-        if out_methods:
+        if cash > 0 or any(row["role"] != TRANSFER or row["amount"] > 0 for row in out_methods):
             raise CollectionError(OFFSETS_EXCEED, {"invoices": text(total + offset), "offsets": text(offset)})
-        if cash not in (ZERO, total):
-            raise CollectionError(AMOUNT_MISMATCH, {"invoices": text(total), "paid": text(cash)})
-        cash = total
-    elif cash < 0:
+        if not cash and not out_methods:
+            cash = total  # 没说怎么退：退现金
+    elif cash < 0 or any(row["amount"] < 0 for row in out_methods):
         raise CollectionError(AMOUNT_INVALID)
     if cash and not catalog_value.get("cash"):
         raise CollectionError(CASH_ACCOUNT_MISSING)
@@ -439,7 +440,7 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
     paid = cash + transfer + discount
     if paid != total:
         raise CollectionError(AMOUNT_MISMATCH, {"invoices": text(total), "paid": text(paid)})
-    if cash + transfer <= 0 and not (total <= 0 and offset > 0 and not out_methods):
+    if cash + transfer <= 0 and not (total < 0 or (total == 0 and offset > 0 and not out_methods)):
         raise CollectionError(DISCOUNT_ONLY)
     return {"invoices": out_invoices, "cash": cash, "methods": out_methods, "total": total, "transfer": transfer,
             "discount": discount, "offset": offset}

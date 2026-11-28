@@ -31,7 +31,8 @@ RE2401052 多张发票）：
   不动；有定金的全抵照样有凭证、DOCSTAT ``M``；
 - 净额 < 0（抵减大于发票，差额退给客户）：只收**现金**（原生 69EXP 测试账套 TEST 的 RE0000034，11-28 实录）：CSHRCV = NETAMT = IVCAMT = 净额（负），
   DOCSTAT ``M``；凭证 SEQIT 2 **贷**现金、SEQIT 6 **借**应收（金额都写正数，借贷反过来），ARBAL ``RE{期}`` 加负数、ARMAS.BALANCE 加回；
-  转账 / 支票等方式退负数没有原生证据，载荷不合格。现金只在净额 < 0 时可为负。
+  转账退负数照原生 RE0000035：方式行 RCVAMT 负数、单头 CHQRCV = CHQPAS 负数、BKTRN 负数，凭证 SEQIT 2 贷银行科目；支票 Express 自己
+  不收负数（Message 13），服务端不派支票。退款里夹正数行载荷不合格；现金只在净额 < 0 时可为负。
 
 管钱底线（写前，持 ``PEARNLY.LCK``，worker 已拿着）：同客户、同 YOUREF、没作废的 RE 已在 → 回原号，一行不写（幂等）；逐张重读发票，
 任一张不在 / 不是这个客户 / 已作废 / 服务品现金制增值税（:data:`ERR_INVOICE_NOT_FOUND`，本批不收）或当前余额不够本次收（:data:`ERR_ALREADY_COLLECTED`，含已被别人收清）
@@ -293,9 +294,10 @@ def parse(payload: Dict[str, Any], allowed: tuple = ALLOWED_ACCOUNT_SETS) -> Rec
     if total != paid:
         raise ValueError(f"invoices less offsets {total} != cash + methods {paid}")
     if total < 0:
-        # 退给客户：原生只有现金（RE0000034）；转账 / 支票退负数没证据
-        if methods:
-            raise ValueError(f"offsets exceed invoices ({total}): only cash can be paid back")
+        # 退给客户：现金（原生 RE0000034 / RE0000036）、转账（RE0000035，方式行负数）；支票 Express 不收负数（Message 13），
+        # 服务端不派支票。退款里不能夹正数行
+        if cash > 0 or any(method.amount > 0 for method in methods):
+            raise ValueError(f"offsets exceed invoices ({total}): every line must pay back")
     elif cash < 0:
         raise ValueError("cash out of range")
     elif paid == 0 and (not offsets or methods):
