@@ -3256,3 +3256,57 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
 ]
+
+[[flow]]
+id = "erp.cc.guide.purchase-composer"
+title = "ERP 版 CC 直写先选采购、再用输入框 + 上传一张票只发文件：对话里出采购引导卡并已交进识别；库里一条采购引导运行、交的是那一份、ERP 建了对话收单记录（11-28 testerp 原来停在「文件在会话里」）"
+module = "scripts/flows/erp_cc_guide_purchase_composer.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/guide/composer.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/assistant-ui/thread.tsx",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.sales-composer"
+title = "ERP 版 CC 直写先选销售、再用输入框 + 上传一张票只发文件：对话里出销售引导卡并已交进识别；库里一条销售引导运行、交的是那一份、ERP 建了对话收单记录"
+module = "scripts/flows/erp_cc_guide_sales_composer.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/guide/composer.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/assistant-ui/thread.tsx",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.purchase-composer"
+title = "Cowork 版 CC 直写先选采购、再用输入框 + 上传一张票只发文件：对话里出采购引导卡并已交进识别；库里一条采购引导运行、交的是那一份、有识别批次（与 ERP 同一条路，不再靠模型调识别工具）"
+module = "scripts/flows/cowork_cc_guide_purchase_composer.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/guide/composer.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/assistant-ui/thread.tsx",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py",
+]
