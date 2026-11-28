@@ -220,7 +220,8 @@ export function answeredOk(question: GuideQuestion, value: unknown, total = ""):
     case "multi":
     case "file": return Array.isArray(value) && value.length > 0;
     case "amounts": return Array.isArray(value) && amountsProblem(question.options ?? [], value as AmountRow[], !!question.zero).problem === "";
-    case "split": return Array.isArray(value) && splitProblem(value as AmountRow[], total) === "";
+    // 没填过的分摊按空的算：应分是 0（收款抵减单正好抵平）时一项不填就能交
+    case "split": return (value === undefined || Array.isArray(value)) && splitProblem((value ?? []) as AmountRow[], total) === "";
     case "questions": return subsAnswered(question.questions ?? [], value);
     default: return typeof value === "string" && valueOk(question.input as "month" | "date" | "time" | "number" | "text", value);
   }
@@ -232,7 +233,7 @@ export const isEmpty = (value: unknown) =>
 
 /** 交回服务端的值：金额行规范成两位小数、只带填了的；数字去空白；子题只带答了的。 */
 export function toSend(question: GuideQuestion, value: unknown): unknown {
-  if (question.input === "amounts" || question.input === "split") return rowsToSend(value as AmountRow[]);
+  if (question.input === "amounts" || question.input === "split") return rowsToSend((value ?? []) as AmountRow[]);
   if (question.input === "number" && typeof value === "string") return value.trim();
   if (question.input === "questions" && value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, v]) => !isEmpty(v)));

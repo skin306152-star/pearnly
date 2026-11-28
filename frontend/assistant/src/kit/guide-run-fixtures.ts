@@ -42,6 +42,8 @@ const INVOICES = [
   { code: "IV6900123", name: "IV6900123", note: "2026-10-03", amount: "987654321.99", max: "987654321.99" },
   { code: "IV6900131", name: "IV6900131", note: "2026-10-17", amount: "3210.50", max: "3210.50" },
   { code: "IV6900140", name: "IV6900140", note: "2026-11-02", amount: "856.00", max: "856.00" },
+  // 抵减单（减项）：列在发票下面、从合计里扣（服务端 `collection.guide.invoice_options` 的 negative）；勾 IV6900140 + 它 = 正好抵平
+  { code: "SR6900007", name: "SR6900007", note: "ใบลดหนี้ · 2026-11-05", amount: "856.00", max: "856.00", negative: true },
 ];
 const METHODS = [{ code: "cash", name: T.cash }, { code: "transfer:KB", name: "ธนาคารกสิกรไทย สาขาถนนรัชดาภิเษก-ห้วยขวาง กระแสรายวัน 012-3-45678-9" }, { code: "discount", name: T.discount }];
 const DECIDED = [
@@ -76,7 +78,12 @@ function collectionCard(run: Run): GuideView["card"] {
   }
   const transfer = Array.isArray(a.methods) && (a.methods as { code: string }[]).some((row) => row.code.startsWith("transfer:"));
   // 答过的不再问（同引擎 steps.to_ask）；选了转账才问凭证（声明 when starts "transfer:"）
-  const questions = a.methods ? (transfer ? [q("voucher", "file", T.voucher)] : []) : [q("methods", "split", T.methods, { options: METHODS })];
+  // 应分 = 发票 − 抵减单（同服务端 `collection.guide.method_options` 的 total）；正好抵平时是 0，不填方式直接交
+  const minus = new Set(INVOICES.filter((row) => row.negative).map((row) => row.code));
+  const total = ((a.invoices as { code: string; amount: string }[]) ?? [])
+    .reduce((sum, row) => sum + (minus.has(row.code) ? -1 : 1) * Number(row.amount), 0).toFixed(2);
+  const questions = a.methods ? (transfer ? [q("voucher", "file", T.voucher)] : [])
+    : [q("methods", "split", T.methods, { options: METHODS, total })];
   return { version: 2, ready: false, decided, answers: a, questions };
 }
 
@@ -84,7 +91,8 @@ function review(run: Run): GuideReview {
   const a = run.answers;
   const rows = (a.invoices as { code: string; amount: string }[]) ?? [];
   const methods = (a.methods as { code: string; amount: string }[]) ?? [];
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0).toFixed(2);
+  const minus = new Set(INVOICES.filter((row) => row.negative).map((row) => row.code));
+  const total = rows.reduce((sum, row) => sum + (minus.has(row.code) ? -1 : 1) * Number(row.amount), 0).toFixed(2);
   return {
     version: run.version, ready: true, total,
     lines: [
@@ -94,7 +102,8 @@ function review(run: Run): GuideReview {
       { key: "day", label: T.day, value: "2026-11-16", step: "day" },
     ],
     tables: [
-      { key: "invoices", label: T.invoices, step: "invoices", rows: rows.map((row) => ({ code: row.code, name: row.code, amount: row.amount })) },
+      { key: "invoices", label: T.invoices, step: "invoices",
+        rows: rows.map((row) => ({ code: row.code, name: row.code, amount: (minus.has(row.code) ? "-" : "") + row.amount })) },
       { key: "methods", label: T.methods, step: "methods",
         rows: methods.map((row) => ({ code: row.code, name: METHODS.find((m) => m.code === row.code)?.name, amount: row.amount })) },
     ],
