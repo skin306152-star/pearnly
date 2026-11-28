@@ -32,7 +32,7 @@ def stub(path, body):
 
 
 class Runner(unittest.TestCase):
-    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None, config_exit=0):
+    def run_runner(self, revision=SHA, fail_product='', memory=(30000,), lock_pid=None, config_exit=0, surfaces_exit=0):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             state, deploy, bin_dir = root / 'state', root / 'deploy', root / 'bin'
@@ -55,7 +55,10 @@ class Runner(unittest.TestCase):
                 f'print("  BLOCK erp mrerp.pearnly.com pearnly_x" if {config_exit} else "  tenant config check passed")\n'
                 f'sys.exit({config_exit})\n')
             stub(bin_dir / 'docker', f'echo "docker $*" >> "{trace}"\n'
-                 f'if [ "$1 $2" = "image inspect" ]; then echo {revision}; fi\n')
+                 f'if [ "$1 $2" = "image inspect" ]; then echo {revision}; fi\n'
+                 # 站外 LINE 表面同步（surfaces 步骤）：按产品回一行 SUMMARY；surfaces_exit 非 0 时 cowork 那一步失败
+                 'case "$*" in *pearnly_core.line_surfaces*) p=${@: -1}; echo "SUMMARY {\\"product\\": \\"$p\\"}";'
+                 f' [ "$p" != cowork ] || exit {surfaces_exit} ;; esac\n')
             readings = root / 'memory'
             readings.write_text('\n'.join(str(m) for m in memory) + '\n')
             # free: hand out the next memory reading for each wait check; sampler calls also consume (harmless).
@@ -83,11 +86,26 @@ class Runner(unittest.TestCase):
         self.assertEqual([s for s in steps if s != 'docker rm'], [
             'docker ps', 'docker image', 'docker create', 'docker cp', 'check-deploy-image', 'check-tenant-config',
             'activate-product.sh', 'activate-product.sh', 'activate-product.sh',
+            'docker exec', 'docker exec', 'docker exec',
             'activate-foundation.sh', 'deploy-readback.sh'])
         products = [line.split()[2] for line in trace if line.startswith('activate-product.sh')]
         self.assertEqual(products, ['erp', 'cowork', 'dms'])
+        surfaces = [line for line in trace if 'pearnly_core.line_surfaces' in line]
+        self.assertEqual([line.split()[-1] for line in surfaces], ['erp', 'cowork', 'dms'])
+        self.assertTrue(all(' sync --product ' in line and f'pearnly-production-{line.split()[-1]}-web-1' in line for line in surfaces))
         self.assertIn('DEPLOY DONE', log)
         self.assertFalse(locked, 'lock is released after the run')
+
+    def test_surfaces_failure_stops_before_foundation(self):
+        result, trace, status, log, locked = self.run_runner(surfaces_exit=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(status, 'failed surfaces')
+        self.assertIn('LINE surfaces cowork exited 1', log)
+        self.assertIn('line_surfaces restore --product cowork', log)
+        surfaces = [line.split()[-1] for line in trace if 'pearnly_core.line_surfaces' in line]
+        self.assertEqual(surfaces, ['erp', 'cowork'])
+        self.assertFalse([l for l in trace if l.startswith(('activate-foundation', 'deploy-readback'))])
+        self.assertFalse(locked)
 
     def test_tenant_config_is_checked_with_the_image_map_before_activation(self):
         result, trace, status, log, _ = self.run_runner()
@@ -166,7 +184,7 @@ class RunnerSelfCheck(unittest.TestCase):
 class Readback(unittest.TestCase):
     def run_readback(self, containers=None, maintenance=0, errors=0, codes=None, record=IMAGE, rejected='NULL', browser='NULL',
                      browser_before=0, liff='2010411313-aaaa1111', liff_exit=0, liff_seen=None, entries_exit=0,
-                     export=True, unmarked=(), bench_max=42991616, nginx_mib=41, upload_code=403):
+                     export=True, unmarked=(), bench_max=42991616, nginx_mib=41, upload_code=403, surfaces=None):
         containers = containers or {
             'pearnly-production-erp-web-1': IMAGE, 'pearnly-production-erp-ocr-worker-1': IMAGE,
             'pearnly-production-mariadb-1': 'mariadb:11', 'pearnly-production-billing-web-1': IMAGE}
@@ -175,6 +193,7 @@ class Readback(unittest.TestCase):
             root = Path(folder)
             bin_dir, deploy = root / 'bin', root / 'deploy'
             bin_dir.mkdir(); deploy.mkdir()
+            (root / 'surfaces.json').write_text(json.dumps(surfaces or {}))
             # LIFF 检查本身另有离线测试（test-check-liff-endpoints.py）；这里换成假的，只看回读交给它什么、认不认它的结果。
             (deploy / 'scripts/production').mkdir(parents=True)
             (deploy / 'scripts/production/check-liff-endpoints.py').write_text(
@@ -200,6 +219,10 @@ elif args[0] == "inspect" and "Config.Image" in args[2]:
 elif args[0] == "inspect":
     unmarked = json.load(open("{root}/unmarked.json"))
     print("PATH=/usr/bin\\nFRAPPE_BACKGROUND_WORKERS_NOFORK=1" + ("" if args[-1] in unmarked else "\\nPEARNLY_DEPLOYMENT=production"))
+elif args[0] == "exec" and "pearnly_core.line_surfaces" in args:
+    drift = json.load(open("{root}/surfaces.json"))
+    print('SUMMARY ' + json.dumps({{"drift": drift.get(args[-1], []), "failed": {{}}}}))
+    sys.exit(1 if drift.get(args[-1]) else 0)
 elif args[0] == "exec" and "python3" in args:
     product = args[3].split("-")[2]
     print(f"site-a-{{product}}.pearnly.com {maintenance} {liff}\\nsite-b-{{product}}.pearnly.com 0 -")
@@ -256,6 +279,14 @@ case "$url" in {''.join(f'{u}) printf {c} ;; ' for u, c in codes.items())}*assis
         self.assertIn('Readback passed.', result.stdout)
         self.assertIn('873MiB', result.stdout)
         self.assertIn('pearnly-maintenance-erp', result.stdout)
+
+    def test_line_surfaces_that_differ_from_the_release_are_a_problem(self):
+        clean = self.run_readback()
+        self.assertEqual(len([l for l in clean.stdout.splitlines() if l.startswith('  ') and '"drift": []' in l]), 3)
+        result = self.run_readback(surfaces={'cowork': ['erpcowork.pearnly.com rich_menu']})
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('PROBLEM LINE surfaces cowork differ from this release', result.stdout)
+        self.assertNotIn('PROBLEM LINE surfaces erp', result.stdout)
 
     def test_every_frappe_container_is_checked_for_the_deployment_mark(self):
         result = self.run_readback()

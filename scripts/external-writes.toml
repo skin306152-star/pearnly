@@ -1,6 +1,6 @@
 # 站外写入点登记（scripts/check-external-writes.py 守门；11-28 菜单随部署同步任务）。
 # 生产代码里每个「调 LINE / Keycloak / Cloudflare 且带写动词」的函数必须在这里登记一条，说明它随部署怎么保持与代码一致：
-#   deploy-sync  每次部署自动同步并回读（必须是 hooks pearnly_line_surfaces 声明的模块）
+#   deploy-sync  每次部署自动同步并回读（必须是 hooks pearnly_line_surfaces 声明的模块，或写 via = 声明的包装模块）
 #   drift-check  部署不重写，但部署前 / 后有内容级检查、对不上即拦部署（note 写哪一项检查）
 #   runtime      按事件 / 按人写，内容由当前代码现算或与代码版本无关
 #   token / probe  换令牌 / 只读校验接口，不改站外设置
@@ -245,6 +245,7 @@ note = "按用户操作，与代码版本无关"
 [[write]]
 target = "apps/pearnly_cowork/pearnly_cowork/line/menu.py::publish"
 kind = "deploy-sync"
+via = "pearnly_cowork.line.menu_surface"
 surface = "LINE 富菜单"
 note = "hooks pearnly_line_surfaces 声明；每次部署 surfaces 步骤逐站对照、有漂移才发布、发布后回读（盘点第 1–3 项）"
 
@@ -257,6 +258,7 @@ note = "按绑定 / 权限 / 手机语言挂已发布的那套；publish() 末�
 [[write]]
 target = "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py::publish"
 kind = "deploy-sync"
+via = "pearnly_erp_portal.integrations.line_menu_surface"
 surface = "LINE 富菜单"
 note = "hooks pearnly_line_surfaces 声明；每次部署 surfaces 步骤逐站对照、有漂移才发布、发布后回读（盘点第 1–3 项）"
 

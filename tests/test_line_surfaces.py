@@ -16,8 +16,11 @@ import frappe
 from pearnly_core import line_surfaces
 from pearnly_core.line_surfaces import __main__ as runner
 
-MODULES = {"erp": "pearnly_erp_portal.integrations.line_menu", "cowork": "pearnly_cowork.line.menu",
+# 产品 → hooks 声明的表面模块；ERP / Cowork 的发布仍在原菜单模块（PUBLISHER），表面模块只读对照与回退
+MODULES = {"erp": "pearnly_erp_portal.integrations.line_menu_surface", "cowork": "pearnly_cowork.line.menu_surface",
            "dms": "pearnly_dms.menu.rich_menu"}
+PUBLISHER = {"erp": "pearnly_erp_portal.integrations.line_menu", "cowork": "pearnly_cowork.line.menu",
+             "dms": "pearnly_dms.menu.rich_menu"}
 
 
 class Channel:
@@ -96,7 +99,8 @@ class Surfaces(unittest.TestCase):
         self.reconciled = []
 
     def stage(self, product, channel, *, can_send=True, version="v2"):
-        module = importlib.import_module(MODULES[product])
+        surface = importlib.import_module(MODULES[product])
+        module = importlib.import_module(PUBLISHER[product])
         store = Store()
         conf = self.conf
 
@@ -119,10 +123,14 @@ class Surfaces(unittest.TestCase):
         ]
         stack.append(patch.object(module, "_state_store", lambda: store) if hasattr(module, "_state_store")
                      else patch.object(module.pearnly_state, "store", lambda: store))
+        if hasattr(surface, "_IMAGES"):
+            stack.append(patch.dict(surface._IMAGES, {}, clear=True))
+        if surface is not module:
+            stack.append(patch.object(surface.line, "can_send", lambda: can_send))
         for p in stack:
             p.start()
             self.addCleanup(p.stop)
-        return module
+        return surface
 
     def published_old(self, product, channel):
         """频道上挂着上一版（v1）的菜单，站点配置指着它们。"""

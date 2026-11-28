@@ -10,7 +10,6 @@
 图由 `scripts/render-cowork-line-menu-tiles.py` 预先画好的格子在发布时拼成（产品镜像里不需要字体）。
 发布是一次明确的部署动作（`publish()`，写 LINE 官方号）；没发布过就什么都不做，不替换官方号的菜单。
 """
-import functools
 import hashlib
 import io
 import itertools
@@ -93,12 +92,8 @@ def payload(variant, language) -> dict:
             "chatBarText": _("Cowork menu", lang=language)[:14], "areas": areas}
 
 
-@functools.lru_cache(maxsize=None)
 def _image(variant, language) -> bytes:
-    """把预先画好的格子拼成一张菜单（无字体依赖；同样的格子拼出同样的字节）。
-
-    同一进程里记住结果：部署同步一次要算三遍（发布前对照、发布、发布后回读），ERP 每站 60 张。
-    """
+    """把预先画好的格子拼成一张菜单（无字体依赖；同样的格子拼出同样的字节）。"""
     from PIL import Image
 
     tiles = Path(frappe.get_app_path("pearnly_cowork", "public", "images", "line-menu", "tiles"))
@@ -118,14 +113,6 @@ def _has_image(menu_id, session=None) -> bool:
     return line.rich_menu_has_image(menu_id, session=session)
 
 
-def _release(language, variant):
-    """这一套菜单这一版的 body（带内容散列名）与图：``publish()`` 与 ``wanted()`` 共用，散列只有这一份算法。"""
-    body, image = payload(variant, language), _image(variant, language)
-    revision = hashlib.sha256(json.dumps(body, sort_keys=True).encode() + image).hexdigest()[:12]
-    body["name"] = f"pearnly-cowork-{language}-{variant.replace('+', '-')}-{revision}"[:300]
-    return body, image
-
-
 def publish() -> dict:
     """幂等发布「语言 × 权限组合」的菜单（内容散列命名，重跑复用），并把已绑定用户挂上。
 
@@ -140,7 +127,9 @@ def publish() -> dict:
                     for item in _request("GET", "richmenu/list", session=http).get("richmenus", [])}
         result = {}
         for language, variant in itertools.product(LANGUAGES, VARIANTS):
-            body, image = _release(language, variant)
+            body, image = payload(variant, language), _image(variant, language)
+            revision = hashlib.sha256(json.dumps(body, sort_keys=True).encode() + image).hexdigest()[:12]
+            body["name"] = f"pearnly-cowork-{language}-{variant.replace('+', '-')}-{revision}"[:300]
             menu_id = existing.get(body["name"]) or _request("POST", "richmenu", body=body, session=http)["richMenuId"]
             if not _has_image(menu_id, session=http):
                 _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image, session=http)
@@ -149,39 +138,6 @@ def publish() -> dict:
         frappe.conf[CONFIG] = result
     reconcile()
     return result
-
-
-# ── 随部署同步（``pearnly_core.line_surfaces``；hooks ``pearnly_line_surfaces`` 声明） ──────────────────
-SURFACE = "rich_menu"
-
-
-def ready() -> str:
-    """能不能发：有渠道凭据才发（开户 ``set_line`` 同一条件）；空串 = 能。"""
-    return "" if line.can_send() else "no LINE channel credentials"
-
-
-def wanted() -> dict:
-    """这一版代码每个键应挂的菜单名（与 ``publish()`` 同一算法）。"""
-    return {key(language, variant): _release(language, variant)[0]["name"]
-            for language, variant in itertools.product(LANGUAGES, VARIANTS)}
-
-
-def drift() -> dict:
-    """只读：站点配置里记的编号在 LINE 上对应的菜单名 ≠ 这一版应有的 → behind；配置里没有 → missing。"""
-    want = wanted()
-    current = dict(frappe.conf.get(CONFIG) or {})
-    listed = {item["richMenuId"]: item["name"] for item in _request("GET", "richmenu/list").get("richmenus", [])}
-    return {"behind": sorted(k for k, name in want.items() if current.get(k) and listed.get(current[k]) != name),
-            "missing": sorted(k for k in want if not current.get(k))}
-
-
-def restore(before: dict) -> None:
-    """回退到部署日志里的 BEFORE 配置（旧菜单从没删过），再给已绑定用户排重挂。"""
-    from frappe.installer import update_site_config
-
-    update_site_config(CONFIG, before)
-    frappe.conf[CONFIG] = before
-    reconcile()
 
 
 def wanted_variant(user) -> str:

@@ -27,18 +27,19 @@ class Repo:
     def __init__(self):
         self.dir = tempfile.TemporaryDirectory()
         self.root = Path(self.dir.name)
-        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        subprocess.run(["git", "-c", "core.quotepath=off", "init", "-q"], cwd=self.root, check=True)
         self.write("scripts/external-writes.toml", "")
 
     def write(self, rel, text):
         path = self.root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(textwrap.dedent(text), encoding="utf-8")
-        subprocess.run(["git", "add", rel], cwd=self.root, check=True)
+        subprocess.run(["git", "-c", "core.quotepath=off", "add", rel], cwd=self.root, check=True)
 
     def register(self, *rows):
         self.write("scripts/external-writes.toml", "\n".join(
-            f'[[write]]\ntarget = "{t}"\nkind = "{k}"\nsurface = "s"\nnote = "{n}"\n' for t, k, n in rows))
+            f'[[write]]\ntarget = "{t}"\nkind = "{k}"\nsurface = "s"\nnote = "{n}"\n' + (f'via = "{v[0]}"\n' if v else "")
+            for t, k, n, *v in rows))
 
     def check(self):
         return gate.check(self.root)
@@ -87,6 +88,16 @@ class ExternalWrites(unittest.TestCase):
         self.assertEqual(repo.check(), [])
         repo.write("apps/app_a/app_a/menu.py", SURFACE.replace("def drift(): return {}\n", ""))
         self.assertIn("app_a.menu lacks drift", "\n".join(repo.check()))
+
+    def test_deploy_sync_through_a_declared_wrapper(self):
+        repo = self.repo()
+        repo.write("apps/app_a/app_a/menu.py", 'def publish():\n    _request("POST", "richmenu")\n')
+        repo.write("apps/app_a/app_a/menu_surface.py", SURFACE.replace("def publish():\n    _request(\"POST\", \"richmenu\")\n", "def publish(): pass\n"))
+        repo.write("apps/app_a/app_a/hooks.py", 'pearnly_line_surfaces = [{"product": "a", "module": "app_a.menu_surface"}]\n')
+        repo.register(("apps/app_a/app_a/menu.py::publish", "deploy-sync", "n", "app_a.menu_surface"))
+        self.assertIn("via app_a.menu_surface does not import app_a.menu", "\n".join(repo.check()))
+        repo.write("apps/app_a/app_a/menu_surface.py", "from app_a import menu\n" + SURFACE.replace("def publish():\n    _request(\"POST\", \"richmenu\")\n", "def publish(): pass\n"))
+        self.assertEqual(repo.check(), [])
 
     def test_tests_are_not_write_points(self):
         repo = self.repo()

@@ -6,7 +6,8 @@
    函数里又有写动词（"POST" / "PUT" / "PATCH" / "DELETE" 字面量，或 requests / session / http / api / client 的
    .post / .put / .patch / .delete 调用）的，算一个站外写入点，必须在 scripts/external-writes.toml 登记 kind 与 note；
    登记了但函数已不在 → 拦（登记表要跟着代码删）。
-2. kind = deploy-sync 的函数所在模块，必须被某个产品 hooks.py 的 ``pearnly_line_surfaces`` 声明；
+2. kind = deploy-sync 的函数所在模块（或登记的 ``via`` 包装模块，它要 import 这个模块），必须被某个产品 hooks.py 的
+   ``pearnly_line_surfaces`` 声明；
    声明的模块必须定义 SURFACE、CONFIG、ready、wanted、drift、publish、restore（pearnly_core.line_surfaces 的约定）。
 3. kind = manual 的 note 要写原因（不能空）；kind 只能是登记表文件头列出的几种。
 
@@ -31,7 +32,7 @@ HOOK = "pearnly_line_surfaces"
 
 
 def production_files(root: Path):
-    listed = subprocess.run(["git", "ls-files", "apps/*.py", "infrastructure/production/*.py", "scripts/production/*.py"],
+    listed = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "apps/*.py", "infrastructure/production/*.py", "scripts/production/*.py"],
                             cwd=root, capture_output=True, text=True, check=True).stdout.split()
     for rel in listed:
         name = rel.rsplit("/", 1)[-1]
@@ -122,8 +123,13 @@ def check(root: Path = ROOT, files=None) -> list:
             continue
         rel = target.split("::")[0]
         module = rel.removeprefix("apps/").split("/", 1)[1].removesuffix(".py").replace("/", ".")
-        if module not in surfaces:
-            problems.append(f"{target}: kind deploy-sync but {module} is not declared in any hooks {HOOK}")
+        via = row.get("via") or module
+        if via not in surfaces:
+            problems.append(f"{target}: kind deploy-sync but {via} is not declared in any hooks {HOOK}")
+        elif via != module:
+            package, _, leaf = module.rpartition(".")
+            if f"from {package} import {leaf}" not in module_file(root, via).read_text(encoding="utf-8"):
+                problems.append(f"{target}: via {via} does not import {module}")
     return problems
 
 

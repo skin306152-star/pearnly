@@ -731,4 +731,4 @@ pearnly_guides = ["pearnly_cowork.assistant.guides.GUIDES", "pearnly_cowork.assi
                   "pearnly_cowork.assistant.guided.folder_task.GUIDES"]
 
 # 站外 LINE 表面随部署同步（pearnly_core.line_surfaces；deploy-run.sh 的 surfaces 步骤逐站对照、有漂移才发布、发布后回读）
-pearnly_line_surfaces = [{"product": "cowork", "module": "pearnly_cowork.line.menu"}]
+pearnly_line_surfaces = [{"product": "cowork", "module": "pearnly_cowork.line.menu_surface"}]
