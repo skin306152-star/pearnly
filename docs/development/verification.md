@@ -226,13 +226,18 @@ App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查�
      LINE 的 redelivery、频道关联、LIFF 尺寸 / 作用域（LINE Login 频道密钥只在控制面）读不到，每次列在「读不到」里，留在开户清单与真机单。
 10. 站外表面随部署同步（11-28，[记录](../work/2026-11-26-deploy-line-menu-sync.md)；起因：ris 的 DMS 富菜单 9 月开户后从没随部署更新）：
    - 产品在自己的 `hooks.py` 声明 `pearnly_line_surfaces = [{"product": …, "module": …}]`（ADR-009）；声明的模块给 `SURFACE` / `CONFIG` /
-     `ready` / `wanted` / `drift` / `publish` / `restore`，`wanted()` 与 `publish()` 共用一份散列算法。共用跑法 `pearnly_core.line_surfaces`
+     `ready` / `wanted` / `drift` / `publish` / `restore` / `release` / `remount`，菜单名与 `publish()` 同一算法（发布后再对照必须无漂移由测试守住）。共用跑法 `pearnly_core.line_surfaces`
      （`python -m pearnly_core.line_surfaces check|sync|restore --product <产品>`，在产品网页容器的 sites 目录里逐站跑）。
-   - **部署时同步**：`deploy-run.sh` 三个产品激活后、基础层前的 `surfaces` 步骤逐站 `sync`：有漂移才发布，发布前把原配置打成 `BEFORE` 行进日志
-     （原样交回 `restore` 可回退，旧菜单从不删），发布后再 `drift()` 回读，仍不一致 / 出错 → 部署失败（状态 `failed surfaces`）。
-     没有渠道凭据的站点（DMS 另要 LIFF）跳过并列在 `SUMMARY`。`deploy-readback.sh` 再 `check` 一遍，有漂移即 PROBLEM。
-   - **演练与部署前预览**：`deploy.sh` 的租户配置对比同一次 SSH 里按线上正在跑的代码 `check`，打印每个产品一致几项、会发布哪些、跳过哪些（不拦；
-     本批改了菜单时部署按新代码再算，可能更多）。
+   - **激活前预览**（`scripts/production/surfaces-plan.sh`，`deploy-run.sh` 的 `plan` 步骤）：用**新镜像**每个产品起一次性容器
+     （`--rm`、`--memory 2g`、`--volumes-from` 网页容器只读、同网络），逐站 `check`：`SUMMARY.changes` 逐套写改了哪些文字字段（旧 → 新）、
+     图 `same` / `changed`。缓存隔开：容器里的 `common_site_config.json` 换成副本，所有 `redis://` 指向连不上的地址，新代码的 hooks / 译文
+     写不进旧版本正在读的线上缓存。只发 LINE GET、不写库；没跑成 → `failed plan`，线上没动。`deploy.sh --dry-run` 经一次 SSH 跑同一份
+     （默认最近一次放上生产的镜像，`--digest` 指定已放上去的新镜像），按站点打印「无变化 / 将发布 N 套及每套改了什么 / 跳过」。
+   - **部署时同步**：`deploy-run.sh` 三个产品激活后、基础层前的 `surfaces` 步骤逐站 `sync`：有漂移才发布，发布前打 `PLAN` 与 `BEFORE` 行
+     （`BEFORE` 原样交回 `restore` 可回退，旧菜单从不删）；发布后给每个有效绑定的人当场重挂并回读——发布前挂着个人菜单的人一个不少、
+     都挂到这一版（LINE 说 ID 无效的跳过并计数），再 `drift()` 回读；任何一项不对 → `failed surfaces`，日志给出回退命令。
+     没有渠道凭据的站点（DMS 另要 LIFF）、从没发布过的站点（第一次发布归开户 `set_line`）跳过并列在 `SUMMARY`。
+     `deploy-readback.sh` 再 `check` 一遍，有漂移即 PROBLEM。
    - **登记闸门**（`scripts/check-external-writes.py`，CI 同名步骤）：生产代码里调 LINE / Keycloak / Cloudflare 且带写动词的函数必须在
      `scripts/external-writes.toml` 登记 kind（`deploy-sync` / `drift-check` / `runtime` / `token` / `probe` / `teardown` / `manual`）与 note；
      新增不登记、登记了函数已不在、`deploy-sync` 却没在 hooks 声明、声明的模块缺函数 → 拦。
