@@ -157,6 +157,10 @@ code-review（medium，段 ③ b / c）：发现 6 / 真 6 / 修 5（第 6 条�
 | 77e2597b2 ⑨d | 登记时退役死记录 `retired_by="auto"` 过不了 User 链接校验，一台都没退役 | 记在 `Administrator` | 离线 |
 | 8bd5dfc10 ⑨c | 云端 Z1(TEST) 与 Express 空白模板 DAT 同税号、同分店、同年度 → 选公司后账套默认落 DAT；在选择器里改成 Z1 下次又回 DAT | 两本按账套键（book_key，按目录区分）各是一个选项，默认绝不落在空白模板（数据文件夹 `DAT`）上；人在选择器里选过的那一本按公司记住（同月多本覆盖记在该年度下，都不覆盖记在 `uncovered` 下），之后作默认；拿不准（同月多本覆盖且没记过）照旧不给默认、要人选 | 离线 |
 
+### ⑨c 判据（主会话 11-28 审过）
+- 空白模板只按 Express 的通用事实判：账套数据目录是 Express 自带的空白数据目录 `DAT`（路径最后一段，不分大小写），不看显示名称（名称客户可改、语言不同）。判据只在一处：`pearnly_erp_portal/masters/cc_projects.py::_blank_template`，测试 `tests/test_cc_conversation_ledger_erp.py::test_the_express_blank_template_is_never_the_default`。
+- 本地与云端同一套：`ledgers()` 按税号 + 分店取全部报上来的账套，不分本地 / 云端。本地同样会出现——11-28 选择器里同一身份下还列着 `\\fileserver\d$\ACCOUNT\70EXP\DAT`、`…\69EXP\DAT`（都是「Z.ข้อมูลเปล่า…」），所以本地 Express 也受益。
+
 ### 新入口「移除」（云端 Express 行「···」）
 - 用途：删掉这台电脑上的云端连接（连接记录、远程桌面密码 `TERMSRV/<主机>` 与 `Pearnly CC/cloud/<主机>`、实操登录 `Pearnly CC/cloud-express/<主机>/default`）；连着时先同「断开」一样请云端删安装、等回执。
 - 实现入口：页面 `frontend/assistant/src/components/cloud-express.tsx`（`forget` → `api.call("cloud_forget")`）；桥 `tomo_bridge._cloud_settings`（`cloud_forget` 与 `cloud_disconnect` 同一流程，多删凭据）；`settings_link.disconnect(forget_operator=…)` → `LinkStore.remove`。
