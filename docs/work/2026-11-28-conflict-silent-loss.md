@@ -196,3 +196,27 @@
 修后 ERP 段全部 13 格各 5 轮全过（③ 的销售同号、资料清单、作废 × 子表、旧副本保存、看板，② 第一轮三格与本轮五格）：日志 `~/pearnly-devtools/handoff-1128/b3-logs/b2-full-after5.out`。
 `--extended` 在列车头 8c9b0fab 上挑拣本分支后跑：新增 0、存量 275、误报 16。
 
+
+收款发票子表 `ERP Collection Invoice.docnum` 加了索引（DocType `search_index`，原生迁移建）：放行的加锁读按单号锁这几张发票的行，没有索引时加锁读走全表、锁住整张子表（code-review 第 1 条）。实验栈 EXPLAIN 核过走 `docnum_index`；建索引后收款两格、旧坑格、LINE 卡片格再各 5 轮全过。
+实验栈数据注意：前面挂修前源码跑「销售同号」格会再造出重号单（③a 的去重补丁这套库早已跑过），迁移在 `ERP Sales Document.request_id` 唯一索引处中止；照补丁 `v1_34_sales_request_id_unique` 再执行一次后迁移通过。线上迁移先跑补丁，不受影响。
+
+#### 共用件影响清单（`check-impact.py --base 068ea0741`：ocr / 原件 14、transaction 6、另有 line-session、assistant 等）
+
+| 入口 | 结果 | 依据 / 没测到的原因 |
+|---|---|---|
+| shared.conflict-catch | 通过 | 实验栈 ERP 段 13 格 × 10 轮、Cowork 段 4 格 × 3 轮；离线 test_conflict_silent_loss、test_conflict_catch_sites（候选离线） |
+| erp.collection.server、erp.cc.collection | 通过 | 离线 test_erp_collection（新增放行按加锁读一条）、_cc、_guide、_line；实验栈收款两格 |
+| erp.line.intake.submit、erp.line.card-result | 通过（实验栈 + 离线） | test_line_intake 149 条（新增保存 / 取消先提交、整笔重来、回复在提交后）；实验栈 `erp.line_card_submit_vs_cancel`。三星真机没测到（LINE 真机要排队，交列车 / 部署后实测） |
+| erp.line.webhook-sim、erp.line.chat、erp.line.item-questions、erp.line.precheck-questions、erp.line.binding、cowork.line.chat | 没测到 | 这几条只经过改动的共用文件、本轮没改它们的逻辑；LINE 模拟 webhook 在回归实验室（今天归列车），真机要排队 |
+| shared.originals.download、erp.stock-in.attach、erp.stock-out.attach、erp.stock-count.upload | 部分通过 | 删 File 的路径实验栈 `erp.file_delete_rolled_back`、`erp.b2_pitfalls`（删附件后记录与盘上一致）；离线 test_originals_registered。原件层存放处（甲骨文 / 谷歌）实机删除没测到：本机实验栈原件存本机 |
+| erp.ocr、cowork.ocr、dms.ocr.id-card、shared.ocr.pipeline、erp.execution | 没测到 | 付费识别，不进默认回归；本轮只改删除时盘上那份的时机，不碰识别 |
+| erp.cc.troubleshooting、cc.assistant、cc.operator.page、cc.operator.start-card、cc.desktop.requests | 离线通过 / 实机没测到 | test_express_operator_code_cc（交单按加锁读）、_tasks、_feed；CC 桌面版实机要 Windows 测试机 |
+| erp.entry.choices | 没测到 | 只经共用文件命中，本轮没改 |
+
+#### code-review（medium，068ea0741...HEAD）
+
+| 发现 | 真问题 | 修了 | 耗时 |
+|---|---|---|---|
+| 5 | 5（1 条要紧、3 条小、1 条原有） | 4（索引、`_save_card` 顺序单测、登记与改动同一提交、保存点回滚不删缩略图）；原有的「失效判断里新任务列表仍是普通读」记录不改（不错账） | 约 15 分钟 |
+
+全闸门、候选离线（c34722e4e：LANE EXIT 0）见交接。
