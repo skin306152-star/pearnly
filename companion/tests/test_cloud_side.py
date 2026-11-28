@@ -287,21 +287,40 @@ def test_the_session_file_is_deleted_after_reading(tmp_path):
     assert not (root / "ctl" / protocol.SESSION_FILE).exists()
 
 
-def test_without_a_session_it_waits_with_backoff_up_to_fifteen_minutes(tmp_path):
+def test_without_a_tunnel_it_backs_off_up_to_thirty_seconds(tmp_path):
     root = _tunnel(tmp_path)
     slept, rounds = [], {"n": 0}
 
     def find():
         rounds["n"] += 1
-        if rounds["n"] == 14:
+        if rounds["n"] == 9:   # 隧道盘第 9 轮才出现（桥重连），会话已经在了
             _write_session(root, protocol.new_session())
-        return root
+            return root
+        return None
 
     link = cloud_side.connect(lambda: False, find=find, sleep=slept.append)
     assert link is not None and link.root == root
-    # 13 轮等待：1, 2, 4 … 512 秒，之后封顶 900 秒（15 分钟）；每轮按 1 秒一片睡，好随时停
-    assert sum(slept) == sum(min(900, 2 ** k) for k in range(13)) == 1023 + 3 * 900
+    # 8 轮等待：1, 2, 4, 8, 16, 之后封顶 30 秒；每轮按 1 秒一片睡，好随时停（11-28 前封顶 15 分钟）
+    assert sum(slept) == 1 + 2 + 4 + 8 + 16 + 30 * 3
     assert max(slept) <= 1.0
+
+
+def test_with_the_tunnel_but_no_session_it_takes_the_session_as_soon_as_ctl_changes(tmp_path):
+    # 11-28 真机：桥重连后新会话早到了，云端还在退避里睡，3.5 分钟才接上
+    root = _tunnel(tmp_path)
+    watcher = dir_watch.ManualWatcher()
+    opened, slept = [], []
+
+    def factory(path):
+        opened.append(path)
+        if len(opened) == 2:   # 第二轮等的时候桥写来新会话
+            _write_session(root, protocol.new_session())
+            watcher.notify()
+        return watcher
+
+    link = cloud_side.connect(lambda: False, find=lambda: root, sleep=slept.append, watch_factory=factory, most=0.2)
+    assert link is not None
+    assert opened == [root / "ctl", root / "ctl"] and slept == []   # 一直盯着 ctl，没有退避睡
 
 
 def test_waiting_stops_when_asked(tmp_path):
@@ -420,6 +439,32 @@ def test_the_ctl_watch_runs_a_check_on_each_change_and_stops(tmp_path):
         time.sleep(0.01)
     watch.stop()
     assert checks == [link]
+
+
+def test_the_ctl_watch_reopens_its_watcher_after_an_error_instead_of_dying(tmp_path, monkeypatch):
+    # 11-28 真机：桥重启、隧道盘重新映射后旧句柄失效，监视线程抛错退出，此后自升级、卸载都收不到
+    monkeypatch.setattr(cloud_side, "REOPEN_DELAY", 0.01)
+    root = _tunnel(tmp_path)
+    link = cloud_side.CloudLink(root, protocol.new_session())
+
+    class Broken(dir_watch.ManualWatcher):
+        def wait(self, timeout):
+            raise OSError(6, "ReadDirectoryChangesW")
+
+    good = dir_watch.ManualWatcher()
+    made = [Broken(), good]
+    checks = []
+    watch = cloud_side.CtlWatch(link, watch_factory=lambda path: made.pop(0), fallback=30, check=checks.append)
+    watch.start()
+    deadline = time.monotonic() + 3
+    while made and time.monotonic() < deadline:
+        time.sleep(0.01)
+    checks.clear()
+    good.notify()
+    while not checks and time.monotonic() < deadline:
+        time.sleep(0.01)
+    watch.stop()
+    assert made == [] and checks == [link] and not watch._thread.is_alive()
 
 
 # ── 代录凭据 ──────────────────────────────────────────────────────────────────

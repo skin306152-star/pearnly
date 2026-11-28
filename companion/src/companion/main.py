@@ -171,7 +171,7 @@ def step_cloud_loop() -> None:
     from .request_worker import RequestWorker
 
     stop = lambda: _STOP  # noqa: E731
-    # 先等隧道盘与桥交来的会话（没有就退避等，最多 15 分钟看一次，不退出），装上隧道 transport：之后所有联网请求都走隧道
+    # 先等隧道盘与桥交来的会话（没有隧道盘就退避等、最多 30 秒探一次；有隧道盘就盯 ctl，桥写新会话即接，不退出），装上隧道 transport：之后所有联网请求都走隧道
     tunnel = cloud_side.start(stop)
     if tunnel is None:
         return

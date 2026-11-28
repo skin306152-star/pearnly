@@ -12,7 +12,7 @@ r"""云端那份 CC 自己的接线（``companion.exe --cloud``，runtime_mode�
   ``Pearnly CC/cloud-device/<主机>``。以后要主机名时（代录凭据、撤销）从凭据管理器那一条的名字取（:func:`paired_host`，只读名字）。
   令牌不进日志、文件、异常文本。
 - 会话（:class:`CloudLink`）：读 ``ctl\session.json``（``tunnel_protocol.decode_session``），读后删除并回读；没有就等，
-  退避 1 秒起翻倍、最多 15 分钟一次，不退出。会话只在内存。
+  没有隧道盘退避 1 秒起翻倍、最多 30 秒一次；有隧道盘盯 ``ctl``，桥写新会话即接；不退出。会话只在内存。
 - transport（:class:`ReloadingTransport`）：包一个 ``TunnelTransport``，经 ``net.set_transport_factory`` 装上，云端 CC 所有
   ``net.client(...)`` 建的客户端都走隧道。遇到网络错误（会话旧了桥回的拒绝核不过签名、桥没取走、回复超时）先看 ``ctl`` 有没有
   新会话文件：有就换上；桥没取走或核不过签名的请求桥没代发，换完重发一次；回复超时的不重发（桥可能已代发，免得发两次）。
@@ -49,7 +49,9 @@ CC_DIR = "cc"
 MANIFEST = "cloud.json"
 CONNECTION = "default"          # 代录宿主用的那条（``express_operator.host``：``credentials.target("default")``）
 BACKOFF_FIRST = 1.0
-BACKOFF_MOST = 15 * 60.0
+BACKOFF_MOST = 30.0
+# 监视线程出错后隔多久重开（秒）
+REOPEN_DELAY = 2.0
 CTL_FALLBACK = 60.0
 PAIR_TIMEOUT = 90.0
 
@@ -267,8 +269,11 @@ class CloudLink:
 def connect(stop: Callable[[], bool], *, find: Callable[[], Optional[Path]] = find_tunnel_root,
             take: Callable[[Path], Optional[protocol.Session]] = take_session,
             sleep: Callable[[float], None] = time.sleep, first: float = BACKOFF_FIRST,
-            most: float = BACKOFF_MOST) -> Optional[CloudLink]:
-    """等到隧道盘与会话文件都在：回 :class:`CloudLink`；等的时候 ``stop()`` 为真回 None。退避 1 秒起翻倍、最多 15 分钟。"""
+            most: float = BACKOFF_MOST, watch_factory=None) -> Optional[CloudLink]:
+    """等到隧道盘与会话文件都在：回 :class:`CloudLink`；等的时候 ``stop()`` 为真回 None。
+
+    没有隧道盘：1 秒起翻倍、最多 30 秒探一次（探不到的盘符立即失败，不费事）。有隧道盘没会话：盯着 ``ctl``，桥一写新会话就接，
+    最多等 ``most`` 秒再看一遍兜底。11-28 真机：以前一律退避到 15 分钟，桥重连后云端要等 3.5 分钟以上才接上。"""
     wait, said = first, ""
     while not stop():
         root = find()
@@ -280,13 +285,40 @@ def connect(stop: Callable[[], bool], *, find: Callable[[], Optional[Path]] = fi
         if state != said:
             log.info("云端等待隧道 · 状态=%s", state)
             said = state
-        _sleep_until(wait, stop, sleep)
-        wait = min(most, wait * 2)
+        if root is not None and watch_factory is not None:
+            _wait_for_ctl(root, watch_factory, most, stop)
+        else:
+            _sleep_until(wait, stop, sleep)
+            wait = min(most, wait * 2)
     return None
 
 
+def _wait_for_ctl(root: Path, watch_factory, timeout: float, stop: Callable[[], bool]) -> None:
+    """盯 ``<隧道根>\\ctl`` 到有变化、``timeout`` 秒或要停为止（每秒看一次要不要停）。打不开监视就按 1 秒睡一次。"""
+    try:
+        watcher = watch_factory(Path(root) / "ctl")
+    except Exception as exc:  # noqa: BLE001 - 盘刚断开：下一轮再探
+        log.info("云端等会话时监视打不开：%s", type(exc).__name__)
+        _sleep_until(1.0, stop, time.sleep)
+        return
+    try:
+        left = float(timeout)
+        while left > 0 and not stop():
+            step = min(1.0, left)
+            if watcher.wait(step):
+                return
+            left -= step
+    except Exception as exc:  # noqa: BLE001 - 句柄失效：回外层重探
+        log.info("云端等会话时监视出错：%s", type(exc).__name__)
+    finally:
+        try:
+            watcher.close()
+        except Exception:
+            log.exception("关闭 ctl 监视失败")
+
+
 def _sleep_until(seconds: float, stop: Callable[[], bool], sleep: Callable[[float], None]) -> None:
-    """睡 ``seconds`` 秒，每秒看一次要不要停（SIGTERM 后不必等满 15 分钟）。"""
+    """睡 ``seconds`` 秒，每秒看一次要不要停（SIGTERM 后不必等满一轮）。"""
     left = float(seconds)
     while left > 0 and not stop():
         step = min(1.0, left)
@@ -499,10 +531,13 @@ class CtlWatch:
         self._thread.start()
 
     def _run(self) -> None:
-        watcher = self._watcher
         try:
             while not self._halt.is_set():
-                watcher.wait(self._fallback)
+                try:
+                    self._watcher.wait(self._fallback)
+                except Exception as exc:  # noqa: BLE001 - 句柄失效（桥重启后隧道盘重新映射）：重开，线程不能死
+                    log.warning("云端 ctl 监视出错，重开：%s", type(exc).__name__)
+                    self._reopen()
                 if self._halt.is_set():
                     break
                 try:
@@ -510,10 +545,29 @@ class CtlWatch:
                 except Exception:
                     log.exception("云端 ctl 检查失败")
         finally:
-            try:
-                watcher.close()
-            except Exception:
-                log.exception("关闭 ctl 监视失败")
+            self._close(self._watcher)
+
+    def _reopen(self) -> None:
+        """关掉坏了的监视、隔一会儿再开（11-28 真机：桥重启后旧句柄失效，监视线程抛错退出，之后 ctl 再有变化与
+        60 秒兜底都不看了——自升级、卸载、成员都收不到）。开不了 ``open_watcher`` 自己会退回定时查看。"""
+        self._close(self._watcher)
+        self._halt.wait(REOPEN_DELAY)
+        if self._halt.is_set():
+            return
+        try:
+            self._watcher = self._watch_factory(self.link.ctl_dir)
+        except Exception as exc:  # noqa: BLE001 - 目录暂时不在：用一个只靠兜底超时的监视，下次出错再重开
+            from . import dir_watch
+
+            log.warning("云端 ctl 监视重开失败，改为定时查看：%s", type(exc).__name__)
+            self._watcher = dir_watch.PollingWatcher()
+
+    @staticmethod
+    def _close(watcher) -> None:
+        try:
+            watcher.close()
+        except Exception:
+            log.exception("关闭 ctl 监视失败")
 
     def stop(self) -> None:
         self._halt.set()
@@ -565,6 +619,9 @@ def install(link: CloudLink, *, watch: bool = True, watch_factory=None, **option
 
 def start(stop: Callable[[], bool], **kwargs) -> Optional[Running]:
     """云端模式启动时调：等隧道与会话（:func:`connect`）、装上 transport。等的时候要停回 None。"""
+    from . import dir_watch
+
+    kwargs.setdefault("watch_factory", dir_watch.open_watcher)
     link = connect(stop, **kwargs)
     return install(link) if link is not None else None
 
