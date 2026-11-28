@@ -459,6 +459,7 @@ Creating an adjustment from a stock count,กำลังสร้างใบ�
 Creation,วันที่สร้าง
 Credit,เงินเชื่อ
 Credit Note,ใบลดหนี้
+Credit notes exceed the invoices,ยอดลดหนี้เกินยอดใบแจ้งหนี้
 Credit notes need a person to post them in MR.ERP,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
 Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
@@ -514,6 +515,7 @@ Deleted {0},ลบแล้ว {0}
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
 Delivery type,ประเภทขนส่ง
 Department,แผนก
+Deposit,เงินมัดจำ
 Description,คำอธิบาย
 Details,รายละเอียด
 Diff,ผลต่าง

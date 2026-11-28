@@ -459,6 +459,7 @@ Creating an adjustment from a stock count,棚卸結果から調整伝票を作�
 Creation,作成日時
 Credit,掛け
 Credit Note,返品・値引伝票
+Credit notes exceed the invoices,値引額が請求額を超えています
 Credit notes need a person to post them in MR.ERP,返品・値引伝票は MR.ERP で手動で処理してください
 Credit sales,掛売上
 Currency,通貨
@@ -514,6 +515,7 @@ Deleted {0},{0} 件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Delivery type,配送方法
 Department,部門
+Deposit,手付金
 Description,説明
 Details,詳細
 Diff,差異

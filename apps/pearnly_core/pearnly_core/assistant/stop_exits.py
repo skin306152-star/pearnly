@@ -115,7 +115,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     **{f"collection.{name}": ask("review", SERVER, "p1") for name in (
         "invoices_empty", "invoices_too_many", "invoice_duplicate", "invoice_not_found", "over_collected", "amount_invalid",
         "amount_mismatch", "receipt_type_invalid", "method_duplicate", "methods_too_many", "discount_only", "voucher_missing",
-        "salesman_invalid", "department_invalid", "changed")},
+        "salesman_invalid", "department_invalid", "changed", "offsets_exceed_invoices")},
     "collection.cash_account_missing": act("ledger_setting", "p1"),
     "collection.busy": wait("ledger_free"),
     "already_collected": ask("review", SERVER, live=True),              # 退回草稿，可改了再放行（码照 CC 桌面版原样小写）

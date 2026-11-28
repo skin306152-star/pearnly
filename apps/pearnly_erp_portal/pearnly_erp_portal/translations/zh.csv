@@ -459,6 +459,7 @@ Creating an adjustment from a stock count,正在按盘点结果生成物料调�
 Creation,创建日期
 Credit,赊账
 Credit Note,贷项通知单
+Credit notes exceed the invoices,减项超过发票金额
 Credit notes need a person to post them in MR.ERP,贷项通知单需在 MR.ERP 中人工处理
 Credit sales,赊销
 Currency,货币
@@ -514,6 +515,7 @@ Deleted {0},已删除 {0}
 Deleted {0} stock counts,已删除 {0} 份盘点
 Delivery type,运输方式
 Department,部门
+Deposit,定金
 Description,描述
 Details,详细信息
 Diff,差异
