@@ -62,3 +62,10 @@ LINE 回执与网页同一张表（`express.contracts.ledger_word`），本分�
   `tests/test_cowork_push_unknown.py`（新）、`tests/test_cowork_companies.py`、`tests/test_cowork_reason_language.py`。
 - 实验栈实测：Frappe 16.33 的 `not like` 自动套 `IFNULL`，原因为空的票不会从「失败」筛选里漏掉。
 - 页面流程：（补）
+
+## 真机记录（11-28 三星，cc-coverage-5）
+
+被测：本地组合 c33ad3576（= `pearnly/cc-line-result-unknown` 7474b324f，其下即本分支 37f728f91，再摘入 `pearnly/mrerp-unknown-check` 38c4e2417），
+测试机1 testenv lab-start cowork（线上镜像 4cf9c586，实时源码），testcowork 测试副本；测完 lab-stop、域名回线上、定时任务恢复。截图 `~/pearnly-devtools/handoff-1128/cov5-liff-*.png`。
+
+真机记录 | cowork.scan.line.stocktake.liff-camera | 2026-11-28 | 37f728f91 | 三星 SM-A146P + LINE Cowork-test + 测试机1 | 通过 | 被测组合 c33ad3576；富菜单「库存盘点」经 LIFF 打开盘点页 → 开始盘点 → 扫码 → LINE 原生相机授权 → 真相机对测试机屏幕 EAN-13 8906008420319 读出，认出 P-0016 → 完成不保存 |
