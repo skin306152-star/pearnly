@@ -1034,11 +1034,13 @@ def _pdf_bytes():
     return buffer.getvalue()
 
 
-def line_intake_save_conflict(site, rounds, results):
+def line_intake_save_conflict(site, rounds, results, chat=False):
     """④ #12：LINE 收单识别任务（`integrations.intake.run`）在外部动作期间另一路改了这张卡并提交（关快照隔离后本连接的普通读停在
     改之前）。两种各半：识别期间改（原件已在）→ 记结果撞保存前比对；从 LINE 取件期间改 → 记原件撞保存前比对。识别用替身（不花钱），
     LINE 取件 / 回复都是替身。判：卡片成了待提交、结果在；识别只调 1 次（扣费参考号只用 1 次）、取件只 1 次、发 LINE 只 1 次；
-    取件那种只留下记在卡上的那一份 File。修前：撞上就整笔抛出（执行器记 workflow_error、不重放），识别已付费、结果丢了。"""
+    取件那种只留下记在卡上的那一份 File。修前：撞上就整笔抛出（执行器记 workflow_error、不重放），识别已付费、结果丢了。
+    ``chat``：CC 对话收单（`intake.run_chat`，格 ``erp.cc_intake_save_conflict``）：原件收下时已存好，每轮都是识别期间改；判同上，
+    不发 LINE。"""
     import hashlib
     import types
 
@@ -1080,11 +1082,11 @@ def line_intake_save_conflict(site, rounds, results):
     core_line.download_message_content = download
     try:
         for index in range(rounds):
-            variant = "fetch" if index % 2 else "recognise"
+            variant = "fetch" if index % 2 and not chat else "recognise"
             source = None if variant == "fetch" else _private_file("LI")
             tag = f"{TAG}-LF-{secrets.token_hex(3)}"
             card = frappe.get_doc({"doctype": intake.DOCTYPE, "status": intake.QUEUED, "direction": "purchase", "sent_by": user,
-                                   "owner": user, "line_user_id": "U" + "c" * 32, "source": "line", "company": co,
+                                   "owner": user, "line_user_id": "" if chat else "U" + "c" * 32, "source": "cc" if chat else "line", "company": co,
                                    "language": "th", "line_message_id": tag, "media_type": "pdf",
                                    "source_file_name": source.name if source else None,
                                    "source_file": source.file_url if source else None,
@@ -1099,7 +1101,8 @@ def line_intake_save_conflict(site, rounds, results):
             read_view(intake.DOCTYPE)  # 识别任务开跑前执行器刚提交过：读视图从任务里第一次读起
             try:
                 with work.context(job):
-                    outcome = intake.run(card.name, "U" + "c" * 32, filename=f"{tag}.pdf")
+                    outcome = (intake.run_chat(card.name) if chat
+                               else intake.run(card.name, "U" + "c" * 32, filename=f"{tag}.pdf"))
             except Exception as exc:  # noqa: BLE001
                 error = "".join(traceback.format_exception_only(type(exc), exc)).strip()[:200]
                 frappe.db.rollback()
@@ -1109,10 +1112,12 @@ def line_intake_save_conflict(site, rounds, results):
             files = frappe.get_all("File", filters={"file_name": ["like", f"{tag}%"]}, pluck="name")
             kept = (row.source_file_name == (source.name if source else (files[0] if len(files) == 1 else "?"))
                     and bool(frappe.db.exists("File", row.source_file_name or "")))
-            good = (outcome == {} and row.status == intake.READY and result.get("doc_no") == calls["doc_no"]
-                    and calls["recognise"] == ["erp.line_intake:" + card.name] and calls["sent"] == [0] and kept
+            kind = intake.CC_OCR_KIND if chat else intake.OCR_KIND
+            good = (outcome == ({"records": [card.name]} if chat else {}) and row.status == intake.READY
+                    and result.get("doc_no") == calls["doc_no"] and calls["recognise"] == [kind + ":" + card.name]
+                    and calls["sent"] == ([] if chat else [0]) and kept
                     and calls["download"] == (1 if variant == "fetch" else 0))
-            tally(results, "erp.line_intake_save_conflict", good,
+            tally(results, "erp.cc_intake_save_conflict" if chat else "erp.line_intake_save_conflict", good,
                   {"variant": variant, "outcome": outcome, "error": error, "status": row.status,
                    "doc_no": result.get("doc_no"), "recognise": len(calls["recognise"]), "download": calls["download"],
                    "sent": calls["sent"], "files": files, "source_file_name": row.source_file_name})
@@ -1139,6 +1144,7 @@ def erp(site, rounds):
     guarded(results, "erp.amend_vs_payment_internal", amend_vs_payment, site, rounds, results, False)
     guarded(results, "erp.line_card_submit_vs_cancel", line_card_submit_vs_cancel, site, rounds, results)
     guarded(results, "erp.line_intake_save_conflict", line_intake_save_conflict, site, rounds, results)
+    guarded(results, "erp.cc_intake_save_conflict", line_intake_save_conflict, site, rounds, results, True)
     guarded(results, "erp.b2_pitfalls", b2_pitfalls, site, rounds, results)
     guarded(results, "erp.file_delete_rolled_back", file_delete_rolled_back, site, rounds, results)
     guarded(results, "erp.collection_edit_vs_release", collection_edit_vs_release, site, rounds, results)
