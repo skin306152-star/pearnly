@@ -383,44 +383,54 @@ def reading_text(company) -> str:
 # ── 未收清发票与预留 ─────────────────────────────────────────────────────────
 
 
-def _rows(doctype, filters, fields, limit, locked=False) -> list:
-    """``locked``：加锁读（放行判预留用，:func:`release`）。关快照隔离后普通读走这笔事务早先建的读视图，看不到别人刚放行的那笔。"""
-    if not locked:
-        return frappe.get_all(doctype, filters=filters, fields=fields, limit_page_length=limit)
-    return frappe.qb.get_query(doctype, fields=fields, filters=filters, limit=limit, for_update=True).run(as_dict=True)
+def reserved(book_key, docnums, exclude=None) -> dict:
+    """别的收款记录占着的金额 ``{docnum: Decimal}``：同一本账套里已放行还没写完的（待写入、写入中），与已写入、但快照还没读到
+    写后余额的（写入时刻晚于那张发票的读取时刻）。``exclude``：正在改的这一笔。
 
-
-def reserved(book_key, docnums, exclude=None, locked=False) -> dict:
-    """别的收款记录占着的金额 ``{docnum: Decimal}``：已放行还没写完的（待写入、写入中），与已写入、但快照还没读到写后余额的
-    （写入时刻晚于那张发票的读取时刻）。``exclude``：正在改的这一笔。``locked``：加锁读（:func:`_rows`）。"""
+    普通读，按所属收款记录的账套过滤（别家公司 / 别的年度账套里同号的收款不算、也不碰）。放行判预留时不加锁读
+    这些别人的记录与明细（11-28 ④ 收款锁序）：先锁本笔用到的快照行、再核读视图没旧（`snapshot.stale`），这里的普通读就是最新的。"""
+    docnums = sorted(set(docnums or ()))
     if not docnums:
         return {}
-    lines = _rows(INVOICE, {"parenttype": DOCTYPE, "docnum": ["in", list(docnums)]}, ["parent", "docnum", "amount"],
-                  contracts.MAX_INVOICES * 200, locked)
-    parents = {row.parent for row in lines if row.parent != exclude}
+    lines = frappe.get_all(INVOICE, filters={"parenttype": DOCTYPE, "docnum": ["in", docnums]},  # bounded: 见 limit
+                           fields=["parent", "docnum", "amount"], limit_page_length=contracts.MAX_INVOICES * 200)
+    parents = sorted({row.parent for row in lines if row.parent != exclude})
     if not parents:
         return {}
-    heads = {row.name: row for row in _rows(
-        DOCTYPE, {"name": ["in", list(parents)], "book_key": book_key, "status": ["in", [*contracts.RESERVING, contracts.WRITTEN]]},
-        ["name", "status", "written_at"], len(parents), locked)}
-    read = {row.docnum: row.read_at for row in _rows(
-        snapshot.DOCTYPE, {"book_key": book_key, "docnum": ["in", list(docnums)]}, ["docnum", "read_at"], len(docnums), locked)}
+    heads = {row.name: row for row in frappe.get_all(  # 只认同一本账套的收款记录（别家公司 / 别的年度账套同号的不算）
+        DOCTYPE, filters={"name": ["in", parents], "book_key": book_key, "status": ["in", [*contracts.RESERVING, contracts.WRITTEN]]},
+        fields=["name", "status", "written_at"], limit_page_length=len(parents))}
+    lines = [{**row, "status": heads[row.parent].status, "written_at": heads[row.parent].written_at}
+             for row in lines if row.parent in heads]
+    read = {row.docnum: row.read_at for row in frappe.get_all(  # bounded: 本笔用到的几张
+        snapshot.DOCTYPE, filters={"book_key": book_key, "docnum": ["in", docnums]}, fields=["docnum", "read_at"],
+        limit_page_length=len(docnums))}
     out = {}
     for row in lines:
-        head = heads.get(row.parent)
-        if head is None:
-            continue
-        if head.status == contracts.WRITTEN and (not head.written_at or not read.get(row.docnum)
-                                                 or frappe.utils.get_datetime(head.written_at)
-                                                 <= frappe.utils.get_datetime(read[row.docnum])):
+        if row["status"] == contracts.WRITTEN and (not row["written_at"] or not read.get(row["docnum"])
+                                                   or frappe.utils.get_datetime(row["written_at"])
+                                                   <= frappe.utils.get_datetime(read[row["docnum"]])):
             continue  # 快照已经是写后的余额
-        out[row.docnum] = out.get(row.docnum, contracts.ZERO) + contracts.money(row.amount or 0)
+        out[row["docnum"]] = out.get(row["docnum"], contracts.ZERO) + contracts.money(row["amount"] or 0)
     return out
 
 
-def _open_rows(book_key, customer, exclude=None, locked=False) -> dict:
-    found = snapshot.rows(book_key, customer, locked=locked)
-    held = reserved(book_key, [row.docnum for row in found], exclude=exclude, locked=locked)
+def _open_rows(book_key, customer, exclude=None, locked=None, used=()) -> dict:
+    """``locked`` / ``used``：放行时 `snapshot.lock` 锁住的本笔那几张（``{docnum: 行}``，加锁读到的最新值）与本笔用到的单号：这几张
+    的余额按锁里的值，锁里已经没有的（刚收清删了）不再列；其余照普通读（放行只锁本笔用到的单号，11-28 ④）。"""
+    found = snapshot.rows(book_key, customer)
+    if locked is not None:
+        gone = {str(docnum).casefold() for docnum in used}
+        kept = []
+        for row in found:
+            fresh = snapshot.same(locked, row.docnum)
+            if fresh is not None:
+                row.update({key: fresh.get(key) for key in ("net", "received", "remaining", "read_at")})
+            elif str(row.docnum).casefold() in gone:
+                continue
+            kept.append(row)
+        found = kept
+    held = reserved(book_key, [row.docnum for row in found], exclude=exclude)
     out = {}
     for row in found:
         remaining = contracts.money(row.remaining or 0)
@@ -519,8 +529,8 @@ def _vouchers_ok(methods_value, record=None):
             raise contracts.CollectionError(VOUCHER_INVALID, {"voucher": file})
 
 
-def _checked(company, book, customer, draft, record=None, *, require_vouchers=False, locked=False):
-    open_rows = _open_rows(book["key"], customer, exclude=record, locked=locked)
+def _checked(company, book, customer, draft, record=None, *, require_vouchers=False, locked=None, used=()):
+    open_rows = _open_rows(book["key"], customer, exclude=record, locked=locked, used=used)
     checked = contracts.check(draft, open_rows, _catalog(company, book), require_vouchers=require_vouchers)
     if ledger.handles(company):
         ledger.check_methods(checked)  # MR.ERP 收款单只有一格记收到的钱
@@ -833,13 +843,18 @@ def release(name, version, consent) -> dict:
     明确同意的事件（LINE 回调的事件号、CC 的用户消息序号），存进记录备查。
 
     回 ``{"status": "released", "card"}``；卡片之后改过 ``{"status": "changed", "version"}``（重新出卡）；不是草稿
-    ``{"status": "not_draft", "card"}``；规则此刻不过（别人刚收了同一张、凭证没补）``{"status": "invalid", "code", "detail"}``。"""
-    head = frappe.db.get_value(DOCTYPE, name, ["book_key", "customer"], as_dict=True) if name else None
-    if head:
-        snapshot.lock_customer(head.book_key, head.customer)  # 锁的顺序：客户的快照行 → 这一笔 → 别的收款记录（预留）
+    ``{"status": "not_draft", "card"}``；规则此刻不过（别人刚收了同一张、凭证没补）``{"status": "invalid", "code", "detail"}``。
+
+    锁序（11-28 ④，收款各处同一个：快照行 → 收款记录 → 明细）：先按 (book_key, docnum) 唯一索引、单号升序锁本笔用到的那几张
+    快照行（两笔放行共用一张时在这里排队；不共用的互不等，同账套不同客户也不等），再锁本笔记录。别人的收款记录与明细不加锁：
+    预留与余额按普通读算，锁到之后先核读视图没旧（`snapshot.stale`；旧了当冲突抛出，由入口整笔重来）。须在入口自己的事务边界上
+    经整笔重来调（网页 `api._fresh`、LINE / CC / 引导 :func:`release_retried`）。"""
+    head = frappe.db.get_value(DOCTYPE, name, ["book_key"], as_dict=True) if name else None
+    used = _used(name)
+    locked = snapshot.lock(head.book_key, used) if head else {}
     doc = _own(name, for_update=True)
-    if head and (doc.book_key, doc.customer) != (head.book_key, head.customer):
-        snapshot.lock_customer(doc.book_key, doc.customer)  # 读到锁之间草稿换了客户 / 账套（版本号随后会拒）
+    if head and (doc.book_key != head.book_key or not {row.docnum for row in doc.invoices} <= set(used)):
+        _stale()  # 读到锁之间草稿换了账套 / 发票：本笔锁的快照行不对，整笔重来
     code = contracts.release_check(doc.status, doc.draft_version, version, consent)
     if code == contracts.CHANGED:
         return {"status": "changed", "version": int(doc.draft_version or 0)}
@@ -847,12 +862,12 @@ def release(name, version, consent) -> dict:
         return {"status": "not_draft", "card": _view(doc)}
     if code:
         return {"status": "invalid", "code": code, "detail": {}}
-    snapshot.lock(doc.book_key, [row.docnum for row in doc.invoices])  # 两人同时放行同一张：排队判，后到的看到前一笔的预留
+    if snapshot.stale(doc.book_key, used, locked):
+        _stale()  # 等锁时别的放行 / 回执提交了：这笔的普通读看不到它占的那份，两笔会把同一张收两遍（11-28 B ②）
     book = {"key": doc.book_key, **_book_row(doc)}
     try:
-        # 余额、预留按加锁读算（11-28 B ②）：读视图在拿发票锁之前就建了（核权限、读这一笔），普通读看不到前一笔刚放行的预留，
-        # 两笔会把同一张发票收两遍
-        checked = _checked(doc.company, book, doc.customer, _draft_of(doc), record=doc.name, require_vouchers=True, locked=True)
+        checked = _checked(doc.company, book, doc.customer, _draft_of(doc), record=doc.name, require_vouchers=True,
+                           locked=locked, used=used)
     except contracts.CollectionError as error:
         return {"status": "invalid", "code": error.code, "detail": error.detail}
     _fill(doc, checked, {"salesman": doc.salesman or "", "department": doc.department or contracts.staff(
@@ -861,10 +876,26 @@ def release(name, version, consent) -> dict:
     doc.update({"status": contracts.QUEUED, "doc_date": doc.doc_date if doc.get("date_chosen") else nowdate(), "confirmed_at": now_datetime(),
                 "consent_ref": str(consent)[:140], "reason": ""})
     doc.save(ignore_permissions=True)
+    snapshot.reserve(locked)  # 后到的放行比得出它的读视图旧了（`snapshot.stale`）
     from pearnly_erp_portal.collection import push
 
     push.send(doc.name)
     return {"status": "released", "card": _view(frappe.get_doc(DOCTYPE, doc.name))}
+
+
+def _used(name) -> list:
+    """本笔草稿用到的单号（发票与抵减单，单号升序）。"""
+    if not name:
+        return []
+    return sorted({row.docnum for row in frappe.get_all(  # bounded: 一笔收款的明细
+        INVOICE, filters={"parent": name, "parenttype": DOCTYPE}, fields=["docnum"],
+        limit_page_length=contracts.MAX_INVOICES * 2) if row.docnum})
+
+
+def _stale():
+    """读视图旧了 / 锁的不是本笔现在那几张：当数据库冲突抛（`transaction.conflicts` 认的那一种，同快照隔离开着时的 1020），
+    由入口的整笔重来接住，重来时换新读视图。"""
+    raise frappe.QueryDeadlockError("collection release read view is older than the locked snapshot rows")
 
 
 BUSY = "busy"
@@ -873,13 +904,16 @@ BUSY = "busy"
 def _retried(function, *args, busy_result=False, **kwargs):
     """LINE、CC、CC 对话引导改动收款（放行、改草稿、补凭证）用：撞上数据库冲突（1213 / 1020 / 保存前比对；同一位客户两笔同时放行、
     别笔草稿正在改时放行等）整笔回滚、退避重来（`transaction.conflicts.retried`，同网页入口 `api._fresh`）。被回滚的那次什么都
-    没留下（写账件、导入任务、页面刷新通知都排在提交后），重来不重复。调用方保证此前这笔事务里没有没提交的写（重来会一起回滚）。
+    没留下（写账件、导入任务、页面刷新通知都排在提交后），重来不重复。调用方保证此前这笔事务里没有没提交的写（重来会一起回滚）；
+    成了就在这一步里提交，调用方之后的 LINE 回复、三个点、CC 回话都在提交之后。
     用尽：``busy_result`` 为真回 ``{"status": "busy"}``（LINE 自己回话），否则抛「请稍后重试」（`conflicts.attempt` 同一句）。"""
     from pearnly_core.transaction import conflicts
 
     def once():
         frappe.flags.pop("pearnly_collection_live", None)  # 被回滚那次记下的「已通知刷新」不算（`push._live`）
-        return function(*args, **kwargs)
+        result = function(*args, **kwargs)
+        frappe.db.commit()  # 在重来里提交：调用方接着回 LINE / 开三个点 / 回 CC 时这一步已落库（11-28 ④）
+        return result
 
     try:
         return conflicts.retried(once)

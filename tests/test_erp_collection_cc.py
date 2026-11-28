@@ -246,14 +246,15 @@ class OtherEntriesDoNotUseTheCcTools(unittest.TestCase):
 
 
 def _deadlock_first(times=1):
-    """放行第一把锁（`snapshot.lock_customer`）先撞 ``times`` 次死锁（同一位客户两笔同时放行，实验栈 1213），之后照常。"""
-    left = [times]
+    """放行第一把锁（本笔用到的快照行，`snapshot.lock`）先撞 ``times`` 次死锁（实验栈 1213），之后照常。"""
+    left, real = [times], T.service.snapshot.lock
 
-    def lock(book_key, customer):
+    def lock(book_key, docnums):
         if left[0]:
             left[0] -= 1
             raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
-    return mock.patch.object(T.service.snapshot, "lock_customer", side_effect=lock)
+        return real(book_key, docnums)
+    return mock.patch.object(T.service.snapshot, "lock", side_effect=lock)
 
 
 class Flow(Base):

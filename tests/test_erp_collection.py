@@ -884,23 +884,31 @@ class Reservations(Base):
         self.assertEqual((result["status"], result["code"]), ("invalid", C.OVER_COLLECTED))
         self.assertEqual(frappe.db.get_value("ERP Collection", second["name"], "status"), C.DRAFT)
 
-    def test_release_judges_balances_and_reservations_with_locked_reads(self):
-        # 11-28 B ②：关快照隔离后普通读走拿发票锁之前建的读视图，看不到前一笔刚放行的预留（两笔收同一张）；改草稿、列未收清不加锁
+    def test_release_locks_only_the_rows_it_uses_then_its_own_record(self):
+        # 11-28 ④ 收款锁序：快照行（本笔用到的几张，单号升序）→ 本笔记录；别人的收款记录与明细不加锁（那几处锁与草稿改动、写账回执
+        # 的锁序相反会互等，同账套不同客户也不再整位客户锁），预留与余额按普通读、先核读视图没旧（`snapshot.stale`）。改草稿不加锁
         made = self.draft("600")
         S.locked.clear()
         service.release(made["name"], made["version"], "line:evt-1")
-        self.assertTrue({"ERP Receivable Snapshot", "ERP Collection Invoice"} <= set(S.locked), S.locked)
+        self.assertEqual(S.locked, ["ERP Receivable Snapshot", "ERP Collection"], S.locked)
         S.locked.clear()
         self.draft("100", user="b@x")
         self.assertEqual(S.locked, [])
 
-    def test_release_locks_the_customer_rows_before_its_own_record_and_others_reservations(self):
-        # 退货减项 × 11-28 B ②：同一位客户两笔同时放行，先锁各自几张、再锁整位客户 / 别人记录的预留会互等（实验栈 1213）；
-        # 固定顺序：这位客户的快照行（发票与抵减单一起）→ 这一笔 → 发票行锁 → 加锁读余额与预留
+    def test_a_release_whose_read_view_is_older_than_the_locked_rows_is_a_conflict_retried_whole(self):
+        # 等快照行锁时别的放行提交了：这笔的普通读看不到它占的那份。当冲突抛（同快照隔离开着时的 1020），入口整笔重来
         made = self.draft("600")
-        S.locked.clear()
-        service.release(made["name"], made["version"], "line:evt-1")
-        self.assertEqual(S.locked[:3], ["ERP Receivable Snapshot", "ERP Collection", "ERP Receivable Snapshot"], S.locked)
+        with mock.patch.object(snapshot, "stale", return_value=True):
+            with self.assertRaises(frappe.QueryDeadlockError):
+                service.release(made["name"], made["version"], "line:evt-1")
+        rows = snapshot.lock(BOOK["key"], ["IV1"])
+        self.assertFalse(snapshot.stale(BOOK["key"], ["IV1"], rows))
+        self.assertTrue(snapshot.stale(BOOK["key"], ["IV1"], {"IV1": {**rows["IV1"], "reserve_seq": 7}}))
+        self.assertTrue(snapshot.stale(BOOK["key"], ["IV1"], {}))  # 普通读还看得到、加锁读已没有（刚收清删了）也算旧
+        self.assertFalse(snapshot.stale(BOOK["key"], ["IV1", "IV9"], rows))  # 两边都没有的单号不算
+        before = int(rows["IV1"].get("reserve_seq") or 0)
+        self.assertEqual(service.release(made["name"], made["version"], "line:evt-1")["status"], "released")
+        self.assertEqual(int(snapshot.lock(BOOK["key"], ["IV1"])["IV1"].get("reserve_seq") or 0), before + 1)
 
     def test_a_credit_note_ticked_in_two_drafts_is_taken_once_the_later_release_is_stopped(self):
         # 退货减项 × 11-28 B ②：减项单同发票一样进放行的加锁读与预留，两笔收款都勾满同一张，后放行的那笔超收、仍是草稿
@@ -918,7 +926,7 @@ class Reservations(Base):
         self.as_user("a@x")
         S.locked.clear()
         self.assertEqual(service.release(first["name"], first["version"], "line:evt-1")["status"], "released")
-        self.assertTrue({"ERP Receivable Snapshot", "ERP Collection Invoice"} <= set(S.locked), S.locked)
+        self.assertEqual(S.locked, ["ERP Receivable Snapshot", "ERP Collection"], S.locked)
         self.as_user("b@x")
         result = service.release(second["name"], second["version"], "line:evt-2")
         self.assertEqual((result["status"], result["code"]), ("invalid", C.OVER_COLLECTED))

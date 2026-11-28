@@ -16,7 +16,8 @@
   "net",
   "received",
   "remaining",
-  "read_at"
+  "read_at",
+  "reserve_seq"
  ],
  "fields": [
   {
@@ -103,11 +104,20 @@
    "fieldtype": "Datetime",
    "label": "Timestamp",
    "read_only": 1
+  },
+  {
+   "fieldname": "reserve_seq",
+   "fieldtype": "Int",
+   "label": "Reserve Seq",
+   "read_only": 1,
+   "hidden": 1,
+   "default": "0",
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-11 00:00:00.000000",
+ "modified": "2026-11-28 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "ERP Receivable Snapshot",

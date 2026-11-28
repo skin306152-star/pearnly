@@ -301,7 +301,7 @@ def _replace(company, book_key, items, at, customer, offsets):
     others = lock(book_key, sorted({values["docnum"] for values in picked} - set(current))) if customer else {}
     for values in picked:
         seen.add(values["docnum"])
-        row = current.get(values["docnum"]) or _same(others, values["docnum"])
+        row = current.get(values["docnum"]) or same(others, values["docnum"])
         gone_at = gone.get(values["docnum"])
         if row is None and gone_at is not None and gone_at > at:
             continue  # 更新的读取已确认这张不在了（按客户读 / 写后回执删的）：旧的整本结果不插回（11-15）
@@ -324,7 +324,7 @@ def _newer(row, at):
     return not row.read_at or get_datetime(row.read_at) <= at
 
 
-def _same(rows, docnum):
+def same(rows, docnum):
     """按单号取 :func:`lock` 读出的那一行：先按原样，再按库的排序规则（唯一索引同一口径：只差大小写的是同一张）。"""
     if docnum in rows:
         return rows[docnum]
@@ -351,7 +351,7 @@ def _insert(company, book_key, at, values) -> int:
         log = getattr(frappe.local, "message_log", None)
         if log is not None and len(log) > messages:
             del log[messages:]  # Frappe 撞唯一键时弹的「必须唯一」：这里已接住改成更新，不带给用户
-    row = _same(lock(book_key, [values["docnum"]]), values["docnum"])
+    row = same(lock(book_key, [values["docnum"]]), values["docnum"])
     if row is None or not _newer(row, at):
         return 0
     frappe.db.set_value(DOCTYPE, row.name, {**values, "company": company, "read_at": at}, update_modified=False)
@@ -399,7 +399,7 @@ def apply_balances(book_key, found, at=None):
     _hold(book_key)
     rows = lock(book_key, sorted(found))
     for docnum, remaining in found.items():
-        row = _same(rows, docnum)
+        row = same(rows, docnum)
         if row is None:
             continue
         if remaining <= 0:
@@ -411,41 +411,56 @@ def apply_balances(book_key, found, at=None):
                                                 "read_at": at}, update_modified=False)
 
 
-def rows(book_key, customer, limit=200, locked=False):
+def rows(book_key, customer, limit=200):
     """一位客户在这本账套此刻的未收清发票（快照），日期早的在前。客户按原样比：库的排序规则把不换行空格与空格当相等，
-    只差空白的是 Express 里两位客户，不能把另一位的发票列进来。``locked``：加锁读（放行判余额，`service.release`）。"""
+    只差空白的是 Express 里两位客户，不能把另一位的发票列进来。普通读（放行判余额时本笔用到的几张另按 :func:`lock` 的值）。"""
     fields = ["name", "customer", "docnum", "rectyp", "doc_date", "salesman", "department", "net", "received", "remaining", "read_at"]
-    filters = {"book_key": book_key, "customer": customer}
-    if locked:
-        found = frappe.qb.get_query(DOCTYPE, fields=fields, filters=filters, order_by="doc_date asc, docnum asc", limit=limit,
-                                    for_update=True).run(as_dict=True)
-    else:
-        found = frappe.get_all(DOCTYPE, filters=filters, fields=fields, order_by="doc_date asc, docnum asc",
-                               limit_page_length=limit)
+    found = frappe.get_all(DOCTYPE, filters={"book_key": book_key, "customer": customer}, fields=fields,
+                           order_by="doc_date asc, docnum asc", limit_page_length=limit)
     return [row for row in found if row.customer == customer]
 
 
-def lock_customer(book_key, customer):
-    """放行先锁这位客户在这本账套的全部快照行（发票与抵减单，按 ``name`` 一个顺序），再锁收款记录、判余额与预留。
-    两笔同一位客户的收款同时放行时在这里排队：先锁各自几张发票、再锁整位客户（或先锁自己的记录、再读别人记录的预留）
-    两路各拿一半互等，实验栈同时起跑 10 轮 9 轮报 1213（11-28 退货减项 × B ②）。"""
-    if not book_key or not customer:
-        return
-    frappe.db.sql(f"SELECT name FROM `tab{DOCTYPE}` WHERE book_key = %s AND customer = %s ORDER BY name FOR UPDATE",
-                  [book_key, customer])
+LOCKED_FIELDS = ["name", "docnum", "customer", "net", "received", "remaining", "read_at", "reserve_seq"]
 
 
 def lock(book_key, docnums):
-    """锁住这几张发票的快照行（放行时两人同时放行同一张排队判；写后回执改余额、落库找别的客户名下的同一张），回
-    ``{docnum: 行}``（name、docnum、customer、net、remaining、read_at，加锁读到的最新值）。走 (book_key, docnum) 唯一索引，
-    按单号顺序上锁。"""
-    docnums = list(docnums or ())
+    """锁住这几张发票的快照行，回 ``{docnum: 行}``（:data:`LOCKED_FIELDS`，加锁读到的最新值）。走 (book_key, docnum) 唯一索引，
+    按单号顺序上锁：放行（只锁本笔用到的几张，`service.release`）、写后回执改余额、落库找别的客户名下的同一张都是这一个顺序
+    （收款锁序：快照行 → 收款记录 → 明细，11-28 ④）。"""
+    docnums = sorted(set(docnums or ()))
     if not docnums:
         return {}
-    found = frappe.qb.get_query(DOCTYPE, fields=["name", "docnum", "customer", "net", "remaining", "read_at"],
-                                filters={"book_key": book_key, "docnum": ["in", docnums]}, order_by="docnum asc",
-                                limit=len(docnums), for_update=True).run(as_dict=True)
+    found = frappe.qb.get_query(DOCTYPE, fields=LOCKED_FIELDS, filters={"book_key": book_key, "docnum": ["in", docnums]},
+                                order_by="docnum asc", limit=len(docnums), for_update=True).run(as_dict=True)
     return {row["docnum"]: row for row in found}
+
+
+def stale(book_key, docnums, locked) -> bool:
+    """这笔事务的读视图是不是比 :func:`lock` 刚加锁读到的旧（普通读同几张，比名、余额、读取时刻、放行序号）。
+
+    放行不再加锁读别人的收款记录与明细（11-28 ④：那几处锁与草稿改动、写账回执的锁序相反，会互等报 1213），预留与余额按普通读算；
+    普通读走这笔事务头一次读时建的读视图，等锁那几百毫秒里别的放行提交了就看不到。每笔放行都在同一事务里把用到的快照行
+    放行序号 +1（:func:`reserve`），写后回执改余额，所以这里比得出来：旧了由调用方当作冲突整笔重来（快照隔离开着时数据库在这里报
+    1020，关掉之后由这里补上）。"""
+    docnums = sorted(set(docnums or ()))
+    if not docnums:
+        return False
+    plain = {row.docnum: row for row in frappe.get_all(  # bounded: 本笔用到的几张
+        DOCTYPE, filters={"book_key": book_key, "docnum": ["in", docnums]}, fields=LOCKED_FIELDS,
+        limit_page_length=len(docnums))}
+    if set(plain) != set(locked):
+        return True
+    for docnum, row in locked.items():
+        seen = plain.get(docnum)
+        if seen is None or any(str(seen.get(key) or "") != str(row.get(key) or "") for key in LOCKED_FIELDS):
+            return True
+    return False
+
+
+def reserve(locked):
+    """放行占用了这几张（:func:`lock` 锁住的行）：放行序号 +1，后到的放行比得出读视图旧了（:func:`stale`）。"""
+    for row in locked.values():
+        frappe.db.set_value(DOCTYPE, row.name, "reserve_seq", int(row.get("reserve_seq") or 0) + 1, update_modified=False)
 
 
 def in_use(book_key) -> bool:

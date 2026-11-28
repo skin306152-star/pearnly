@@ -155,8 +155,9 @@ def job_changed(view):
         found = contracts.balances(_meta(view))
         values.update(docnum=str(view.get("docnum") or "")[:40], reason="", written_at=now_datetime(),
                       balances=json.dumps({key: contracts.text(value) for key, value in found.items()}) if found else None)
-        _set(name, values)
+        # 先改快照余额、再改收款记录（11-28 ④ 收款锁序：快照行 → 收款记录，同放行；反过来与同一张的放行互等）
         snapshot.apply_balances(doc.book_key, found, values["written_at"])
+        _set(name, values)
         _refresh(doc)
         _tell(doc)
         return
