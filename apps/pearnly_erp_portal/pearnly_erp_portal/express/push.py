@@ -644,6 +644,8 @@ def void(doctype, name):
     if row.ledger_state in contracts.OPEN_STATES:
         # 还没写进去：排队中的写账撤掉（电脑正在写的撤不了，写完回执到了再作废，见 `job_changed`；验收 10-25）
         job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
+        if job and job["job"] not in unwritten and job["status"] in ("queued", "manual"):
+            jobs.cancel(job["job"], "voided")  # 单据上记的那件照旧也撤（与按来源单据撤的取并集）
         if not job or job["job"] in unwritten or job["status"] in ("queued", "manual", "cancelled"):
             _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
@@ -663,8 +665,8 @@ def void(doctype, name):
 
 def _cancel_unwritten(doctype, name) -> set:
     """撤掉这张单全部还没写的写账件（排队中、转人工；不含原生作废那一件），回撤掉的件名。加锁读：别人刚排上的也看得到。"""
-    rows = frappe.db.sql(f"""select name, request_key from `tab{jobs.JOB}` where source_doctype=%s and source_name=%s
-        and status in ('queued', 'manual') for update""", (doctype, name), as_dict=True)
+    rows = frappe.db.sql(f"""SELECT name, request_key FROM `tab{jobs.JOB}` WHERE source_doctype = %s AND source_name = %s
+        AND status IN ('queued', 'manual') FOR UPDATE""", (doctype, name), as_dict=True)
     done = set()
     for row in rows:
         if str(row.request_key or "").startswith(stock_entry.VOID_REQUEST):

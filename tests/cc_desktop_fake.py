@@ -281,6 +281,10 @@ class _DBApi:
         elif "status = 'queued' AND book_key IN" in text:
             # 归这台写的条件（route_device / actor）由 jobs._heads 在 Python 里再核一遍，这里只按账套取
             found = [row for row in rows if row.get("status") == "queued" and row.get("book_key") in values]
+        elif "WHERE source_doctype = %s AND source_name = %s AND status IN ('queued', 'manual')" in text:
+            # 作废时按来源单据撤全部没写的件（`express.push._cancel_unwritten`，11-28 B ③）
+            found = [row for row in rows if row.get("source_doctype") == values[0] and row.get("source_name") == values[1]
+                     and row.get("status") in ("queued", "manual")]
         elif "status = 'requested' AND kind IN" in text:
             kinds_count = text.count("%s", text.index("kind IN"), text.index(") AND book_key"))
             kinds, keys = values[:kinds_count], values[kinds_count:]

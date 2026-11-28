@@ -208,7 +208,7 @@ jobs:
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
       - name: Block unlocked reads written back to the same table (MariaDB snapshot isolation is off) and keep it off in every MariaDB
-        run: python3 scripts/check-unlocked-overwrite.py && python3 tests/test_check_unlocked_overwrite.py && python3 tests/test_mariadb_snapshot_isolation.py && python3 tests/test_transaction_conflicts_stale_save.py
+        run: python3 scripts/check-unlocked-overwrite.py --extended && python3 tests/test_check_unlocked_overwrite.py && python3 tests/test_mariadb_snapshot_isolation.py && python3 tests/test_transaction_conflicts_stale_save.py
       - name: Database conflicts are caught only through the shared conflicts layer (attempt / retried / is_conflict), so the save-time check after snapshot isolation is off is retried, not swallowed
         run: python3 scripts/check-conflict-catch.py && python3 tests/test_check_conflict_catch.py && python3 tests/test_conflict_catch_sites.py && python3 tests/test_conflict_silent_loss.py
       - name: Block new database queries inside loops (N+1; baseline may only shrink)
