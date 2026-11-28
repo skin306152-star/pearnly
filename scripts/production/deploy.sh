@@ -194,7 +194,15 @@ for row in sys.argv[1].splitlines():
         continue
     s = json.loads(data)
     drift = s["drift"]
-    print(f"  {product}: 一致 {len(s['ok'])} 项；部署时会发布 {len(drift)} 项" + ("：" + "、".join(drift) if drift else ""))
+    print(f"  {product}: 一致 {len(s['ok'])} 项；部署时会发布 {len(drift)} 项")
+    for label in sorted(s["ok"]):
+        print(f"    无变化 {label}")
+    for label in sorted(drift):
+        changes = (s.get("changes") or {}).get(label) or {}
+        images = sorted({row.get("image", "unknown") for row in changes.values()})
+        print(f"    将发布 {label}：{len(changes)} 套（图：{'、'.join(images) or '未知'}）")
+        for key, row in sorted(changes.items()):
+            print(f"      {key}  图 {row.get('image')}；" + ("；".join(row.get("text") or []) or "文字无变化"))
     for label, why in sorted(s["skipped"].items()):
         print(f"    跳过 {label}：{why}")
     for label, why in sorted(s["failed"].items()):

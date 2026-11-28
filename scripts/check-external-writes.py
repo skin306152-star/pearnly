@@ -8,7 +8,7 @@
    登记了但函数已不在 → 拦（登记表要跟着代码删）。
 2. kind = deploy-sync 的函数所在模块（或登记的 ``via`` 包装模块，它要 import 这个模块），必须被某个产品 hooks.py 的
    ``pearnly_line_surfaces`` 声明；
-   声明的模块必须定义 SURFACE、CONFIG、ready、wanted、drift、publish、restore（pearnly_core.line_surfaces 的约定）。
+   声明的模块必须定义 SURFACE、CONFIG、ready、wanted、drift、publish、restore、release、remount（pearnly_core.line_surfaces 的约定）。
 3. kind = manual 的 note 要写原因（不能空）；kind 只能是登记表文件头列出的几种。
 
 退出码：0 通过；1 有违规（逐条 FAIL 行）。
@@ -27,7 +27,7 @@ MARK = re.compile(r"api\.line\.me|api-data\.line\.me|richmenu|liff/v1|/v2/bot/|/
 VERBS = {"POST", "PUT", "PATCH", "DELETE"}
 CALLS = {"post", "put", "patch", "delete"}
 CALLERS = {"requests", "session", "http", "api", "client"}
-SURFACE_NAMES = {"SURFACE", "CONFIG", "ready", "wanted", "drift", "publish", "restore"}
+SURFACE_NAMES = {"SURFACE", "CONFIG", "ready", "wanted", "drift", "publish", "restore", "release", "remount"}
 HOOK = "pearnly_line_surfaces"
 
 

@@ -15,6 +15,7 @@ from pearnly_erp_portal.integrations import line_menu as menu
 
 SURFACE = "rich_menu"
 CONFIG = menu.CONFIG
+_request = menu._request
 _IMAGES = {}
 
 
@@ -23,11 +24,22 @@ def ready() -> str:
     return "" if line.can_send() else "no LINE channel credentials"
 
 
-def _name(language, variant) -> str:
+def _parts(language, variant):
     body = menu.payload(variant, language)
     image = _IMAGES.get((variant, language))
     if image is None:
         image = _IMAGES[(variant, language)] = menu._image(variant, language)
+    return body, image
+
+
+def release(key):
+    """这一版这个键（``<语言>:<组合>``）的 body 与图。"""
+    language, _, variant = key.partition(":")
+    return _parts(language, variant)
+
+
+def _name(language, variant) -> str:
+    body, image = _parts(language, variant)
     revision = hashlib.sha256(json.dumps(body, sort_keys=True).encode() + image).hexdigest()[:12]
     return f"pearnly-erp-{language}-{variant.replace('+', '-')}-{revision}"[:300]
 
@@ -49,6 +61,11 @@ def drift() -> dict:
 
 def publish() -> dict:
     return menu.publish()
+
+
+def remount(line_user_id) -> None:
+    """按当前绑定、权限与手机语言给这个人挂个人菜单（同 ``reconcile`` 排的任务，这里当场做）。"""
+    menu.sync(line_user_id)
 
 
 def restore(before: dict) -> None:

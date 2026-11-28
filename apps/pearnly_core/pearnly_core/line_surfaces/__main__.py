@@ -35,7 +35,7 @@ def main(argv=None) -> int:
         parser.error("restore needs one --site, --surface and --before")
 
     summary = {"product": args.product, "mode": args.mode, "ok": [], "drift": [], "published": [],
-               "skipped": {}, "failed": {}}
+               "skipped": {}, "failed": {}, "changes": {}}
     for site in _sites(args.site):
         try:
             frappe.init(site=site, sites_path=".")
@@ -55,6 +55,8 @@ def main(argv=None) -> int:
             print("SITE " + json.dumps({"site": site, "surfaces": rows}, ensure_ascii=False, sort_keys=True), flush=True)
             for surface, row in rows.items():
                 label = f"{site} {surface}"
+                if row.get("changes"):
+                    summary["changes"][label] = row["changes"]
                 if "skip" in row:
                     summary["skipped"][label] = row["skip"]
                 elif args.mode == "restore" or row.get("ok"):

@@ -18,6 +18,8 @@ def ready(): return ""
 def wanted(): return {}
 def drift(): return {}
 def restore(before): pass
+def release(key): return {}, b""
+def remount(uid): pass
 def publish():
     _request("POST", "richmenu")
 '''

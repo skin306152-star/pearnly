@@ -105,7 +105,8 @@ done
 
 # 站外 LINE 表面（11-26 ris 富菜单 9 月后从没更新的事故）：三个产品都换上新镜像后，每个产品网页容器里对这个产品的
 # 全部站点逐站对照「LINE 上现挂的 / 这一版代码应有的」，有漂移才发布、发布后回读；没有渠道凭据的站点跳过并列出。
-# 发布前的原配置打成 BEFORE 行进日志（可原样交回 restore 回退，旧菜单从不删）；任何一站出错或回读仍不一致 → 部署失败。
+# 发布前打 PLAN 行（每套改了哪些文字字段、图变没变）与 BEFORE 行（原配置，可原样交回 restore 回退，旧菜单从不删）；
+# 发布后给有效绑定的人当场重挂并回读（发布前挂着的一个不少、都挂到这一版）；任何一站出错或回读不一致 → 部署失败。
 step=surfaces; set_status "running $step"
 for product in erp cowork dms; do
   log "LINE surfaces $product: publish where this release differs, then read back"
@@ -113,7 +114,7 @@ for product in erp cowork dms; do
     /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces sync --product "$product" \
     </dev/null > "$STATE/surfaces-$product-$short.log" 2>&1
   rc=$?
-  grep -E '^(BEFORE|SITE|SUMMARY) ' "$STATE/surfaces-$product-$short.log"
+  grep -E '^(PLAN|BEFORE|SITE|SUMMARY) ' "$STATE/surfaces-$product-$short.log"
   if [[ $rc -ne 0 ]]; then
     tail -25 "$STATE/surfaces-$product-$short.log"
     fail "LINE surfaces $product exited $rc (SUMMARY above names the site; roll a published site back with: docker exec -w /home/frappe/frappe-bench/sites pearnly-production-$product-web-1 /home/frappe/frappe-bench/env/bin/python -m pearnly_core.line_surfaces restore --product $product --site <site> --surface <surface> --before '<config JSON of its BEFORE line>')"

@@ -190,6 +190,17 @@ def drift() -> dict:
             "default": bool(default) and listed.get(default) == want[key("th", "basic")]}
 
 
+def remount(line_user_id) -> None:
+    """按当前绑定与查询权限给这个人挂个人菜单（同 ``reconcile`` 排的任务，这里当场做）。"""
+    sync(line_user_id)
+
+
+def release(key):
+    """这一版这个键的 body 与图；兼容旧键 ``basic`` / ``query`` 是泰文那两套。"""
+    language, _, variant = key.rpartition(":")
+    return _release(language or "th", variant)
+
+
 def restore(before: dict) -> None:
     """回退到部署日志里的 BEFORE 配置（旧菜单从没删过）：站点配置、官方号默认菜单换回原值，再排重挂。"""
     from frappe.installer import update_site_config
