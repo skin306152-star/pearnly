@@ -110,7 +110,8 @@ def explain(module, keys) -> dict:
 def _mounts(module) -> dict:
     """当前有效绑定的人各自挂着的个人菜单（没有挂的不列）。只读（GET）。"""
     out = {}
-    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id"):
+    # bounded: 一个租户的有效 LINE 绑定（每人至多一条），与产品自己的 reconcile() 同一个名单
+    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id"):  # bounded: 同上
         menu_id = (module._request("GET", "user/" + quote(line_user_id, safe="") + "/richmenu", missing_ok=True) or {}).get(
             "richMenuId")
         if menu_id:
@@ -121,7 +122,7 @@ def _mounts(module) -> dict:
 def _remount(module, before: dict) -> dict:
     """发布后给每个有效绑定的人当场重挂（不等队列），再回读：发布前挂着个人菜单的人一个不少、每个人挂的都是这一版的菜单。
     发布前没挂、这次挂上的（例如以前一次重挂失败漏掉的）算补上，只计数。"""
-    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id"):
+    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id"):  # bounded: 一个租户的有效 LINE 绑定
         module.remount(line_user_id)
     frappe.db.commit()
     after = _mounts(module)
@@ -168,10 +169,10 @@ def sync_site(product: str, emit=print) -> dict:
                                   ensure_ascii=False, sort_keys=True))
         emit("BEFORE " + json.dumps({"site": frappe.local.site, "surface": module.SURFACE, "config": before},
                                     ensure_ascii=False, sort_keys=True))
-        mounted = _mounts(module)
+        mounted = _mounts(module)  # loop-query: 每个产品只声明一个表面（富菜单），一个站点只查一次本站绑定
         module.publish()
         frappe.db.commit()  # publish() 末尾 reconcile() 排的重挂任务是 enqueue_after_commit（幂等，与下面当场重挂不冲突）
-        users = _remount(module, mounted)
+        users = _remount(module, mounted)  # loop-query: 同上，一个站点一次
         after = module.drift()
         if not clean(after):
             raise RuntimeError(f"{frappe.local.site} {module.SURFACE} still differs after publish: "

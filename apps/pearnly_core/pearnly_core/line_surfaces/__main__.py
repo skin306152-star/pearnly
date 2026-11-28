@@ -49,7 +49,7 @@ def main(argv=None) -> int:
             if args.mode == "restore":
                 rows = {args.surface: line_surfaces.restore_site(args.product, args.surface, json.loads(args.before))}
             elif args.mode == "sync":
-                rows = line_surfaces.sync_site(args.product, emit=lambda text: print(text, flush=True))
+                rows = line_surfaces.sync_site(args.product, emit=lambda text: print(text, flush=True))  # loop-query: 逐站——每个站点是自己的库，只能 init 进去查本站
             else:
                 rows = line_surfaces.check_site(args.product)
             print("SITE " + json.dumps({"site": site, "surfaces": rows}, ensure_ascii=False, sort_keys=True), flush=True)

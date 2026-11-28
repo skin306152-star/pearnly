@@ -95,13 +95,32 @@
 | 6、14、15、16 | 不变：LINE 无写接口 / 按人 / 与代码版本无关 |
 | 12 | 原本就每次部署重新生效 |
 
+### 11-28 午加的（主会话追加的完成标准）
+
+- **说清改了什么**：`check` 的结果和部署日志的 `PLAN` 行，对每个落后的键读 LINE 上现挂那套的 body 与图，逐项列出文字字段旧 → 新
+  （`chatBarText`、尺寸、每格位置与 `label` / `displayText` / `data` / `uri`），图逐字节比（`same` / `changed`，读不到 `unknown`）。
+  `deploy.sh` 的预览按站点打印「无变化 / 将发布 N 套（图 …）」及每套的变化。模块约定加 `release(key)`。
+- **重挂回读**：发布后当场给每个有效绑定的人重挂（产品自己的 `sync`，约定加 `remount`），再逐人 GET：发布前挂着个人菜单的人一个不少、
+  每个人挂的都在这一版的编号里，否则部署失败。发布前没挂、这次挂上的（以前漏挂）只计数，SUMMARY 里有 `mounted_before / mounted_after`。
+  没用「人数完全相等」：以前漏挂的人这次补上是对的，不能因此让部署失败。
+- **ERP / Cowork 的对照放进独立模块** `line_menu_surface.py` / `menu_surface.py`，原菜单模块与 main 一字不差：原菜单模块是 LINE 盘点相机两行
+  只能真机的地图入口文件，改它就要真机记录；发布逻辑没变，没理由动它。两边同一算法由「发布后再对照必须无漂移」的测试守住。
+- **预览的限制**：演练预览跑的是线上正在跑的镜像；这个分支第一次部署前线上没有 `pearnly_core.line_surfaces`，预览只会写「部署后才有」。
+  第一次部署时 12 套的原因看部署日志的 `PLAN` 行；之后每次演练都能列。
+
 ### Cowork 12 套落后菜单（erpcowork 正式、testcowork 测试）
 
 11-26 线上只读：两站各 28 套里落后 12 套——en / zh 的录入系 4 套（intake、intake+stocktake、intake+work、intake+stocktake+work）、
 th 的盘点系 4 套（stocktake、stocktake+work、intake+stocktake、intake+stocktake+work）。代码历史：图块 9 月后没改；11-08 d838ea3da 把录入格按钮
 label 从「Send documents to ERP」截 20 字（英文成了「Send documents to ER」）改成「Send to ERP」。新旧逐格对照要读 LINE 上现挂菜单的 body 与图
 （只读脚本 `~/pearnly-devtools/prod-ro-1128-menu/cowork-menu-compare.sh`，交主会话排队）；补发由主会话批准后做，先 testcowork 后 erpcowork。
-**这个分支一部署，`surfaces` 步骤就会自动给两站发布这 12 套**——部署前要么已批准补发，要么知道这一次部署会带上。
+11-28 线上只读对照（主会话跑）：两站 12 套的**图逐字节相同、格子与去向相同**，只有按钮文字字段不同——中文录入格点下去发出的那句
+（`displayText`）与标签「发单据进 ERP」→「发送单据至 ERP」（用户看得到）；英文录入格标签「Send documents to ER」→「Send to ERP」、泰文盘点格
+标签「ตรวจนับสต็อก」→「ตรวจนับสินค้า」（只读屏用）。主会话定：不手工补发，**由这个分支的第一次部署经 `surfaces` 步骤发出**，当作它第一次真实验证。
+
+泰文那条的原因（11-28 核对，更正当天先报给主会话的「取到了 ERP 的词条」）：9 月发布时 Cowork **自己的**译文就是「ตรวจนับสต็อก」
+（37895fe7b），10-08 泰文文案整改（56f5bc16e）改成「ตรวจนับสินค้า」、同一提交把中文「发单据进 ERP」改成「发送单据至 ERP」，之后菜单没重发；
+英文那条是 11-08 d838ea3da 改按钮标签。三条都是「词条改了、部署不发」——与 ris 是同一个病，不是跨产品串词条。
 
 ### code-review（medium）
 
