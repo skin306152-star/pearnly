@@ -381,5 +381,35 @@ class VoidEntries(unittest.TestCase):
         self.assertIn("for_update=True", guard)
 
 
+class AmendOnlyThroughFreshEntry(unittest.TestCase):
+    """「修改」作废原单只经网页入口、且走「拿 post 锁后 commit」（11-28 B ②，主会话定的前提）：全仓调 ``entry.post`` 传了
+    ``amended_from`` 的地方，都必须同时传 ``fresh=True``，并经入口的 ``_fresh``（先 commit、整笔重来）。将来有新入口（LINE / CC
+    等在别的事务里调的）想做「修改」而不走这条写法，就在这里失败：那样冲回付款会按旧读视图里的付款算。"""
+
+    def test_every_amend_call_is_fresh(self):
+        found = []
+        for path in sorted(APPS.rglob("*.py")):
+            if "tests" in path.parts or path.name.startswith("test_"):
+                continue
+            text = path.read_text(encoding="utf-8")
+            if "amended_from" not in text:
+                continue
+            tree = ast.parse(text)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                names = {keyword.arg for keyword in node.keywords}
+                if "amended_from" not in names:
+                    continue
+                target = ast.unparse(node.func)
+                args = [ast.unparse(arg) for arg in node.args]
+                if target.endswith("entry.post") or (target == "_fresh" and args and args[0].endswith("entry.post")):
+                    found.append((path.relative_to(APPS).as_posix(), target, "fresh" in names,
+                                  target == "_fresh"))
+        self.assertTrue(found, "no amend call found: the guard would be vacuous")
+        for path, target, fresh, wrapped in found:
+            self.assertTrue(fresh and wrapped, f"{path}: {target}(... amended_from=...) must go through _fresh(entry.post, ..., fresh=True)")
+
+
 if __name__ == "__main__":
     unittest.main()
