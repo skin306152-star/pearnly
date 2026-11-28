@@ -114,7 +114,7 @@ def fake_frappe(state):
             assert self.flags.ignore_permissions
             state["saves"] += 1
 
-    def get_doc(arg, name=None):
+    def get_doc(arg, name=None, for_update=False):
         if isinstance(arg, dict):
             return Doc(arg)
         return next(row for row in state["tasks"] if row["name"] == name)
