@@ -1096,8 +1096,6 @@ usage log,usage log
 {0}/{1} groups,{0}/{1} groups
 {count} more rows are in the files,{count} more rows are in the files
 {count} vehicles · {date} {time},{count} vehicles · {date} {time}
-{my} Available,{my} Available
-{my} Vehicles,{my} Vehicles
 {n} latest sales records from DMS,{n} latest sales records from DMS
 {n} more,{n} more
 {text} ({fields}),{text} ({fields})

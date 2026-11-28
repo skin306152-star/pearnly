@@ -1096,8 +1096,6 @@ usage log,บันทึกการใช้งาน
 {0}/{1} groups,{0}/{1} กลุ่ม
 {count} more rows are in the files,อีก {count} รายการอยู่ในไฟล์
 {count} vehicles · {date} {time},{count} คัน · {date} {time}
-{my} Available,รถรุ่น {my} ว่าง
-{my} Vehicles,รถรุ่น {my}
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
 {n} more,อีก {n} รายการ
 {text} ({fields}),{text} ({fields})

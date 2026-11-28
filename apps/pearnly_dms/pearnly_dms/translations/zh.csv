@@ -1096,8 +1096,6 @@ usage log,使用记录
 {0}/{1} groups,{0}/{1} 组
 {count} more rows are in the files,另有 {count} 行见文件
 {count} vehicles · {date} {time},{count} 台 · {date} {time}
-{my} Available,{my} 空车
-{my} Vehicles,{my} 车辆
 {n} latest sales records from DMS,DMS 最新销售记录 {n} 条
 {n} more,另 {n} 项
 {text} ({fields}),{text}（{fields}）

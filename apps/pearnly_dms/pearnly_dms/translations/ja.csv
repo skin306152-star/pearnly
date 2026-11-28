@@ -1096,8 +1096,6 @@ usage log,利用履歴
 {0}/{1} groups,{0}/{1} グループ
 {count} more rows are in the files,残り {count} 行はファイルにあります
 {count} vehicles · {date} {time},{count} 台 · {date} {time}
-{my} Available,{my} 空き車
-{my} Vehicles,{my} 車両
 {n} latest sales records from DMS,DMS の最新販売記録 {n} 件
 {n} more,他 {n} 件
 {text} ({fields}),{text}（{fields}）
