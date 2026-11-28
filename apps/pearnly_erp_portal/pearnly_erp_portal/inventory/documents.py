@@ -6,6 +6,7 @@ from frappe.utils import now
 
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
+from pearnly_erp_portal.express import contracts as express_contracts
 from pearnly_erp_portal.inventory import access, contracts, positions, serials, stock, warehouses
 from pearnly_erp_portal.numbering import service as numbering
 
@@ -231,7 +232,8 @@ SORT_FIELDS = {
 }
 
 
-def _entry_filters(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None) -> tuple:
+def _entry_filters(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None, ledger_word=None,
+                   conditions=None) -> tuple:
     """列表的 ``(filters, or_filters)``。种类按 `access.entry_kind`：物料调整 = 方向 adjust **或** 历史盘点生成的 AD 单
     （``ref_type = count``）；入库 / 出库 / 调拨不含 AD 单（岳父 11-06）。"""
     guard.require("stock.read")
@@ -260,20 +262,23 @@ def _entry_filters(*, direction=None, warehouse=None, status=None, date_from=Non
         filters.append(["status", "=", status])
     if date_from and date_to:
         filters.append(["posting_date", "between", [date_from, date_to]])
+    # 「Express 状态」按状态词筛（结果不明单列一档；同采购 / 销售列表，`express.contracts.ledger_word_filter`）
+    filters = express_contracts.with_ledger_words(filters, express_contracts.ledger_word_filter(ledger_word, conditions)[0])
     return filters, or_filters
 
 
-def count_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None) -> int:
+def count_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None, ledger_word=None,
+                  conditions=None) -> int:
     """出入库单列表的总数（与列表同一份筛选、同一道权限，数据库里数）。"""
     filters, or_filters = _entry_filters(direction=direction, warehouse=warehouse, status=status, date_from=date_from,
-                                         date_to=date_to)
+                                         date_to=date_to, ledger_word=ledger_word, conditions=conditions)
     return list_filters.count(DOCTYPE, filters, or_filters)
 
 
-def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
-                 limit=50, start=0, sort_by=None, sort_order=None):
+def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None, ledger_word=None,
+                 conditions=None, limit=50, start=0, sort_by=None, sort_order=None):
     filters, or_filters = _entry_filters(direction=direction, warehouse=warehouse, status=status, date_from=date_from,
-                                         date_to=date_to)
+                                         date_to=date_to, ledger_word=ledger_word, conditions=conditions)
     rows = frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
                            order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS,
                                                      "posting_date desc, creation desc"),

@@ -253,7 +253,12 @@
 				// 「备注」列不在里面：那个字段（`note`）受字段级权限保护，服务端排不了（见
 				// `inventory/documents.py` 的白名单注释），点了只会报错，所以干脆不开放。
 				sort_fields: ["doc_no", "posting_date", "warehouse_name", "status", "creation"],
-				load: p.trade.load(api, "api_list_stock_entries", "api_stock_entry_total", () => ({ direction })),
+				// 本页只开放「Express 状态」一个原生筛选（按状态词，结果不明单列一档；服务端 `express.contracts.ledger_word_filter`，
+				// 同采购 / 销售列表），没接 Express 的站点不出
+				...(p.express_used() ? { filter_fields: [{ fieldname: "ledger_word", label: __("Express Status"), fieldtype: "Select",
+					labels: value => __(value) }] } : {}),
+				load: p.trade.load(api, "api_list_stock_entries", "api_stock_entry_total", () => ({ direction,
+					ledger_word: p.filter_values(list).ledger_word || undefined, conditions: p.filter_conditions(list) })),
 				columns: [
 					// 首列是**单据编号**（系统发的 IR/IS 号）：旧线上列表也是拿它当行标题，
 					// 内部单据名只在点开单据时用，不占一列。

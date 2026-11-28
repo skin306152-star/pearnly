@@ -24,6 +24,7 @@
   "submitted_at",
   "ledger_section",
   "ledger_state",
+  "ledger_word",
   "ledger_docnum",
   "ledger_reason",
   "ledger_sent_at",
@@ -166,6 +167,17 @@
    "in_standard_filter": 1
   },
   {
+   "fieldname": "ledger_word",
+   "fieldtype": "Select",
+   "label": "Express Status",
+   "options": "\nEntering\nSucceeded\nFailed\nResult unknown",
+   "read_only": 1,
+   "is_virtual": 1,
+   "no_copy": 1,
+   "print_hide": 1,
+   "report_hide": 1
+  },
+  {
    "fieldname": "ledger_docnum",
    "fieldtype": "Data",
    "label": "Express No.",
@@ -249,7 +261,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-19 12:00:00.000000",
+ "modified": "2026-11-28 20:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry",
  "owner": "Administrator",
