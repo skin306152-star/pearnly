@@ -144,15 +144,23 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   const { link, state, places, cloud } = status;
   const line = cloudStatusLine(state, status.reason);
   const pair = () => setPairing((n) => (n ?? 0) + 1);
-  const end = (method: "cloud_disconnect" | "cloud_forget") => {
-    setPairing(null);
+  const finish = (pending: Promise<unknown>) => {
     setBusy(true);
-    void api.call(method).then(() => {
+    void pending.then(() => {
       setBusy(false);
       reload();
     });
   };
-  const disconnect = () => end("cloud_disconnect");
+  // 断开只断开：连接与已存密码留着，「重新登录」免输（11-28 用户定）
+  const disconnect = () => {
+    setPairing(null);
+    finish(api.call("cloud_disconnect"));
+  };
+  // 「移除」：删连接、远程桌面密码与实操登录
+  const forget = () => {
+    setPairing(null);
+    finish(api.call("cloud_forget"));
+  };
   const rescan = () => void api.call("cloud_rescan").then(reload);
   return (
     <>
@@ -217,7 +225,7 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
                 {st.disconnect}
               </DropdownMenuItem>
               {status.forget && (
-                <DropdownMenuItem variant="destructive" onSelect={() => end("cloud_forget")} data-slot="cc-cloud-express-forget">
+                <DropdownMenuItem variant="destructive" onSelect={forget} data-slot="cc-cloud-express-forget">
                   {st.remove}
                 </DropdownMenuItem>
               )}

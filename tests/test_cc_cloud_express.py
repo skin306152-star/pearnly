@@ -83,6 +83,9 @@ class CloudExpressRow(unittest.TestCase):
         self.assertIn('api.call("cloud_rescan")', text)
         self.assertIn('api.call("cloud_add_place", { path: path.trim() })', text)
         self.assertIn('api.call("cloud_disconnect")', text)
+        # 11-28 用户：断开只断开；「移除」才删连接与密码，桥 cloud_status 回 forget 才出
+        self.assertIn('api.call("cloud_forget")', text)
+        self.assertIn('{status.forget && (', text)
         self.assertIn("const inline = !!useDesktopFeatures().connectDialog;", text)
         self.assertIn("if (result.cancelled) return;", text)
         self.assertNotIn("setTimeout", text)
