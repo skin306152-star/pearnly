@@ -33,7 +33,6 @@ apps/pearnly_core/pearnly_core/assistant/toolrun.py	decide	Pearnly Assistant Too
 apps/pearnly_core/pearnly_core/cc_desktop/devices.py	touch	$DEVICE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/execution/work.py	run	Pearnly OCR Work	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/exports/service.py	run	Pearnly Export	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_core/pearnly_core/express_operator/api.py	start	Pearnly Express Operator Task	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：代录任务：经 tasks._own（锁行名、普通 get_doc）读出再写；随 ② 改根函数
 apps/pearnly_core/pearnly_core/identity.py	_callback	Pearnly Identity	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/line_binding.py	bind	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/line_binding.py	unbind	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
@@ -126,8 +125,7 @@ apps/pearnly_erp_portal/pearnly_erp_portal/access/setup.py	migrate_members	User	
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py	create_sale	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py	attach_main	ERP POS Terminal	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py	ensure_default	ERP POS Terminal	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py	send	ERP Collection	跨函数	②	真	存量（B ③ 11-28 全仓扫描）：收款写账件：放行时普通读收款记录排件、写回件号；随 ② E11（collection._own 先加锁后读）改
-apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	apply_balances	ERP Receivable Snapshot	判断	②	未判	存量（B ③ 11-28 全仓扫描）：ERP 收款：经 collection._own（先 exists 再锁）读出再写；随 ② E11 改
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	apply_balances	ERP Receivable Snapshot	判断	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：应收快照按普通读出的 net 写回，与 snapshot.replace 同一处改（按账套加锁），带外部读回
 apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	replace	ERP Receivable Snapshot	判断	④	真	存量（B ③ 11-28 全仓扫描）：应收快照：普通读出现有行再按 read_at 比新旧插入 / 更新 / 删除，两次读回并发时旧结果可能盖新结果；随 ④（带外部读的入口）按账套加锁
 apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	answer	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	remember_party_account	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
@@ -152,12 +150,9 @@ apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	_send	$doctype	跨函
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	link_party	$party_doctype	判断	④	真	存量（B ③ 11-28 全仓扫描）：写账回执后挂对方码：普通读判「已挂没有」，并发两张回执可能各挂一次（同码，低）；随 ④ 回执路径改
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	link_products	ERP Product	判断	④	真	存量（B ③ 11-28 全仓扫描）：同 link_party（物料码）
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	poll	$doctype	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：写账件：每分钟巡检按普通读出的行写 ledger_reason，与回执并发时会把已写入单的原因改回排队说明（低，只是显示）；随 ④ 后台巡检改
-apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	queue	$doctype	判断	②	真	存量（B ③ 11-28 全仓扫描）：写账件：提交事务里普通读 ledger_state 判要不要排；同一张单的提交由 Redis 锁串行，残余风险低；随 ② E7/E9（post 拿锁后的读视图）一起改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	_receive_document	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	_drop	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	run	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit	ERP LINE Intake	借函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit_chat	ERP LINE Intake	借函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	run	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：LINE 收单识别流程，带外部 IO（取原件、回 LINE），随 ④ 改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	_cancel_step	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	store_voucher	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
@@ -166,11 +161,11 @@ apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	answer	Pear
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	cancel	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	start	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：LINE 会话 payload 读改写（line_session 根函数），随 ④ 一起改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：同 answer
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	_drive	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	_drive	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：LINE 问题流程，随 ④ 的 line_session 一起改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	begin	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	text	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
