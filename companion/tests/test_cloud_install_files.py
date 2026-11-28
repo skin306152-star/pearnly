@@ -247,6 +247,53 @@ def test_refresh_only_rewrites_when_the_version_changed(tmp_path):
     assert result["version"] == "1.21.0"
 
 
+# ── 测试构建随包带的云端包（11-28 真机：线上清单的云端包会顶掉测试包） ───────────────
+
+def _bundle(tmp_path, version="1.12.25", body=ZIP + b"test-build"):
+    folder = tmp_path / "app" / pkg.BUNDLE_DIR
+    folder.mkdir(parents=True)
+    (folder / pkg.PACKAGE).write_bytes(body)
+    (folder / pkg.MANIFEST).write_text(json.dumps({"version": version, "sha256": hashlib.sha256(body).hexdigest(),
+                                                   "size": len(body), "source_sha": "b" * 40}), encoding="utf-8")
+    return tmp_path / "app"
+
+
+def test_a_bundled_cloud_package_is_found_only_when_it_checks_out(tmp_path):
+    base = _bundle(tmp_path)
+    folder, meta = pkg.bundled(base)
+    assert folder == base / pkg.BUNDLE_DIR and meta["version"] == "1.12.25"
+    (folder / pkg.PACKAGE).write_bytes(b"tampered")
+    assert pkg.bundled(base) is None
+    assert pkg.bundled(tmp_path / "nothing-here") is None
+
+
+def test_with_a_bundled_package_prepare_places_it_and_never_reads_the_release_manifest(tmp_path):
+    found = pkg.bundled(_bundle(tmp_path))
+    client = _Client(latest={"cloud": _entry("1.12.25")})   # 线上同号不同包：不能用它
+    result = _prepare(tmp_path, client, bundle=lambda: found)
+    assert client.calls == [] and result["version"] == "1.12.25"
+    placed = tmp_path / "tunnel" / pkg.CC_DIR
+    assert (placed / pkg.PACKAGE).read_bytes() == ZIP + b"test-build"
+    assert json.loads((placed / pkg.MANIFEST).read_text(encoding="utf-8"))["sha256"] == found[1]["sha256"]
+
+
+def test_with_a_bundled_package_refresh_follows_only_the_bundle(tmp_path):
+    found = pkg.bundled(_bundle(tmp_path))
+    _prepare(tmp_path, _Client(), bundle=lambda: found)
+    online = _Client(latest={"cloud": _entry("1.30.0")})
+    # 隧道盘里就是随包那版：线上更新也不重放
+    assert pkg.refresh(tmp_path / "tunnel", HOST, site="https://example.com", client=online, cache=tmp_path / "cache",
+                       script=_script(tmp_path), bundle=lambda: found) is None
+    assert online.calls == []
+    # 隧道盘里的版本被改过（如自升级测试）：重启桥时放回随包那版，仍不看线上
+    manifest = tmp_path / "tunnel" / pkg.CC_DIR / pkg.MANIFEST
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    manifest.write_text(json.dumps({**data, "version": "1.12.26"}), encoding="utf-8")
+    result = pkg.refresh(tmp_path / "tunnel", HOST, site="https://example.com", client=online, cache=tmp_path / "cache",
+                         script=_script(tmp_path), bundle=lambda: found)
+    assert result["version"] == "1.12.25" and online.calls == []
+
+
 def test_the_command_has_the_drive_and_the_token():
     assert pkg.install_command("y:", TOKEN) == (
         "powershell -NoProfile -ExecutionPolicy Bypass -File \\\\tsclient\\Y\\cc\\cloud_install.ps1 -Token " + TOKEN)

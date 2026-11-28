@@ -54,12 +54,28 @@ jobs:
         # 测试机的 runner 已装好 Inno Setup 6（没有 choco）；GitHub 的机器上照旧用 choco 装
         shell: pwsh
         run: if (-not (Test-Path 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe')) { choco install innosetup -y --no-progress }
+      # 云端精简包（packaging/companion-cloud.spec：云端 Express 主机上那份 CC，不带 PySide6 / 网页内核）：勾选 cloud 才打、才上传，
+      # 不发布。先于安装包打：勾选 cloud 时安装包随包带上它（release.ps1 -BundleCloud），测试构建的桥只用随包那份、不看线上清单
+      # （11-28 真机：线上清单带云端包后，测试包测不到自己的云端包）。冒烟只跑 --cloud 那一步（smoke_launch.py --cloud-only），同上只在 GitHub 的机器上跑
+      - name: Build the cloud package
+        if: ${{ inputs.cloud }}
+        shell: pwsh
+        env:
+          RELEASE_PY: python
+        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly -Cloud
+      - name: Launch the cloud package in cloud mode
+        if: ${{ inputs.cloud && runner.environment == 'github-hosted' }}
+        run: python packaging/smoke_launch.py --cloud-only dist/companion-cloud/companion.exe
       - name: Build the installer (no publication credentials in this job)
         shell: pwsh
         env:
           RELEASE_PY: python
           RELEASE_ISCC: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
-        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
+          BUNDLE_CLOUD: ${{ inputs.cloud }}
+        run: |
+          $extra = @(); if ($env:BUNDLE_CLOUD -eq 'true') { $extra += '-BundleCloud' }
+          powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly @extra
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # 交给测试机之前先照用户的用法启动一遍打出来的程序（同 Companion checks；packaging/smoke_launch.py）
       - name: Launch the packaged CC the way people do
         # 测试机的 runner 是没有桌面的系统服务，「第二次启动交给已在跑的那份」在那里走不通；这一步只在 GitHub 的机器上跑，
@@ -84,17 +100,6 @@ jobs:
           path: companion/dist/CC.msix
           if-no-files-found: error
           retention-days: 1
-      # 云端精简包（packaging/companion-cloud.spec：云端 Express 主机上那份 CC，不带 PySide6 / 网页内核）：勾选 cloud 才打、才上传，
-      # 不改上面的正式安装包，也不发布。冒烟只跑 --cloud 那一步（smoke_launch.py --cloud-only），同上只在 GitHub 的机器上跑
-      - name: Build the cloud package
-        if: ${{ inputs.cloud }}
-        shell: pwsh
-        env:
-          RELEASE_PY: python
-        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly -Cloud
-      - name: Launch the cloud package in cloud mode
-        if: ${{ inputs.cloud && runner.environment == 'github-hosted' }}
-        run: python packaging/smoke_launch.py --cloud-only dist/companion-cloud/companion.exe
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: ${{ inputs.cloud }}
         with:

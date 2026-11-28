@@ -2,7 +2,7 @@
 # Usage: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
 #        add -Cloud to build only the cloud package (dist\CC-Cloud.zip + dist\cloud.json); no installer, nothing published
 [CmdletBinding()]
-param([switch]$BuildOnly, [switch]$Cloud)
+param([switch]$BuildOnly, [switch]$Cloud, [switch]$BundleCloud)
 
 if (-not $BuildOnly) {
     throw 'Legacy direct publication is retired. Use -BuildOnly or the release workflow; see docs/RELEASE.md.'
@@ -77,6 +77,18 @@ if ($Cloud) {
 Write-Host '=== [1/3] build companion.exe (64-bit) ==='
 Invoke-Native $py64 -m PyInstaller --noconfirm --distpath dist --workpath build\b64 packaging\companion.spec
 if ($LASTEXITCODE -ne 0) { throw 'companion.exe build failed' }
+
+# 测试构建（companion-build.yml 勾 cloud）：先用 -Cloud 打好 dist\CC-Cloud.zip + dist\cloud.json，这里随安装包带上
+# （dist\companion\cloud-bundle\），桥配对 / 重连时只用它、不看线上清单（cloud_link\cloud_package.bundled）。正式发布不加这个开关。
+if ($BundleCloud) {
+    $bundle = Join-Path $root 'dist\companion\cloud-bundle'
+    foreach ($name in 'CC-Cloud.zip', 'cloud.json') {
+        if (-not (Test-Path (Join-Path $root "dist\$name"))) { throw "-BundleCloud needs dist\$name (run -Cloud first)" }
+    }
+    New-Item -ItemType Directory -Force $bundle | Out-Null
+    Copy-Item (Join-Path $root 'dist\CC-Cloud.zip'), (Join-Path $root 'dist\cloud.json') $bundle -Force
+    Write-Host "bundled the cloud package into $bundle"
+}
 
 # cdx_reindex_runner.exe 是预编译 Harbour DBFCDX 原生 exe(GTNUL · 源 packaging\native\*.prg),
 # 不走 PyInstaller。随仓库提交,发版只需拷进 dist 供 installer 打包。重建见 packaging\native\README。

@@ -42,6 +42,8 @@ MANIFEST = "cloud.json"            # 同 cloud_side.MANIFEST
 PACKAGE = "CC-Cloud.zip"
 SCRIPT = "cloud_install.ps1"
 PART = ".part"
+# 测试构建（companion-build.yml 勾 cloud）随安装包带的云端包目录：在 companion.exe 旁边；正式发布不带
+BUNDLE_DIR = "cloud-bundle"
 CHUNK = 262144
 MAX_BYTES = 300 * 1024 * 1024
 
@@ -246,6 +248,27 @@ def ensure_cached(*, entry: Optional[dict], cache: Optional[Path] = None, site: 
 
 # ── 隧道盘 cc\ ───────────────────────────────────────────────────────────────
 
+def bundled(base: Optional[Path] = None) -> Optional[tuple]:
+    """测试构建随包带的云端包 ``(目录, {version, sha256, size})``；没有或校验不过回 None。
+
+    有它就只用它、不看线上清单（11-28 真机：线上清单从 1.12.25 起带云端包，测试构建的桥配对、重连、重启时都会把隧道盘
+    ``cc\\`` 放成线上那版，测试包测不到自己的云端包）。正式发布不带这个目录，行为不变。"""
+    if base is None:
+        import sys
+
+        if not getattr(sys, "frozen", False):
+            return None
+        base = Path(sys.executable).resolve().parent
+    folder = Path(base) / BUNDLE_DIR
+    if not folder.is_dir():
+        return None
+    meta = _valid_cached(folder)
+    if meta is None:
+        log.warning("随包云端包校验不过，改用发布清单")
+        return None
+    return folder, meta
+
+
 def script_path() -> Optional[Path]:
     """安装脚本：打包后在本模块旁边（companion.spec datas），源码运行时在 ``companion/packaging/``。"""
     here = Path(__file__).resolve().parent
@@ -331,12 +354,17 @@ def placed_version(root: Path) -> str:
 
 def prepare(root: Path, host: str, *, site: Optional[str] = None, cache: Optional[Path] = None,
             client: Callable[[float], Any] = _client, script: Optional[Path] = None,
-            fetch: Optional[Callable[[], Optional[dict]]] = None) -> dict:
-    """配对前确保 ``cc\\`` 就绪（缓存 → 下载 → 写入）。失败抛 :class:`PackageError`。"""
+            fetch: Optional[Callable[[], Optional[dict]]] = None,
+            bundle: Optional[Callable[[], Optional[tuple]]] = None) -> dict:
+    """配对前确保 ``cc\\`` 就绪（随包云端包 → 否则缓存 → 下载 → 写入）。失败抛 :class:`PackageError`。"""
     try:
         host = rdp.host(host)
     except rdp.RdpValueError:
         raise PackageError(WRITE_FAILED) from None
+    found = bundle() if bundle is not None else bundled()
+    if found is not None:
+        folder, meta = found
+        return place(root, host, folder, meta, script=script)
     entry = fetch() if fetch is not None else fetch_entry(site, client=client)
     folder, meta = ensure_cached(entry=entry, cache=cache, site=site, client=client)
     return place(root, host, folder, meta, script=script)
@@ -348,10 +376,16 @@ def refresh(root: Path, host: str, *, site: Optional[str] = None, client: Callab
     current = placed_version(root)
     if not current:
         return None
+    bundle = kwargs.pop("bundle", None)
+    found = bundle() if bundle is not None else bundled()
+    if found is not None:   # 测试构建：只跟随包那版比，不看线上清单
+        if found[1]["version"] == current:
+            return None
+        return prepare(root, host, site=site, client=client, bundle=lambda: found, **kwargs)
     entry = fetch() if fetch is not None else fetch_entry(site, client=client)
     if entry is None or entry["version"] == current:
         return None
-    return prepare(root, host, site=site, client=client, fetch=lambda: entry, **kwargs)
+    return prepare(root, host, site=site, client=client, fetch=lambda: entry, bundle=lambda: None, **kwargs)
 
 
 def install_command(drive: str, token: str) -> str:
@@ -362,5 +396,5 @@ def install_command(drive: str, token: str) -> str:
 
 
 __all__ = ["CHECKSUM", "CODES", "DOWNLOAD_FAILED", "NO_PACKAGE", "PackageError", "WRITE_FAILED", "download",
-           "ensure_cached", "fetch_entry", "install_command", "newest_cached", "parse_entry", "place", "placed_version",
+           "bundled", "ensure_cached", "fetch_entry", "install_command", "newest_cached", "parse_entry", "place", "placed_version",
            "prepare", "refresh", "script_path", "tunnel_manifest"]
