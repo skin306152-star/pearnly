@@ -272,7 +272,7 @@
 			page.add_menu_item(__("Amend"), () => go("amend", doc.name));
 			// 作废动作、确认框标题、完成提示与状态同一个词（用户 11-28「统一已作废」，沿用 POS 的 trade.void / trade.state.void）；
 			// 确认框里关掉对话框的那颗按钮是框架自己的，不动
-			page.add_menu_item(__("trade.void"), () => p.dialog(__("trade.void"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
+			page.add_menu_item(__("trade.void"), () => p.dialog(__("trade.void"), [u.field("reason", "trade.voidReason", "Small Text", {reqd: 1})],
 				__("Confirm"), async (values, dialog) => {
 					await u.call("api_cancel_purchase", {name: doc.name, ...values}, true);
 					dialog.hide(); p.success(__("trade.state.void"), "cancel"); await reload();

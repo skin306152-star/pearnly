@@ -3431,6 +3431,7 @@ trade.voidConfirm,Void this document and reverse its stock movements?
 trade.voidConfirmCount,Void {0} document(s) and reverse their stock movements?
 trade.voidNotice,Voided {0}
 trade.voidPaid,Void the payments before voiding the document
+trade.voidReason,Void Reason
 trade.walkIn,Walk-in customer
 trade.warehouse,Warehouse
 trade.warehouseHint,Comes from the terminal; set it there if it is empty

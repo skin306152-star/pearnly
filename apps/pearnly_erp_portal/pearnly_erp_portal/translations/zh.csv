@@ -3431,6 +3431,7 @@ trade.voidConfirm,确定要作废此单据并冲销对应库存变动吗？
 trade.voidConfirmCount,确定要作废选中的 {0} 张单据并冲销对应库存变动吗？
 trade.voidNotice,已作废 {0} 张
 trade.voidPaid,请先冲销付款，再作废此单据
+trade.voidReason,作废原因
 trade.walkIn,散客
 trade.warehouse,仓库
 trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一个仓

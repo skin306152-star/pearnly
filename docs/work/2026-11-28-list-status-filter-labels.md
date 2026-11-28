@@ -80,6 +80,9 @@ Cowork 识别记录 posting_kind 已一致；DMS 推送记录页头自己的 Sel
 | 作废确认框标题 | `__("Cancel")` 取消 / Cancel | `__("trade.void")` 作废 / Void |
 | 作废完成提示 | `__("Cancelled")` 已取消 / Cancelled | `__("trade.state.void")` 已作废 / Voided |
 
-确认框里关掉对话框的那颗按钮是框架自己的（放弃这次操作），没改；确认框的主按钮「Confirm 确认」与原因栏「Reason for Cancellation 取消原因」没在定词范围内，没改。
+| 作废确认框的原因栏（主会话 11-28 补定） | 「Reason for Cancellation」取消原因 | 新词条 `trade.voidReason`：zh「作废原因」、en「Void Reason」；th「เหตุผลในการยกเลิก」、ja「取消理由」与原来相同 |
 
-改的都是代码里引用哪条已有词条（Cancelled → Voided、Cancel → trade.void），词条本身一字没改，`check-copy.py` 记为「代码引用新增 6」、改动 0、拦截 0；打印章是模板里的固定字。
+确认框里关掉对话框的那颗按钮是框架自己的（放弃这次操作），主按钮「Confirm 确认」，都不动。
+原因栏不复用已有的「Void Reason」：那条是 POS 收据（ERP Sale）的字段标签，中文是「撤销原因」，改它会动到 POS；POS 这一处的「撤销 / 作废」不一致留给主会话定。
+
+改的都是代码里引用哪条已有词条（Cancelled → Voided、Cancel → trade.void），词条本身一字没改，`check-copy.py` 记为新增 1（trade.voidReason）、代码引用新增 6、改动 0、拦截 0；打印章是模板里的固定字。

@@ -228,6 +228,7 @@ Not Posted	未记入库存	ยังไม่บันทึกสต็อก	�
 Submit and Receive Stock	提交并入库	ยืนยันและรับเข้าสต็อก	確定して入庫	trade.submitReceive
 Submit	提交过账	ยืนยัน	確定	trade.submit
 Void	作废	ยกเลิก	取消	trade.void
+Void Reason	作废原因	เหตุผลในการยกเลิก	取消理由	trade.voidReason
 Void this document and reverse its stock movements?	确定要作废此单据并冲销对应库存变动吗？	ต้องการยกเลิกเอกสารนี้และกลับรายการสต็อกที่เกี่ยวข้องใช่หรือไม่	この伝票を取り消して在庫移動を戻しますか？	trade.voidConfirm
 Void {0} selected	作废选中的 {0} 张	ยกเลิก {0} รายการที่เลือก	選択した{0}件を取り消す	trade.action.voidCount
 Void {0} document(s) and reverse their stock movements?	确定要作废选中的 {0} 张单据并冲销对应库存变动吗？	ต้องการยกเลิกเอกสาร {0} รายการที่เลือกและกลับรายการสต็อกที่เกี่ยวข้องใช่หรือไม่	選択した{0}件の伝票を取り消して在庫移動を戻しますか？	trade.voidConfirmCount

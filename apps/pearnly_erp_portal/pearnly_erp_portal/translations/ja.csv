@@ -3431,6 +3431,7 @@ trade.voidConfirm,この伝票を取り消して在庫移動を戻しますか�
 trade.voidConfirmCount,選択した{0}件の伝票を取り消して在庫移動を戻しますか？
 trade.voidNotice,{0}件を取り消しました
 trade.voidPaid,先に入金を取り消してから伝票を取り消してください
+trade.voidReason,取消理由
 trade.walkIn,一般客
 trade.warehouse,倉庫
 trade.warehouseHint,レジの設定によります。空の場合はレジ側で倉庫を設定してください
