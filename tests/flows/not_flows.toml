@@ -299,3 +299,19 @@ reason = "DMS 库存停放报表的下载页：只凭 LINE 卡片里的签名地
 [[file]]
 file = "apps/pearnly_dms/pearnly_dms/query/stock_files.py"
 reason = "DMS 库存停放报表的下载口：只给 LINE 图片与卡片按钮用的签名地址（allow_guest），要真 LINE 官方号、真 MR.ERP 导出才有文件，回归实验室没有 LINE 频道、不登 MR.ERP；签名、过期、篡改、超长文件名由 tests/test_dms_stock_report.py 候选检查守住，整条由产品地图 dms.line.stock-report 的真机记录验收"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/ocr/api.py"
+reason = "Cowork 录入页交识别（submit 存原件、开远端识别会话并扣费）与查批次：真识别要付费、要甲骨文或桶，回归实验室不跑；录入页上传由 intake-upload.js 的流程只到页面层。两种冲突整笔重来、用尽回「请稍后重试」由 tests/test_conflict_catch_sites.py 守住（11-28 B ① 改重试时登记）"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py"
+reason = "远端识别（Cloud Run）的回调：只收谷歌签名令牌的 POST，没有页面、不经浏览器，回归实验室没有远端识别。验签与进度写回由 Cowork 远端识别的离线测试守住，冲突改判由 tests/test_conflict_catch_sites.py 守住（11-28 B ① 登记）"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/history/category_api.py"
+reason = "Cowork 分类树接口：产品里没有调用方（产品地图 not_entries 登记为兼容保留），没有页面可跑；冲突重来由 tests/test_conflict_catch_sites.py 守住，实验室验证脚本 scripts/cowork-classification-lab-verify.py（11-28 B ① 登记）"
+
+[[file]]
+file = "apps/pearnly_cowork/pearnly_cowork/masters/workspace_api.py"
+reason = "Cowork 工作区主档导入接口：产品里没有调用方（产品地图 not_entries 登记为兼容保留），没有页面可跑；冲突重来由 tests/test_conflict_catch_sites.py 守住，实验室验证脚本 scripts/cowork-workspace-import-lab-verify.py（11-28 B ① 登记）"

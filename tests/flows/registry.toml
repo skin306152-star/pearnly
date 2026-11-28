@@ -1643,6 +1643,7 @@ datasets = ["new", "old"]
 viewports = ["desktop", "mobile"]
 covers = [
   "frontend/assistant/src/components/scheduled-tasks.tsx",
+  "apps/pearnly_cowork/pearnly_cowork/folder_intake/api.py",
   "frontend/assistant/src/components/mrerp-login.tsx",
   "frontend/assistant/src/components/mrerp-connect.tsx",
   "frontend/assistant/src/lib/when.ts",
