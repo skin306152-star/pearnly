@@ -211,10 +211,24 @@ def _codes_of(value: Any) -> List[str]:
     return [str(row.get("code")) if isinstance(row, Mapping) else str(row) for row in value or ()]
 
 
+def _nothing_to_split(by_key: Mapping[str, Any], ctx: Dict[str, Any], given: Mapping[str, Any]) -> Dict[str, Any]:
+    """分摊题交了空的：选项函数此刻给的合计是 0（收款：抵减单正好抵平发票）才收，记成 :data:`steps.NOTHING_TO_SPLIT`；
+    合计不是 0（或没给合计）照旧按形状拒（空的分摊不算答）。"""
+    out = dict(given)
+    for key, value in given.items():
+        step = by_key.get(key)
+        if step is None or step["input"] != "split" or value != []:
+            continue
+        total = _options(step, ctx, page_length=1).get("total")
+        if total is not None and steps.amount(total) == 0:
+            out[key] = steps.NOTHING_TO_SPLIT
+    return out
+
+
 def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> str:
     """这个值哪里不在此刻的选项里（空串 = 都在）：码不在（客户停用了、发票已收清、科目被删）回 ``not offered``；金额多选 / 分摊
     的一行超过选项给的上限（``max``：此刻还能收多少）回 ``over max``。码按原样比，不做空白归一（编码里的不换行空格是另一件档）。"""
-    if step["input"] not in d.OPTION_INPUTS:
+    if step["input"] not in d.OPTION_INPUTS or value == steps.NOTHING_TO_SPLIT:
         return ""
     wanted = _codes_of(value)
     found = _options(step, ctx, codes=wanted, page_length=len(wanted) or 1)
@@ -340,7 +354,7 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
     if hint not in (None, "", [], {}) and out["tier"] == "how":
         out["preselected"] = hint
     if answers.get(step["key"]) not in (None, "", [], {}):
-        out["value"] = answers[step["key"]]
+        out["value"] = [] if answers[step["key"]] == steps.NOTHING_TO_SPLIT else answers[step["key"]]
     elif step["key"] in reopened:
         out["value"] = reopened[step["key"]]   # 点「改」回来重问：原来的值放进 value（不当推荐）
     return out
@@ -623,9 +637,10 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
         return _answer_documents(guide, doc, given)
     answers = _answers(doc)
     decided = _decided(guide, doc, answers)
-    refused = steps.problems_in(guide, answers, decided, given)
     by_key = {step["key"]: step for step in guide["steps"]}
     ctx = _ctx(doc, answers)
+    given = _nothing_to_split(by_key, ctx, given)
+    refused = steps.problems_in(guide, answers, decided, given)
     for key, value in given.items():
         if key not in refused and by_key[key]["input"] in d.QUESTION_INPUTS:
             missing = _sub_problem(_subs((_call(by_key[key]["options"], ctx) or {}).get("questions")), value)
@@ -636,7 +651,8 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
             if missing:
                 refused[key] = missing
         if key not in refused and by_key[key].get("check"):
-            code = _call(by_key[key]["check"], {**ctx, "answers": {**answers, **given}}, value)
+            code = _call(by_key[key]["check"], {**ctx, "answers": {**answers, **given}},
+                         [] if value == steps.NOTHING_TO_SPLIT else value)
             if code:
                 refused[key] = str(code)
     if refused:

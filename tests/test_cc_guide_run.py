@@ -991,5 +991,22 @@ class FormEditTests(Base):
         self.assertEqual(len(self.edits), 0)
 
 
+class NothingToSplitTests(unittest.TestCase):
+    """分摊题合计为 0（收款抵减单正好抵平）：空的分摊记成 ``NOTHING_TO_SPLIT``，形状核对收它；交给产品的值是空列表。"""
+
+    def test_the_marker_passes_the_shape_check_and_reaches_the_product_as_an_empty_list(self):
+        from pearnly_core.assistant.guide import steps
+
+        split = {"key": "methods", "input": "split"}
+        self.assertEqual(steps.value_problem(split, steps.NOTHING_TO_SPLIT), "")
+        self.assertNotEqual(steps.value_problem(split, []), "")
+        self.assertNotEqual(steps.value_problem({"key": "x", "input": "amounts"}, steps.NOTHING_TO_SPLIT), "")
+        guide = {"steps": [{"key": "invoices", "input": "amounts", "rule": "always"},
+                           {"key": "methods", "input": "split", "rule": "always", "after": ["invoices"]}]}
+        answers = {"invoices": [{"code": "IV1", "amount": "1"}], "methods": steps.NOTHING_TO_SPLIT}
+        self.assertEqual(steps.state(guide, answers, {}), steps.READY)
+        self.assertEqual(steps.final_values(guide, answers, {})["methods"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

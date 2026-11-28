@@ -82,10 +82,11 @@ export function lockedRows(options: readonly AmountOption[], rows: readonly Amou
 
 export const splitRemainder = (rows: readonly AmountRow[], total: string): bigint => (toMinor(total) ?? 0n) - sumMinor(rows);
 
-/** 分摊哪里不对：一项都没填 / 有一项不是正数 / 合计不等于总额。空着的项不算（没用这种方式）。 */
+/** 分摊哪里不对：一项都没填 / 有一项不是正数 / 合计不等于总额。空着的项不算（没用这种方式）。
+ *  总额是 0（收款：抵减单正好抵平发票，没有钱要分）时一项都不填就对。 */
 export function splitProblem(rows: readonly AmountRow[], total: string): SplitProblem {
   const filled = rows.filter((row) => row.amount.trim() !== "");
-  if (!filled.length) return "empty";
+  if (!filled.length) return toMinor(total) === 0n ? "" : "empty";
   if (filled.some((row) => (toMinor(row.amount) ?? 0n) <= 0n)) return "amount";
   return splitRemainder(filled, total) === 0n ? "" : "mismatch";
 }

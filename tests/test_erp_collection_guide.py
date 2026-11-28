@@ -268,6 +268,38 @@ class Offsets(Base):
         self.assertEqual(found["review"]["total"], "300.00")
 
 
+class FullOffset(Base):
+    """抵减单正好抵平发票（净额 0，原生 29 张 RE）：收款方式那张卡应分 0.00，交空的分摊就算答了，进复核、草稿没有方式；
+    应分不是 0 时空的分摊照旧不收；只勾抵减单照旧退回发票那一步。"""
+
+    ROWS = [{"docnum": "IV1", "rectyp": "3", "docdat": "2026-10-01", "customer": "2100883", "salesman": "S1",
+             "department": "CPI", "net": "1000.00", "received": "0.00", "remaining": "1000.00"},
+            {"docnum": "AI1", "rectyp": "0", "docdat": "2026-09-01", "customer": "2100883", "net": "300.00",
+             "received": "0.00", "remaining": "300.00"}]
+
+    def test_an_empty_split_settles_a_full_offset_only(self):
+        name, _found = self.to_invoices()
+        self.read_back(self.ROWS)
+        run.view(self.runs[name])  # 出卡时落下读回（同页面）
+        found = run.answer(name, {"invoices": [{"code": "IV1", "amount": "300"}, {"code": "AI1", "amount": "300"}]})
+        self.assertEqual(self.questions(found)["methods"]["total"], "0.00")
+        found = run.answer(name, {"methods": []})
+        self.assertEqual(found["status"], "reviewing")
+        self.assertEqual((found["review"]["total"], found["review"]["ready"]), ("0.00", True))
+        self.assertEqual(found["review"]["tables"][1]["rows"], [])
+        draft, _version = guide._draft_name(self.runs[name].draft)
+        self.assertEqual((str(frappe.db.get_value("ERP Collection", draft, "total")), self.runs[name].status),
+                         ("0.00", "reviewing"))
+
+    def test_an_empty_split_is_refused_when_money_is_due(self):
+        name, _found = self.to_invoices()
+        self.read_back(self.ROWS)
+        run.view(self.runs[name])
+        run.answer(name, {"invoices": [{"code": "IV1", "amount": "600"}, {"code": "AI1", "amount": "300"}]})
+        refused = run.answer(name, {"methods": []})
+        self.assertIn("methods", _codes(refused))
+
+
 class SentBack(Base):
     def test_someone_collecting_the_same_invoice_after_review_sends_the_invoices_step_back(self):
         name, found = self.to_review(invoices=[{"code": "IV1", "amount": "1000"}],

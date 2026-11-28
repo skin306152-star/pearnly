@@ -32,6 +32,9 @@ _TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _SUB_KEY = re.compile(r"^[A-Za-z0-9_.:\-]{1,80}$")   # 子题 key（产品给的问题编号，如对账的 rule、POS 的列名编号）
 QUESTIONS_MAX = 50
 _FILE = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
+# 分摊题「没有要分的」：选项函数给的合计是 0（收款：抵减单正好抵平发票，不收钱）时用户交空的分摊，引擎记成这个值（算答过，
+# 依赖它的后面各步照常判）；交给产品的 ``draft`` / ``confirm`` 与核对函数仍是空列表（:func:`final_values`、`run.answer`）
+NOTHING_TO_SPLIT = "@nothing"
 
 
 def _has(value: Any) -> bool:
@@ -153,7 +156,8 @@ def final_values(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: 
     """交给声明的 ``draft`` / ``confirm`` 的值：只含适用的步骤（不适用的那几步就算留着旧答案也不带）。"""
     values = _values(guide, answers, decided)
     out = _ruled_out_keys(guide, values)
-    return {step["key"]: values[step["key"]] for step in guide.get("steps") or ()
+    return {step["key"]: [] if values[step["key"]] == NOTHING_TO_SPLIT else values[step["key"]]
+            for step in guide.get("steps") or ()
             if _has(values.get(step["key"])) and step["key"] not in out and applies(step, values)}
 
 
@@ -203,6 +207,8 @@ def value_problem(step: Mapping[str, Any], value: Any) -> str:
         ok = isinstance(value, (list, tuple)) and 0 < len(value) <= ROWS_MAX and len(set(value)) == len(value) \
             and all(isinstance(v, str) and v for v in value)
         return "" if ok else "a non-empty list of distinct option codes"
+    if kind == "split" and value == NOTHING_TO_SPLIT:
+        return ""
     if kind in ("amounts", "split"):
         return _rows_problem(value, zero=kind == "amounts" and step.get("zero") is True)
     if kind == "file":
@@ -250,5 +256,5 @@ def problems_in(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: M
     return out
 
 
-__all__ = ["ASKING", "FILES_MAX", "QUESTIONS_MAX", "READY", "ROWS_MAX", "TEXT_MAX", "amount", "applies", "blocked", "dependents", "final_values",
+__all__ = ["ASKING", "FILES_MAX", "NOTHING_TO_SPLIT", "QUESTIONS_MAX", "READY", "ROWS_MAX", "TEXT_MAX", "amount", "applies", "blocked", "dependents", "final_values",
            "problems_in", "settled", "state", "to_ask", "value_problem", "without_dependents"]
