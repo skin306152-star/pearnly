@@ -4672,3 +4672,25 @@ class LedgerWordFilter(unittest.TestCase):
         self.assertEqual(E.with_ledger_words(base, None), base)
         self.assertEqual(E.with_ledger_words([], group), [group])
         self.assertTrue(all(like.endswith("%") and "\\_" in like for like in E._UNKNOWN_LIKE))
+
+
+class LedgerGuardSkipsVirtualFields(unittest.TestCase):
+    """保存时把账本栏按加锁读回填（`ledger_guard.keep_current`）不读不落库的虚字段：``ledger_word`` 没有列，读了整次保存报
+    1054（11-28 实验栈：采购 / 销售 / 出入库的保存全挂）。三张单据 DocType 的 ``ledger_*`` 虚字段与 ``keep_current`` 读的列不相交。"""
+
+    def test_keep_current_reads_only_stored_ledger_columns(self):
+        from pearnly_erp_portal.express import ledger_guard
+        root = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype"
+        for doctype in ("purchase_document", "erp_sales_document", "erp_stock_entry"):
+            data = json.loads((root / doctype / f"{doctype}.json").read_text(encoding="utf-8"))
+            dfs = [types.SimpleNamespace(**field, get=lambda key, field=field: field.get(key)) for field in data["fields"]]
+            virtual = {df.fieldname for df in dfs if df.get("is_virtual") and df.fieldname.startswith("ledger_")}
+            self.assertIn("ledger_word", virtual, doctype)
+            asked = []
+            doc = types.SimpleNamespace(doctype=data["name"], name="D-1", is_new=lambda: False, flags={},
+                                        meta=types.SimpleNamespace(fields=dfs, has_field=lambda name: False), set=lambda *a: None)
+            with mock.patch.object(ledger_guard.frappe.db, "get_value",
+                                   lambda doctype, name, fields, **kw: asked.extend(fields) or None, create=True):
+                ledger_guard.keep_current(doc)
+            self.assertTrue(asked, doctype)
+            self.assertFalse(virtual & set(asked), (doctype, virtual & set(asked)))

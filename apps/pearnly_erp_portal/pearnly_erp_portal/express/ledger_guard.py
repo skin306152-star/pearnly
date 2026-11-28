@@ -19,8 +19,10 @@ def keep_current(doc) -> None:
     置 ``doc.flags.ledger_write = True``。"""
     if doc.is_new() or doc.flags.get("ledger_write"):
         return
+    # 不落库的虚字段（``ledger_word``：列表「Express 状态」筛选用）没有列，不读
     fields = [df.fieldname for df in doc.meta.fields
-              if df.fieldname.startswith("ledger_") and df.fieldtype not in ("Section Break", "Column Break", "Tab Break")]
+              if df.fieldname.startswith("ledger_") and df.fieldtype not in ("Section Break", "Column Break", "Tab Break")
+              and not df.get("is_virtual")]
     extra = [name for name in SUBMITTED_ONLY if doc.meta.has_field(name)]
     if not fields and not extra:
         return
