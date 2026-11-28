@@ -642,6 +642,7 @@ Delivery type,Delivery type
 Department,Department
 Department for this rule,Department for this rule
 Deposit,Deposit
+Deposit is not set up for this account set,Deposit is not set up for this account set
 Description,Description
 Detail,Detail
 Details,Details
@@ -3770,6 +3771,7 @@ intake.error.credit_note,Credit notes need a person to post them in Express
 intake.error.currency_not_thb,Only invoices in Thai baht can be sent to Express
 intake.error.date_future,The invoice date is in the future. Correct it and submit again
 intake.error.date_implausible,The invoice date looks wrong. Correct it and submit again
+intake.error.deposit_account_missing,Deposit is not set up for this account set
 intake.error.direction_unknown,Choose purchase or sales for this invoice and submit again
 intake.error.document_policy_needed_payment_evidence,This is a transfer slip. Choose whether to enter it; every document of this kind follows the choice
 intake.error.document_policy_needed_withholding_certificate,This is a withholding tax certificate (50 Tawi). Choose whether to enter it; every document of this kind follows the choice

@@ -55,7 +55,7 @@ class GuideRunCardTests(unittest.TestCase):
         card = read("components/tool-uis/guide-run-card.tsx")
         lib = read("lib/guide-run.ts")
         # 金额行按 rowsToSend 交（lib/guide-run.ts 的 toSend，A2 线 11-16 把一题的值的规则收进纯函数）
-        self.assertIn('if (question.input === "amounts" || question.input === "split") return rowsToSend(value as AmountRow[]);', lib)
+        self.assertIn('if (question.input === "amounts" || question.input === "split") return rowsToSend((value ?? []) as AmountRow[]);', lib)  # 没填过的分摊交空（应分 0 时）
         self.assertIn("answerGuide(view.run, given, view.version)", card)
         self.assertIn("confirmGuide(view.run, view.version, seen)", read("components/tool-uis/guide-review.tsx"))  # 单据复核另带复核指纹（documents 源）
         review = read("components/tool-uis/guide-review.tsx")

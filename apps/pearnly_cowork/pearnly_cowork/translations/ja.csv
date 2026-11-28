@@ -642,6 +642,7 @@ Delivery type,配送方法
 Department,部門
 Department for this rule,部門
 Deposit,入金
+Deposit is not set up for this account set,この帳簿には手付金科目がありません
 Description,摘要
 Detail,詳細
 Details,詳細
@@ -3770,6 +3771,7 @@ intake.error.credit_note,返品・値引伝票は Express で手動で処理し�
 intake.error.currency_not_thb,Express に送れるのはタイバーツの伝票だけです
 intake.error.date_future,伝票日付が未来です。直して再送信してください
 intake.error.date_implausible,伝票日付がおかしいようです。確認して再送信してください
+intake.error.deposit_account_missing,この帳簿には手付金科目がありません
 intake.error.direction_unknown,この伝票が仕入か売上かを選んで再送信してください
 intake.error.document_policy_needed_payment_evidence,これは振込明細です。入力するかを選ぶと、同じ種類のすべてに適用されます
 intake.error.document_policy_needed_withholding_certificate,これは源泉徴収証明書（50 ทวิ）です。入力するかを選ぶと、同じ種類のすべてに適用されます

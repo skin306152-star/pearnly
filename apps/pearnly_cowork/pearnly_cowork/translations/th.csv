@@ -642,6 +642,7 @@ Delivery type,ประเภทขนส่ง
 Department,แผนก
 Department for this rule,แผนก
 Deposit,ฝาก
+Deposit is not set up for this account set,ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินมัดจำ
 Description,คำอธิบาย
 Detail,รายละเอียด
 Details,รายละเอียด
@@ -3770,6 +3771,7 @@ intake.error.credit_note,ใบลดหนี้ต้องบันทึก�
 intake.error.currency_not_thb,ส่งเข้า Express ได้เฉพาะเอกสารสกุลเงินบาท
 intake.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
 intake.error.date_implausible,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.deposit_account_missing,ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินมัดจำ
 intake.error.direction_unknown,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 intake.error.document_policy_needed_payment_evidence,เอกสารนี้เป็นสลิปโอนเงิน เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้
 intake.error.document_policy_needed_withholding_certificate,เอกสารนี้เป็นหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) เลือกว่าจะบันทึกหรือไม่ เอกสารประเภทเดียวกันทั้งหมดจะดำเนินการตามนี้

@@ -5,7 +5,7 @@
 ลดหนี้（减债，``tab-arsc``）；每页签一行一张 ``balnetfarev > 0`` 的单：选框、单号、日期、到期日（``dd/mm/佛历年``）、金额、未收余额。
 客户内部号 = 客户主档接口（``armas/component/bshlistboxdata.php``）``inpdupdata`` 里那一行的 id（按客户码一字不差找）。
 
-收**赊销、增债与减债**三类：减债单在收款导入核销表里是扣减（``importpc.php`` billtype 4 从合计里减，金额照写正数），读进快照
+收**赊销、增债与减债**三类（减债由 ``OFFSETS_RELEASED`` 控制，本批不列）：减债单在收款导入核销表里是扣减（``importpc.php`` billtype 4 从合计里减，金额照写正数），读进快照
 记 ``5``（同 Express 减项的 RECTYP，快照里 5 一律是抵减单，`collection.contracts.is_offset`；退货 / 减项进收款 11-28）。预收不列
 （导入里 billtype 1 是加进合计，与 Express 定金方向相反，语义待核，主会话 11-28 定不做）。
 """
@@ -19,8 +19,13 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-TABS = {"artran": "2", "arsd": "3", "arsc": "5"}  # 页签 → 记进快照的类型（赊销、增债同 importpc 的 billtype；减债记 5 = 抵减单）
-SKIPPED_TABS = ("arad",)
+OFFSET_TAB = "arsc"
+# 减债进收款先不放：待 MR.ERP 测试账套有原生减债单实写验证后放开（菜单 124 要有 MR.ERP 管理员关联账簿并开一张减债单；2026-11-28 主会话定）。
+# 解析与核销表扣减的代码和离线测试保留，放开只改这一个常量；不做租户开关、不进站点配置。
+OFFSETS_RELEASED = False
+_ALL_TABS = {"artran": "2", "arsd": "3", OFFSET_TAB: "5"}  # 页签 → 记进快照的类型（赊销、增债同 importpc 的 billtype；减债记 5 = 抵减单）
+TABS = {name: kind for name, kind in _ALL_TABS.items() if OFFSETS_RELEASED or name != OFFSET_TAB}
+SKIPPED_TABS = ("arad",) if OFFSETS_RELEASED else ("arad", OFFSET_TAB)
 ROWS_MAX = 2000
 READ_FAILED = "ERR_MRERP_RECEIVABLES_UNREADABLE"
 LOCK_WAIT_SECONDS = 60
@@ -133,4 +138,4 @@ def read(lease: Dict[str, str], account_set_key: str, customer: str, *, menu: st
         return {"items": None, "menus": observed, "error": "ERR_UNEXPECTED"}
 
 
-__all__ = ["READ_FAILED", "SKIPPED_TABS", "TABS", "customer_id", "parse_bills", "read"]
+__all__ = ["OFFSETS_RELEASED", "OFFSET_TAB", "READ_FAILED", "SKIPPED_TABS", "TABS", "customer_id", "parse_bills", "read"]

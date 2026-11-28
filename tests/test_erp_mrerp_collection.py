@@ -137,13 +137,21 @@ class SheetOffsets(unittest.TestCase):
 
 
 class Receivables(unittest.TestCase):
-    def test_open_bills_are_credit_sales_debit_and_credit_notes_with_dates_and_balances(self):
-        # 减债（arsc）11-28 起也列、记 5（= 抵减单，`collection.contracts.is_offset`）；预收（arad）不列
-        found = receivables.parse_bills(SELBILL)
-        self.assertEqual(found, [{"docnum": "SI000001-1", "rectyp": "2", "docdat": "2026-11-15", "net": "1070.00",
-                                  "received": "200.00", "remaining": "870.00"},
-                                 {"docnum": "SC-1", "rectyp": "5", "docdat": "2026-11-16", "net": "10.00",
-                                  "received": "0.00", "remaining": "10.00"}])
+    SALE = {"docnum": "SI000001-1", "rectyp": "2", "docdat": "2026-11-15", "net": "1070.00",
+            "received": "200.00", "remaining": "870.00"}
+    CREDIT = {"docnum": "SC-1", "rectyp": "5", "docdat": "2026-11-16", "net": "10.00",
+              "received": "0.00", "remaining": "10.00"}
+
+    def test_credit_notes_are_not_listed_until_released(self):
+        # 减债（arsc）本批不列：待 MR.ERP 测试账套有原生减债单实写验证后放开（改 OFFSETS_RELEASED 一处）；预收（arad）不列
+        self.assertFalse(receivables.OFFSETS_RELEASED)
+        self.assertIn("arsc", receivables.SKIPPED_TABS)
+        self.assertEqual(receivables.parse_bills(SELBILL), [self.SALE])
+
+    def test_once_released_a_credit_note_is_listed_as_an_offset(self):
+        # 放开后的样子（解析代码保留）：减债记 5（= 抵减单，`collection.contracts.is_offset`）
+        with patch.dict(receivables.TABS, {"arsc": "5"}):
+            self.assertEqual(receivables.parse_bills(SELBILL), [self.SALE, self.CREDIT])
 
     def test_a_bounced_page_is_unreadable_not_empty(self):
         self.assertIsNone(receivables.parse_bills('<script>alert("Login")</script>'))
@@ -489,7 +497,7 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual(reads, [(USER, "15:1", "C0001", "")])
         self.assertEqual(SNAPSHOT[0][:3], ("CO-1", "15:1", "C0001"))
         self.assertEqual([(i["docnum"], i["rectyp"], i["remaining"], i["customer"]) for i in SNAPSHOT[0][3]],
-                         [("SI000001-1", "2", "870.00", "C0001"), ("SC-1", "5", "10.00", "C0001")])
+                         [("SI000001-1", "2", "870.00", "C0001")])  # 减债本批不列（receivables.OFFSETS_RELEASED）
         self.assertEqual(ledger.request("CO-1", dict(BOOK), "C0001"), "ready")
 
     def test_prepare_full_partial_two_invoices_transfer_discount(self):

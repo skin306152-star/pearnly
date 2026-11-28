@@ -2379,6 +2379,7 @@ The return is not in the expected form	退货单数据格式不对	ข้อม�
 The invoice balance is less than the amount received	发票余额少于本次收款	ยอดคงค้างของใบกำกับน้อยกว่ายอดรับชำระ	請求書の残高が入金額より少ないです	intake.error.already_collected
 The invoice is not in Express	Express 中没有此发票	ไม่พบใบกำกับนี้ใน Express	この請求書は Express にありません	intake.error.invoice_not_found
 This receipt type has no usable account in Express	此收款方式在 Express 中没有可用科目	ประเภทการรับชำระนี้ไม่มีบัญชีที่ใช้ได้ใน Express	この入金方法には Express で使える勘定科目がありません	intake.error.receipt_type_invalid
+Deposit is not set up for this account set	此账套未设置定金科目	ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินมัดจำ	この帳簿には手付金科目がありません	intake.error.deposit_account_missing
 No cash account is set in Express	Express 未设置现金科目	ยังไม่ได้ตั้งบัญชีเงินสดใน Express	Express に現金勘定が設定されていません	intake.error.cash_account_missing
 Choose the sales returns account	请选择销货退回科目	กรุณาเลือกบัญชีรับคืนสินค้า	売上返品勘定を選んでください	intake.error.pos_refund_account_missing
 Each returned line must be an Express stock item	退货明细须为 Express 库存商品	รายการรับคืนต้องเป็นสินค้าคงคลังใน Express	返品明細は Express の在庫品である必要があります	intake.error.pos_refund_items_invalid

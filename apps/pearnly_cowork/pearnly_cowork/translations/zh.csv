@@ -642,6 +642,7 @@ Delivery type,运输方式
 Department,部门
 Department for this rule,部门
 Deposit,存款
+Deposit is not set up for this account set,此账套未设置定金科目
 Description,摘要
 Detail,详情
 Details,详细信息
@@ -3770,6 +3771,7 @@ intake.error.credit_note,贷项通知单需在 Express 中人工处理
 intake.error.currency_not_thb,仅泰铢发票可推送至 Express
 intake.error.date_future,票面日期晚于当前日期，请更正后重新提交
 intake.error.date_implausible,票面日期可能有误，请核对后重新提交
+intake.error.deposit_account_missing,此账套未设置定金科目
 intake.error.direction_unknown,请选择此发票为进项或销项后重新提交
 intake.error.document_policy_needed_payment_evidence,此单据为转账凭条。选择是否录入，所有同类单据将按此处理
 intake.error.document_policy_needed_withholding_certificate,此单据为预扣税凭证（50 ทวิ）。选择是否录入，所有同类单据将按此处理
