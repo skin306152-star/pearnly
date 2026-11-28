@@ -443,6 +443,7 @@
 | CC 核对工具 `erp_resolve_push_result` | 只收收回的（交原电脑核对） | 同左：迟到写成的回「没有要核对的」（单号已在单据上，交人在 Express 里处理） | `cc_tools.py` 核对 |
 
 - **没改、要主会话 / 用户定**：单据页状态栏、列表 Express 列、列表筛选、LINE 回执开头的**状态词**仍是「失败」。状态词是用户 11-22 统一定的四个（录入中 / 成功 / 失败 / 已取消，网页列表、详情、Express 弹窗、LINE 回执同一张表，`contracts.LEDGER_WORDS` 与 `transactions.js` 契约测试比对），「结果不明」不在里面；MR.ERP 的结果不明今天也是状态「失败」+ 原因一句。要在这几处把状态词改成「结果不明」，是给全产品加第五个状态词、筛选加一档（新文案），超出本条授权，没做。收款（`collection.push`）的收回转人工没在本条核。
+- （第三轮改：迟到写成那种的原因、CC 结论、写账前判定档见下面「第三轮补充」；上表那几行按第三轮为准。）
 - **改了钉旧行为的断言**：test_erp_cc_companies `test_reason_labels_are_the_document_page_table` 原来断言 `cc_desktop.result_unknown` 说「失败 / 待处理」，按新口径改成「结果不明」（同时补 `…:moved_during_write`），其余小写码照旧。
 - **离线**：test_erp_express_direct `StaleJobReceipt` 改 3 条、新增 1 条（时间线评论：旧件写成一条带旧单号；现在那件再写成第二条两张都带；被改过的单写成一条（单据原记另一张时两张都带）；作废的不记；「结果不明」一家的原因、写账前判定档、单据页映射与共用层四语词条在）；test_erp_cc_chat_push 新增 1 条（迟到写成的推送结论 unconfirmed、带单号、不再推、列单带 result_unknown）。在 1fca58025 上：评论 2 条、档位 1 条、推送 1 条红（另 1 条因没有 `result_unknown` 报错）。修后 test_erp_express_direct 231、test_erp_cc_chat_push 41、test_erp_cc_companies 46、test_erp_collection 93、test_erp_mrerp_direct 58、test_erp_mrerp_collection 43、test_erp_pending_guide 13、test_erp_guide_documents 9、test_erp_write_precheck 34、test_line_receipt 21、test_stop_exits 11、test_check_copy 77、test_cc_desktop_channel 60、test_companion_contract 142 等过；check-architecture、check-unbounded-queries、check-unlocked-overwrite --extended（新增 0）、check-conflict-catch、check-stop-exits、i18n-build --check 过；`node --check transactions.js` 过。
 - **共用件**：`check-impact.py --base 1fca58025` 命中 `erp-transactions`（改了 `transactions.js` 单据页 Express 弹窗原因那一行）24 个入口：没在浏览器里逐个实测（只改了弹窗原因栏取词的一个分支，其余入口不经过它）——**没测到**，合入前要按闸门补。
@@ -459,6 +460,30 @@
 | express.comment.writtenEarlier | 之前的写入已写进 Express：{0} | Written to Express by an earlier entry: {0} | รายการก่อนหน้าบันทึกเข้า Express แล้ว: {0} | 以前の書き込みが Express に記録されました：{0} |
 | express.comment.writtenAfterChange | 单据变更后写进了 Express：{0} | Written to Express after the document changed: {0} | บันทึกเข้า Express หลังเอกสารเปลี่ยนแปลง: {0} | 書類の変更後に Express に書き込まれました：{0} |
 | express.comment.writtenTwice | 两次写进了 Express：之前 {0}，当前 {1} | Written to Express twice: earlier {0}, current {1} | บันทึกเข้า Express สองครั้ง: ก่อนหน้า {0} ปัจจุบัน {1} | Express に2回書き込まれました：以前 {0}、現在 {1} |
+
+#### 第三轮补充（主会话 11-28）：迟到写成转人工不引向走不通的出口；状态词 / 筛选档收进一个判据（57d0f3f6c）
+
+- **迟到写成转人工（`MOVED_DURING_WRITE`）改说「已写进 Express，需人工处理」**：第二轮把它归进「结果不明」，CC 会说「核对后记下」，而核对工具 `erp_resolve_push_result` 只收共用通道收回的那种（交原电脑核对），对它回「没有要核对的」——出口走不通。改成：原因词条 `express.reason.writtenNeedsHandling`（四语，`pending.REASONS` 与 `transactions.js` 的 `EXPRESS_REASONS` 同一张表，契约测试比对）；CC 推送结论 `entered` + 单号 + `needs_person`（不再推，推送工具与列单的说明各补一句 needs_person 的意思），列单在「要人处理」那档、带 `written.docnum` 与 `needs_person`、不带 `result_unknown`；写账前判定归「写不了·已写入」（`precheck.py`，不进「核对已入账 / 没入账」那一档）。共用通道收回后转人工（`LOST`）照第二轮：「结果不明」+ 核对出口。
+- **这种单的出口逐个核**（都走得通，没有要去掉的）：
+
+| 入口 | 给的按钮 / 出口 | 走得通？ | 依据 |
+|---|---|---|---|
+| 单据页 Express 弹窗（采购 / 销售 / 出入库 / 盘点） | 只读：状态、Express 单号、原因；「再写一次」「选一次」不出（单据记着写成的件，`can_retry` / `can_answer` 为假；点接口也回无权限） | 是 | `api._view`、`api.retry`、`api.answer` |
+| 单据页 Express 弹窗（收银日汇总 / 退货单） | 「已在 Express 手工处理」 | 是（e7424db7a 起不去撤写成的件） | `api.mark_handled` |
+| 单据作废（网页原生作废） | 作废照常；单据停在转人工、单号留着 | 是 | `push.void` |
+| 待处理（网页 / CC 右栏） | 「打开」→ 这张单的页面 | 是 | `pending.py` `action: open` |
+| LINE 回执 | 「失败 · 已写进 Express，需人工处理」+【编辑】；已提交的单【编辑】打开的是这张单的查看页 | 是 | `integrations/intake.open_for_edit` 回 `recorded` → `purchase.js` / `sales.js` 转查看页 |
+| CC 对话推送 / 列单 / 引导结果卡 | 已写进 + 单号 + 需人工处理；不再推、不给核对 | 是 | `cc_tools._outcome`、`guide_documents.result` |
+| CC 核对工具 | 对它回「没有要核对的」；推送结论已不引向它 | 不引向 | `cc_tools.resolve_push_result` |
+
+- **状态词 / 筛选档的一个判据**：`contracts.shown_state(state, reason)`——「结果不明」一家（`UNKNOWN_FAMILY`：`cc_desktop.result_unknown…`（收回、迟到写成）与 `mrerp.result_unknown…`（MR.ERP 导入））停下时显示成哪个账本状态，`UNKNOWN_SHOWN_AS` 现状 = `held`（状态词「失败」、CC 列单「要人处理」那档），用户没定之前**显示不变**。各入口都从它取：服务端 `ledger_word`（LINE 回执开头的状态词、`ledger_settled`）、待处理的状态词兜底与粗分 `reason_code`、CC 列单 `last_push_status` 与「已入账」判断；单据页 / 列表 / 弹窗的 `p.ledger_word` 先过 `p.shown_state`（`transactions.js` 里同名常量 `UNKNOWN_FAMILY` / `UNKNOWN_SHOWN_AS`，契约测试比对；采购 / 销售 / 出入库 / 收银小票列表的 Express 列都经 `p.ledger_word`）。网页列表没有按写账状态的筛选（只按单据状态），筛选档只有 CC 列单那一处。**限制**：CC 列单按推送状态筛（`push_state`）是按 `ledger_state` 查库（`PUSH_STATES`），若用户定成单列「结果不明」，那一处还要按原因加条件——判据之外还有这一处，没做成自动跟随。
+- **离线**：test_erp_express_direct 改 1 条、新增 1 条（判据换成探针状态，服务端状态词、LINE 回执开头、CC 列单推送状态一起跟着变；换成失败时待处理粗分跟着变；`transactions.js` 常量与服务端一致、`p.ledger_word` 先过判据）；`assert_no_second_write` 的写账前判定改为「写不了·已写入」；test_erp_cc_chat_push 改 1 条（推送结论 entered + 单号 + needs_person、不再推、列单带单号与 needs_person 不带 result_unknown、核对工具不收、推送工具说明有这一句）；test_erp_cc_companies 改 1 条（迟到写成那种说新词）。在 cb1949fe8 上 6 条红（1 条因没有 `shown_state` 报错）。修后 test_erp_express_direct 232、test_erp_cc_chat_push 41、test_erp_cc_companies 46 及其余相关测试过；检查脚本过；`check-copy.py --base cb1949fe8 --report`：新增 1、改动 0、拦截 0、标黄 0（翻译包里改写前的残留行已删）。
+
+| 键 | 中文 | English | ไทย | 日本語 |
+|---|---|---|---|---|
+| express.reason.writtenNeedsHandling | 已写进 Express，需人工处理 | Written to Express, needs manual handling | บันทึกเข้า Express แล้ว ต้องดำเนินการด้วยตนเอง | Express に書き込み済み、手動処理が必要です |
+
+- **实验栈回归**（栈挂本工作树 57d0f3f6c 后 3 轮）：`erp.stale_job_receipt`、`erp.stale_save_keeps_ledger`、`erp.mrerp_conclusion_conflict`、`erp.mrerp_poll_stale` 各 3/3。本轮改的是显示与 CC 结论，实验格不经过这些（离线覆盖）；共用件 `transactions.js` 命中的 erp-transactions 入口仍没在浏览器实测（同第二轮）。
 
 ### ④ code-review（medium，24e3f1e3f...64b991eae）六条处理
 
