@@ -142,3 +142,25 @@ code-review（medium，段 ③ b / c）：发现 6 / 真 6 / 修 5（第 6 条�
 | A8 连接页 | 以本机截图代替 | 主会话定不 lab-start；用 `cloud-connect-shots/` 18 张定稿；真机新页面并进夜间 |
 
 缺陷（真机发现、已修）：CC 被强行结束（任务管理器 / 崩溃 / 安装覆盖）后隧道盘 Z: 不撤、留到注销；下次启动不自动连（没存密码 / 被挤）或没连着就断开时也不撤。修：`cloud_link.host.release_stale_drive`（只撤指向本连接隧道根的那个盘符），启动不连与没连着断开两处调用；要连时照旧由宿主接着用。离线测 `tests/test_cloud_remember.py`。真机复验并进夜间。
+
+## 11-28 夜间真机后的修复（express-cloud-stage2 窗口）
+
+真机结果与证据见 `~/pearnly-devtools/handoff-1128/express-cloud-stage2.md` 第四节。以下按提交：
+
+| 提交 | 问题（11-28 真机） | 改法 | 证据层级 |
+| --- | --- | --- | --- |
+| 8e3dffa0d ① | 安装脚本 / 启动项 / 会话文件都不带桥名，心跳不带 link，云端电脑显示「本地 Express」、ERP 云端标签空 | 缺 `--cloud-via` 时取远程桌面会话客户端名（`HKCU\Volatile Environment\<会话号>\CLIENTNAME`，再环境变量；`Console` 不算） | 离线；真机确认 CLIENTNAME=DESKTOP-BRIDGE1 |
+| 4805628cf ② | 桥重启后隧道盘重新映射，`CtlWatch` 的 `watcher.wait` 抛错、线程静默退出 → 自升级 / 卸载 / 成员再也收不到；云端 CC 等会话退避最长 15 分钟 | 监视出错重开、线程不死；等会话时有隧道盘就盯 `ctl`，没有最多 30 秒探一次 | 离线 |
+| b56132684 ③ | 线上清单带云端包后，测试构建的桥配对 / 重连 / 重启都把隧道盘 `cc\` 放成线上包 | 测试构建随包带云端包（`release.ps1 -BundleCloud` → `cloud-bundle\`），`cloud_package` 有随包就只用它；正式发布不带 | 离线 |
+| e3beb64de / 8574fb33a ⑨a | 「断开连接」删了用户存的远程桌面密码与连接（实操登录那条反而留着） | 用户定：断开只断开（留连接与两条密码，记 `halted=user`，启动不自动连，「重新登录」免输）；删凭据是单独的「移除」（见下） | 离线 |
+| 2a3a1b0b5 ⑨b | 自升级 / 卸载小进程在本进程退出后什么都没做（同一脚本手动跑成功） | 小进程改用 CREATE_NO_WINDOW + NEW_PROCESS_GROUP + BREAKAWAY_FROM_JOB（不许脱出就去掉），去掉 `-WindowStyle Hidden`；起止写 trace（`cc-cloud-upgrade.txt` / `cc-cloud-uninstall.txt`） | 离线；真机待验 |
+| 77e2597b2 ⑨d | 登记时退役死记录 `retired_by="auto"` 过不了 User 链接校验，一台都没退役 | 记在 `Administrator` | 离线 |
+| 8bd5dfc10 ⑨c | 云端 Z1(TEST) 与 Express 空白模板 DAT 同税号、同分店、同年度 → 选公司后账套默认落 DAT；在选择器里改成 Z1 下次又回 DAT | 两本按账套键（book_key，按目录区分）各是一个选项，默认绝不落在空白模板（数据文件夹 `DAT`）上；人在选择器里选过的那一本按公司记住（同月多本覆盖记在该年度下，都不覆盖记在 `uncovered` 下），之后作默认；拿不准（同月多本覆盖且没记过）照旧不给默认、要人选 | 离线 |
+
+### 新入口「移除」（云端 Express 行「···」）
+- 用途：删掉这台电脑上的云端连接（连接记录、远程桌面密码 `TERMSRV/<主机>` 与 `Pearnly CC/cloud/<主机>`、实操登录 `Pearnly CC/cloud-express/<主机>/default`）；连着时先同「断开」一样请云端删安装、等回执。
+- 实现入口：页面 `frontend/assistant/src/components/cloud-express.tsx`（`forget` → `api.call("cloud_forget")`）；桥 `tomo_bridge._cloud_settings`（`cloud_forget` 与 `cloud_disconnect` 同一流程，多删凭据）；`settings_link.disconnect(forget_operator=…)` → `LinkStore.remove`。
+- 出不出：桥 `cloud_status` 回 `forget: true` 才出（同其它云端能力不进 FEATURES）；旧桌面版不出。
+- 点击去向：留在连接页，行回到未连接（没有连接记录时是「连接」按钮）。
+- 所需配置 / 角色：无（本机）。文案复用已有 `st.remove`（四语已有：移除 / Remove / นำออก / 削除），没有新增文案。
+- 验证：`tests/test_cc_cloud_express.py`、`tests/test_companion_contract.py`、companion `test_cloud_host.py` / `test_cloud_settings_link.py`；真机待第二次夜间（断开后重新登录免输、重启不自动连、移除后三条凭据都没了）。产品地图 erp / cowork 两行已补说明。
