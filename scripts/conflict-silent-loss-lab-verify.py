@@ -1261,6 +1261,131 @@ def mrerp_conclusion_conflict(site, rounds, results):
         frappe.db.commit()
 
 
+def mrerp_collection_conclusion_conflict(site, rounds, results):
+    """④ 按类同 A2 #16：收款导入 MR.ERP（`collection.mrerp.run`）记结论撞冲突。导入替身（共用层 `mrerp.push.receipt.execute`）回
+    「已写入 + FR 单号」；记结论那笔事务写下收款行之后，另一路（先改了几张别的单、再锁着公司行）来改这笔收款，本连接接着锁公司行
+    → 真 1213，InnoDB 回滚较轻的本连接。判：这笔记成已写入、单号在，导入只发 1 次。修前：1213 抛出任务、这笔停在「写入中」
+    （15 分钟后被巡检转成结果不明）。账本判定、准备、凭据、账号占用、写后按客户重读、告诉录入的人换替身；死锁回滚另一路的不算。"""
+    import threading
+    import time
+
+    import pearnly_core.mrerp.push.receipt as core_receipt
+    import pearnly_core.session_lock as session_lock
+    from pearnly_erp_portal.collection import contracts, mrerp as collection_mrerp, push as collection_push, service
+    from pearnly_erp_portal.mrerp import connection as connections
+    from pearnly_erp_portal.purchasing import suppliers
+
+    co, collector, book_key, customer, docnum = _collection_seed()
+    frappe.set_user(erp_user())
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    ballast = [_purchase(co, supplier, "MCCB") for _ in range(8)]  # 另一路先改这几张：比本连接重，死锁时回滚本连接
+    calls, state = {"count": 0}, {}
+
+    def execute(payload, target, secrets_, url):
+        calls["count"] += 1
+        return {"status": "success", "docnum": state["docnum"], "menus": {}, "masters": None}
+
+    def other(locked, name):
+        try:
+            frappe.init(site=site, sites_path=SITES)
+            frappe.connect()
+            for row in ballast:
+                frappe.db.sql("update `tabPurchase Document` set notes=%s where name=%s", (secrets.token_hex(4), row))
+            frappe.db.sql("select name from `tabERP Company` where name=%s for update", (co,))
+            locked.set()
+            frappe.db.sql("update `tabERP Collection` set modified=modified where name=%s", (name,))
+            frappe.db.sql("select name from `tabERP Collection` where name=%s for update", (name,))
+            frappe.db.commit()
+            state["other"] = "committed"
+        except Exception as error:  # noqa: BLE001
+            state["other"] = type(error).__name__
+            frappe.db.rollback()
+        finally:
+            frappe.destroy()
+
+    db = frappe.local.db
+    real_set = db.set_value
+
+    def hooked(doctype, name, field, *args, **kwargs):
+        out = real_set(doctype, name, field, *args, **kwargs)
+        if state.get("armed") and doctype == collection_mrerp.DOCTYPE and name == state["name"] and isinstance(field, dict) \
+                and field.get("status") == contracts.WRITTEN:
+            state["armed"] = False
+            locked = threading.Event()
+            state["thread"] = threading.Thread(target=other, args=(locked, name))
+            state["thread"].start()
+            locked.wait(20)
+            time.sleep(0.5)  # 另一路已在等这笔收款的行锁
+            try:
+                frappe.db.sql("select name from `tabERP Company` where name=%s for update", (co,))
+                state["victim"] = "other"
+            except Exception as error:  # noqa: BLE001
+                state["victim"] = "main" if isinstance(error, frappe.QueryDeadlockError) else type(error).__name__
+                raise
+        return out
+
+    book = {"key": book_key, "connection": f"{TAG}-MRC"}
+    saved = [(module, key, getattr(module, key)) for module, key in (
+        (collection_mrerp, "handles"), (collection_mrerp, "prepare"), (collection_mrerp, "request"),
+        (collection_push, "_tell"), (connections, "lease"), (session_lock, "operator_holds"), (core_receipt, "execute"))]
+    handles = collection_mrerp.handles
+    collection_mrerp.handles = lambda company: True
+    collection_mrerp.prepare = lambda doc: {"payload": {"number": doc.name}, "book": dict(book)}
+    collection_mrerp.request = lambda company, book, customer: "reading"
+    collection_push._tell = lambda doc: None
+    connections.lease = lambda name: {"username": "u", "password": "p", "system_url": "https://mrerp.invalid"}
+    session_lock.operator_holds = lambda key: False
+    core_receipt.execute = execute
+    db.set_value = hooked
+    made, tried = [], 0
+    try:
+        while results.get("erp.mrerp_collection_conclusion_conflict", {}).get("ok", 0) + \
+                results.get("erp.mrerp_collection_conclusion_conflict", {}).get("bad", 0) < rounds and tried < rounds * 3:
+            tried += 1
+            frappe.set_user(collector)
+            collection_mrerp.handles = handles  # 草稿照实验站原样建（公司接的是 Express 账套），领取起才按 MR.ERP 走
+            name = service.create_draft(co, customer, [{"docnum": docnum, "amount": "100"}], cash="100")["name"]
+            collection_mrerp.handles = lambda company: True
+            made.append(name)
+            frappe.db.set_value(collection_mrerp.DOCTYPE, name, {"status": contracts.QUEUED, "job": None, "reason": ""},
+                                update_modified=False)
+            frappe.db.commit()
+            calls["count"] = 0
+            state.clear()
+            state.update(name=name, docnum=f"FR{TAG}{secrets.token_hex(3)}", armed=True)
+            error = None
+            try:
+                collection_mrerp.run(name)
+            except Exception as exc:  # noqa: BLE001
+                error = "".join(traceback.format_exception_only(type(exc), exc)).strip()[:200]
+            frappe.db.rollback()
+            if state.get("thread"):
+                state["thread"].join(60)
+            row = frappe.db.get_value(collection_mrerp.DOCTYPE, name, ["status", "reason", "docnum"], as_dict=True)
+            if state.get("victim") != "main":
+                cell = results.setdefault("erp.mrerp_collection_conclusion_conflict", {"ok": 0, "bad": 0})
+                cell["not_real"] = cell.get("not_real", 0) + 1  # 死锁回滚的是另一路（或没撞上）：这一轮不算
+                cell.setdefault("not_real_detail", {"victim": state.get("victim"), "error": error, "row": dict(row or {})})
+                continue
+            tally(results, "erp.mrerp_collection_conclusion_conflict",
+                  row.status == contracts.WRITTEN and row.docnum == state["docnum"] and calls["count"] == 1 and not error,
+                  {"error": error, "row": dict(row), "imports": calls["count"], "other": state.get("other")})
+    finally:
+        db.set_value = real_set
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.db.rollback()
+        for name in made:  # 记成已写入的这几笔不占发票余额，测完改成已撤回，同一栈上的别的格看不到
+            frappe.db.set_value(collection_mrerp.DOCTYPE, name, {"status": contracts.WITHDRAWN, "reason": ""},
+                                update_modified=False)
+        for name in ballast:
+            frappe.db.set_value("Purchase Document", name, {"notes": None}, update_modified=False)
+        frappe.db.commit()
+        _collection_cleanup(collector, book_key, customer)
+
+
 def mrerp_poll_stale(site, rounds, results):
     """④ 巡检（`mrerp.push.poll`）：每分钟巡检普通读列出「排队中、正在导入且超过 15 分钟」的单，此间导入刚把它记成已写入并提交；
     巡检接着按列出时的旧值改 → 修前盖成「结果不明」（已写进 MR.ERP、单号在，却要人工核）；修后加锁按现值复核、不动。
@@ -1334,6 +1459,7 @@ def erp(site, rounds):
     guarded(results, "erp.snapshot_balances_stale", snapshot_balances_stale, site, rounds, results)
     guarded(results, "erp.mrerp_conclusion_conflict", mrerp_conclusion_conflict, site, rounds, results)
     guarded(results, "erp.mrerp_poll_stale", mrerp_poll_stale, site, rounds, results)
+    guarded(results, "erp.mrerp_collection_conclusion_conflict", mrerp_collection_conclusion_conflict, site, rounds, results)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
