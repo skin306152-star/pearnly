@@ -290,7 +290,7 @@
 - `push_one` 在推之前按跟随公司选的账套 `retarget`（加锁读比去向，但不看人是否刚推过）：人推往另一份账套后、定时任务回 human 之前，票上的去向已被改成任务那份（只影响显示与按公司归类，不建推送记录），没改。
 - 顺手（76c687b83）：实验格收款两格 `_collection_seed` 改账套资料前记下原值，`_collection_cleanup` 还原（原来没有就删文件，同 `collection_lib.restore`）；实验栈上跑前跑后资料一致，原来没有资料时跑完文件已删。
 
-### A2 #12 LINE 收单识别任务记结果撞冲突：识别已付费、结果丢了（`integrations/intake.run`）
+### A2 #12 LINE 收单识别任务记结果撞冲突：识别已付费、结果丢了（`integrations/intake.run`；同类 `run_chat`）
 
 - **现象**：识别任务开头普通 `get_doc` 判「还在排队」；`_fetch` 从 LINE 取件、交原件层上传后，`save` + `commit` 记到收单记录上；付费识别（扣费参考号固定 `erp.line_intake:<名>`）之后 `reload` → `save` 写成待提交 → 预选 → 提交 → 出题 → 发 LINE。整段不在 `conflicts.retried` 里，识别执行器对任何异常都整笔回滚、记 `workflow_error`、不重放（`execution/work.py`）。识别期间另一路改过这张卡（关快照隔离后 `reload` 读到的是本笔读视图里的旧修改时间），`save` 撞保存前比对：**识别已付费、结果丢了**，用户被告知重发，重发是新消息、新参考号，再扣一次；取件期间另一路改过，`_fetch` 的 `save` 撞上：File 与记录一起回滚，**存放处那份没人删**。
 - **核实**：执行器检查点 `work.checkpoint(key, state, body)` 按行 `INSERT … ON DUPLICATE KEY UPDATE` 后当场 `frappe.db.commit()`；同一份 Work 重跑时 `run` 每次从库里重读（`context` 清缓存 → `_stages` → `stored_checkpoints`），能取回。`state` 是自由文本：`run` 只看 `started`（判结果不明）与 `done` / `external`（判已付费），`done_calls` 只数 `done`；Cowork 已有产品自己的 `terminal`。删除链：登记 File 删掉时 `RegisteredFile.on_trash` 排 `enqueue_after_commit` 的 `purge` 删存放处那份；盘上那份 `delete_file_from_filesystem` 在 `after_commit` 才删（② 11-28）；回滚两样都不动。本机存的新 File 回滚时由 Frappe `File.on_rollback` 删盘。
@@ -313,10 +313,22 @@
 |---|---|---|
 | `erp.line_intake_save_conflict`（识别替身，扣费参考号计数；识别期间 / 从 LINE 取件期间另一路改这张卡并提交，两种各半） | 0/12（两种都抛 TimestampMismatchError：卡还在排队、识别已调 1 次、结果丢了、没发 LINE；取件那种记录上没有原件） | 12/12（待提交、结果在、识别 1 次、取件 1 次、发 LINE 1 次、只留记上的那份 File） |
 
-修后另跑 `erp.line_card_submit_vs_cancel`、`erp.file_delete_rolled_back` 各 3 轮全过。格里任务在 `work.context(<b3lab 编号>)` 里跑（检查点照真写、跑完删），LINE 绑定、取件、出题、发送换替身。
+| `erp.cc_intake_save_conflict`（CC 对话收单 `run_chat`，识别替身；识别期间另一路改这条并提交） | 0/12（抛 TimestampMismatchError：还在排队、识别已调 1 次、结果丢了） | 12/12（5c8de8667：待提交、结果在、识别 1 次、不发 LINE） |
+
+修后（5c8de8667）两格同一次各 12 轮重跑全过（LINE 那格修前同样 0/12）。修后另跑 `erp.line_card_submit_vs_cancel`、`erp.file_delete_rolled_back` 各 3 轮全过。格里任务在 `work.context(<b3lab 编号>)` 里跑（检查点照真写、跑完删），LINE 绑定、取件、出题、发送换替身。
 
 #### 已知 / 没做
 
-- `run_chat`（CC 对话收单，`erp.cc_intake`）同样「普通读 → 付费识别 → reload → save」、同样不在 `retried` 里，④ 清单与静态检查都没列它；不在本条范围，没改，交主会话定（改法可直接照本条：结果检查点 + 记结果包 `retried`）。
-- 记结果用尽后靠队列重跑，重跑前这张一直是「排队中」；本机没造出连撞 4 次（离线覆盖）。
-- 存放处那份的删除只在离线验（实验栈原件层是本机存放，`store.where() == local`）；本机存的新 File 回滚时 Frappe 自己删盘，修前在实验栈上也看不到残留。
+- 存放处那份的删除、记结果用尽后的重跑只在离线验（见上）。
+- 记结果用尽后靠队列重跑，重跑前这张一直是「排队中」；本机没造出连撞 4 次。实验栈原件层是本机存放（`store.where() == local`），本机存的新 File 回滚时 Frappe 自己删盘，修前在实验栈上也看不到残留。
+
+#### 按类同改：CC 对话收单 `run_chat`（`erp.cc_intake`，主会话 11-28）
+
+- **现象**：同 LINE：普通 `get_doc` 判状态 → 付费识别（参考号 `erp.cc_intake:<名>`）→ `reload` → `save`，不在 `retried` 里；识别期间另一路改过这条，`save` 撞保存前比对，识别已付费、结果丢了。④ 清单与静态检查都没列它。
+- **改法**（5c8de8667，与 LINE 共用 `_checkpointed` / `_keep_result`）：开头加锁读判状态、随即提交放锁；识别结果进同一个结果检查点；记结果包 `retried`、重来不调识别；用尽抛 `Deferred("conflict")`，重跑从检查点取回；识别期间已不在排队不改回。原件在 `receive_chat` 收下时已存好，这里不取件。方向是猜的、按采购读出是本公司开的票时改按销售读：改方向的 `set_value` 先提交（记结果整笔重来不会把它回滚掉）。CC 对话不回 LINE，记录由 CC 读（`chat_records`），返回值照旧。
+- **离线**：test_cc_intake 新增 `RunConflict` 3 条（撞一次 → 待提交、识别 1 次、两处读加锁；用尽 → `Deferred`、重跑从检查点取回、识别仍 1 次；识别期间被取消 → 不改回），修前代码上全红（2 条抛 TimestampMismatchError，1 条把取消的改回待提交）；`Base` 补检查点替身，一条同一替身跑两次的测试清检查点（两份 Work）。test_cc_intake 16 条、test_line_intake 154 条在容器里过；check-unlocked-overwrite --extended 新增 0、check-architecture、check-unbounded-queries、check-conflict-catch、test_snapshot_reset、test_conflict_catch_sites、test_erp_write_precheck 过；`check-impact.py --base d862e8bae` 命中共用件：无。
+
+#### 同形状只读核（不改）
+
+- **Cowork LINE 收单**（`line/intake._admit` → `ocr.execution.workflow.run`）：已是本条的形状。取件 + 存原件后先提交再交识别；识别结果由 `_freeze_result` 加锁读任务单写进 `result_json` 并提交（之后重跑看到 `result_json` 就不再识别，供应方调用另有检查点）；落票 `_persist` 加锁重读，撞冲突（`conflicts.is_conflict`，含保存前比对）回滚后 `Deferred("database_busy")` 稍后再来；LINE 通知（`cowork_ocr_recognized` → `announce`）在落票提交之后。剩一处小的：`run` 开头普通 `store.read` 后把 `phase` 写成 recognizing 并 `save`，这一步撞保存前比对不在接冲突的范围里，会记 `workflow_error`——在付费识别之前，不丢已付费的结果，用户收到「请重发」。没改。
+- **DMS 身份证识别**（`intake/flow._recognize_image`）：没有「旧副本 save」：识别后 `commit`，再按会话加锁比较交换（`line_session.replace_session_snapshot`），草稿变了回 `draft_changed`（有意丢弃）；识别记录 `_record_ocr` 只插新行、写不上只记日志；扣费参考号按 LINE 消息固定（`idcard:line:<消息>`），LINE 重投不重复扣。识别结果没进检查点：比较交换那一步若撞 1213 会记 `workflow_error`、结果丢（低概率）；这段会话读改写已在基线里归 ④（`flow.py _recognize_image` 等，随 line_session 根函数改），不在本条。没改。
