@@ -17,7 +17,9 @@ ERP 这一格要先把这家公司的「接 Express」关掉（识别后不去�
 
 格：① 同一个人同时发 10 张（ERP 途中点第一张卡上的「取消」）：10 条收单、10 个计费参考号各一次、10 张卡、收单按发送序、
 没有「Could not store」、没有 failed 事件、推送 0；② 重投同一事件：不多一条、不多扣；③ 两个人同时各发 10 张：各自同 ①；
-④（只在有道的源码上）线程死在半路：没回复过的那条推一次「请稍后重试」、回复过的不推，后面排着的由扫描接走、只处理一次。
+④（只在有道的源码上）线程死在半路：没回复过的那条推一次「请稍后重试」、回复过的不推，后面排着的由扫描接走、只处理一次；
+⑤（ERP）会话停在等转账凭证，凭证图与【取消】同时到：会话保持已取消、刚存的凭证删掉（第二期 L8）。① 另记跑格期间新增的
+「识别完出题撞了、降级直接出卡」错误日志（第二期 L6），应为 0。DMS 身份证 × 手机号（第二期）实验栈上没有 DMS 站点，只有离线单测。
 """
 import json
 import os
@@ -397,6 +399,14 @@ class Lab:
         return {self.reply_tokens[e] for e, (u, _m) in self.events_sent.items() if u == line_user}
 
 
+def frappe_now(site) -> str:
+    connect(site)
+    try:
+        return frappe.utils.now()
+    finally:
+        frappe.destroy()
+
+
 def connections(site) -> int:
     """这个站点的库此刻有几个连接（不算查它这一个）。"""
     connect(site)
@@ -518,6 +528,68 @@ def interrupted_cell(lab, line_user):
     return result
 
 
+def question_failures(site, since) -> int:
+    """跑格期间新增的「识别完出题撞了、降级直接出卡」错误日志（④ 第二期 L6：两张同时识别完 / 识别完时本人在答题）。"""
+    connect(site)
+    try:
+        return frappe.db.count("Error Log", {"method": "ERP LINE item question failed", "creation": (">=", since)})
+    finally:
+        frappe.destroy()
+
+
+def voucher_cancel_cell(lab, line_user):
+    """格 5（ERP，④ 第二期 L8）：会话停在「等转账凭证」，凭证图与【取消】同时到；后台取图慢 2 秒。
+    修后：会话保持已取消，刚存的凭证删掉、不回话；修前：后台按取图前读到的会话把流程写回来、凭证挂上。"""
+    from pearnly_core import line, line_session
+    from pearnly_erp_portal.integrations import line_collection
+
+    account = lab.accounts[line_user]
+    connect(lab.site)
+    try:
+        line_session.set_session(line_user, line_collection.STATE, {
+            "step": "voucher", "voucher_for": "BB", "turn": "lanelab1", "company": lab.company,
+            "methods": [{"prefix": "BB", "amount": "100.00"}]}, ttl_minutes=30)
+        files_before = frappe.db.count("File", {"owner": account})
+        frappe.db.commit()
+    finally:
+        frappe.destroy()
+    real_enqueue, real_download = frappe.enqueue, line.download_message_content
+
+    def enqueue(method, **kwargs):
+        if method != "pearnly_erp_portal.integrations.line_collection.store_voucher":
+            return real_enqueue(method, **kwargs)
+        for key in ("queue", "enqueue_after_commit"):
+            kwargs.pop(key, None)
+        lab.background(lambda: line_collection.store_voucher(**kwargs), "Guest")
+
+    def slow(message_id, **kw):
+        time.sleep(2)
+        return PNG
+
+    ts = time.time()
+    photo = lab.image(line_user, 0, ts)
+    tap = {"type": "postback", "mode": "active", "timestamp": int(ts * 1000) + 500,
+           "webhookEventId": "lanelab-" + secrets.token_hex(8), "replyToken": "rt-" + secrets.token_hex(8),
+           "source": {"type": "user", "userId": line_user}, "postback": {"data": "a=col&s=cancel&v=lanelab1"}}
+    lab.events_sent[tap["webhookEventId"]] = (line_user, "tap")
+    lab.reply_tokens[tap["webhookEventId"]] = tap["replyToken"]
+    with patch.object(frappe, "enqueue", enqueue), patch.object(line, "download_message_content", slow):
+        lab.deliver([photo])
+        time.sleep(0.5)  # 取图正在进行
+        lab.deliver([tap])
+        lab.settle()
+    connect(lab.site)
+    try:
+        session = line_session.get_session(line_user)
+        files_after = frappe.db.count("File", {"owner": account})
+    finally:
+        frappe.destroy()
+    result = {"session": session, "files_added": files_after - files_before,
+              "errors": [o.get("error") for o in lab.rec.out if o["kind"].endswith("error")][:2]}
+    result["ok"] = (not (session or {}).get("payload", {}).get("step")) and result["files_added"] == 0 and not result["errors"]
+    return result
+
+
 def main(argv):
     results = run(argv)
     print("RESULT " + json.dumps(results, ensure_ascii=False, default=str))
@@ -532,11 +604,12 @@ def run(argv) -> dict:
     results = {}
     with ExitStack() as stack:
         lab.patches(stack)
-        users = ["Ulanelab" + secrets.token_hex(12) for _ in range(4)]
+        users = ["Ulanelab" + secrets.token_hex(12) for _ in range(5)]
         try:
             for line_user in users:
                 lab.prepare(line_user)
             # 格 1：同一个人同时发 count 张，途中点第一张卡上的「取消」
+            started_at = frappe_now(site)
             before = connections(site)
             tap = burst_with_tap(lab, users[0], count) if product == "erp" else None
             if tap is None:
@@ -551,6 +624,9 @@ def run(argv) -> dict:
                             and o.get("token") == tap["tap_token"] for m in o["messages"]]
                 one["tap"] = {"data": tap["tap_data"], "answer": answered}
                 one["ok"] = one["ok"] and bool(tap["tap_data"]) and bool(answered)
+            if product == "erp":
+                one["question_failures"] = question_failures(site, started_at)
+                one["ok"] = one["ok"] and one["question_failures"] == 0
             results["same_user_burst"] = one
             # 格 2：重投同一事件（LINE 补发）：不多一条收单、不多扣一次
             first = next(e for e, (u, m) in lab.events_sent.items() if u == users[0] and m != "tap")
@@ -570,6 +646,8 @@ def run(argv) -> dict:
             two = {u[-6:]: lab.outcome(u, count) for u in users[1:3]}
             results["two_users"] = {"seconds": round(time.time() - started, 1), "each": two,
                                     "ok": all(r["ok"] for r in two.values())}
+            if product == "erp":
+                results["voucher_vs_cancel"] = voucher_cancel_cell(lab, users[4])
             # 格 4：线程中断后扫描接走（修前的源码没有道，不跑）
             connect(site)
             try:
