@@ -23,8 +23,12 @@ RE2401052 多张发票）：
 - 载荷 ``offsets``：``[{docnum, rectyp, amount}]``，``rectyp`` 是 ``5``（减项，CN 簿 SR / SE / EC）或 ``0``（定金 AI），金额正数；
 - ARRCPIT 每张一行（RECTYP 照原样、RCVAMT 正数、VATAMT 0），被抵的单同发票：RCVAMT += 本次、REMAMT -= 本次、抵清 CMPLAPP Y + CMPLDAT
   （原生定金有分几张 RE 抵的，部分抵照发票）；
-- 单头 IVCAMT = NETAMT = Σ发票 − Σ抵减（净额，39 / 39、20 / 20），现金与方式合计等于净额；凭证、ARBAL ``RE{期}``、ARMAS.BALANCE 都按净额；
-- 净额 0（全抵，原生 29 张）：DOCSTAT ``N``、没有方式行、**没有凭证**（GLJNL / GLJNLIT 都不写）、ARBAL 与 ARMAS 不动；
+- 单头 IVCAMT = NETAMT = Σ发票 − Σ抵减（净额，39 / 39、20 / 20），现金与方式合计等于净额；
+- 应收这一侧按「冲掉的应收」= 净额 + Σ定金：减项单开单时已冲过应收，定金开单时记的是负债（AI：借银行 / 贷 ISINFO.ACCNUM31，本账套
+  2133-01），抵扣时才从负债转回应收。所以凭证 SEQIT 4 **借定金科目**（ISINFO.ACCNUM31）Σ定金、SEQIT 6 贷应收 = 净额 + Σ定金，ARBAL
+  ``RE{期}`` 加、ARMAS.BALANCE 减的也是这个数（NLTTEST 原生 RE2400956 / RE2401841 等定金单逐月对上；11-28 副本回放查出）；
+- 冲掉的应收为 0（只有减项单、正好抵平，原生 29 张）：DOCSTAT ``N``、没有方式行、**没有凭证**（GLJNL / GLJNLIT 都不写）、ARBAL 与 ARMAS
+  不动；有定金的全抵照样有凭证、DOCSTAT ``M``；
 - 净额 < 0（抵减大于发票）：载荷不合格（:data:`ERR_VALIDATION`），原生只有 2018 年一张退现金的，等原生实录再定。
 
 管钱底线（写前，持 ``PEARNLY.LCK``，worker 已拿着）：同客户、同 YOUREF、没作废的 RE 已在 → 回原号，一行不写（幂等）；逐张重读发票，
@@ -88,6 +92,9 @@ SRV_VATTYP = "-"
 JNLTYP = "02"              # 单据簿没写时（原生 RE 行 JNLTYP 02、ISINFO.ARRCPJNL 02）
 SEQIT_RECEIVED = "2"       # 借：现金 / 各方式
 SEQIT_RECEIVABLE = "6"     # 贷：应收
+SEQIT_DEPOSIT = "4"        # 借：定金（抵了定金时，原生 RE2400956）
+DEPOSIT_RECTYP = "0"
+DEPOSIT_SLOT = "ACCNUM31"
 CASH_SLOT, RECEIVABLE_SLOT = "ACCNUM00", "ACCNUM02"
 BALANCE_BUCKET = "RE"
 # 服务品现金制增值税的发票（ARTRN.SRV_VATTYP 2）：原生收款时单头另记 FLGVAT / VATDAT（NLTTEST 15 张），本批不收（主会话 11-11，
@@ -99,10 +106,11 @@ ERR_ALREADY_COLLECTED = "already_collected"
 ERR_INVOICE_NOT_FOUND = "invoice_not_found"
 ERR_RECEIPT_TYPE = "receipt_type_invalid"
 ERR_CASH_ACCOUNT = "cash_account_missing"
+ERR_DEPOSIT_ACCOUNT = "deposit_account_missing"   # 抵了定金但账套没设定金科目（ISINFO.ACCNUM31）
 ERR_BOOK = "JOURNAL_BOOK_NOT_FOUND"            # 账套没有 RE 单据簿 / 收款明细表（同库存单的码）
 ERR_CUSTOMER = "CUSTOMER_NOT_IN_ARMAS"
 ERR_NOT_POSTABLE = "ACCOUNT_NOT_POSTABLE"
-REFUSALS = (ERR_ALREADY_COLLECTED, ERR_INVOICE_NOT_FOUND, ERR_RECEIPT_TYPE, ERR_CASH_ACCOUNT, ERR_BOOK, ERR_CUSTOMER,
+REFUSALS = (ERR_ALREADY_COLLECTED, ERR_INVOICE_NOT_FOUND, ERR_RECEIPT_TYPE, ERR_CASH_ACCOUNT, ERR_DEPOSIT_ACCOUNT, ERR_BOOK, ERR_CUSTOMER,
             ERR_NOT_POSTABLE)
 
 WRITE_TABLES = ("ISRUN", "ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNL", "GLJNLIT", "ARBAL")
@@ -160,6 +168,13 @@ class Receipt:
 
     def docnums(self) -> List[str]:
         return [docnum for docnum, _rectyp, _amount in self.lines()]
+
+    def deposits(self) -> Decimal:
+        return sum((amount for _d, rectyp, amount in self.offsets if rectyp == DEPOSIT_RECTYP), Decimal(0))
+
+    def receivable(self) -> Decimal:
+        """冲掉的应收：净额 + Σ定金（减项单开单时已冲过应收，定金是负债转回）。"""
+        return self.total + self.deposits()
 
 
 def _bytes(text: str) -> int:
@@ -443,6 +458,17 @@ def cash_account(account_dir, receipt: Receipt) -> str:
     return account
 
 
+def deposit_account(account_dir, receipt: Receipt) -> str:
+    if receipt.deposits() <= 0:
+        return ""
+    account = account_rules.default_account(account_dir, DEPOSIT_SLOT)
+    if not account or (account_rules.chart_account(account_dir, account) is not None
+                       and not account_rules.postable_account(account_dir, account)):
+        raise Refused(ERR_DEPOSIT_ACCOUNT, f"deposits {receipt.deposits()} taken off but the account set has no usable "
+                                           f"deposit account (ISINFO.{DEPOSIT_SLOT} = {account!r})")
+    return account
+
+
 def receivable_account(account_dir, customer: str) -> str:
     account = account_rules.control_account(account_dir, "ARMAS", customer,
                                             account_rules.default_account(account_dir, RECEIVABLE_SLOT))
@@ -493,6 +519,7 @@ class _Plan:
     department: str
     userid: str
     bank: List[Tuple[Method, str]] = field(default_factory=list)   # 要记银行流水的方式与户头（plan_bank）
+    deposit_acc: str = ""                                            # 抵了定金时借方的定金科目（deposit_account）
 
 
 def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARNLY_USERID, depcod: str = "",
@@ -538,6 +565,7 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
         bank = plan_bank(account_dir, methods)
         cash_acc = cash_account(account_dir, receipt)
         ar_acc = receivable_account(account_dir, receipt.customer)
+        deposit_acc = deposit_account(account_dir, receipt)
         states = check_invoices(account_dir, receipt)
     except Refused as exc:
         return DbfWriteResult(False, error_code=exc.code, error=str(exc), evidence=exc.evidence)
@@ -545,7 +573,7 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
     plan = _Plan(receipt, run, methods, cash_acc, ar_acc, states,
                  salesman=receipt.salesman or first.get("slmcod", ""),
                  department=receipt.department or run.get("department", "") or depcod,
-                 userid=_userid(receipt.user, userid), bank=bank)
+                 userid=_userid(receipt.user, userid), bank=bank, deposit_acc=deposit_acc)
     clock.lap("checks")
     backup_dir = _backup(account_dir, BACKUP_TABLES) if make_backup else None
     clock.lap("backup")
@@ -556,9 +584,9 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
         docnum, gl_rows = _write_all(account_dir, plan)
         _write_bank(account_dir, plan, docnum)
         notes = None
-        if receipt.total:  # 全抵（净额 0）：原生 ARBAL、ARMAS 都不动
-            notes = _update_arbal(account_dir, receipt.customer, receipt.doc_date, receipt.total)
-            master_create.move_party_balance(account_dir, "ARMAS", receipt.customer, -receipt.total)
+        if receipt.receivable():  # 只有减项单、正好抵平：原生 ARBAL、ARMAS 都不动
+            notes = _update_arbal(account_dir, receipt.customer, receipt.doc_date, receipt.receivable())
+            master_create.move_party_balance(account_dir, "ARMAS", receipt.customer, -receipt.receivable())
         clock.lap("write")
         _reindex_or_defer(account_dir, WRITE_TABLES + banked, 0, "", index_batch)
         clock.lap("reindex")
@@ -613,7 +641,7 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
             "CUSCOD": receipt.customer, "YOUREF": receipt.ref_no, "DUEDAT": docdat, "BILNUM": BILNUM,
             "NETAMT": float(receipt.total), "IVCAMT": float(receipt.total), "CSHRCV": float(receipt.cash),
             "CHQRCV": float(received), "CHQPAS": float(received), "INTRCV": 0.0, "RCVAMT": 0.0, "REMAMT": 0.0,
-            "CMPLAPP": "Y", "CMPLDAT": docdat, "DOCSTAT": DOCSTAT if receipt.total else DOCSTAT_SETTLED,
+            "CMPLAPP": "Y", "CMPLDAT": docdat, "DOCSTAT": DOCSTAT if receipt.receivable() else DOCSTAT_SETTLED,
             "SRV_VATTYP": SRV_VATTYP,
             "ORGNUM": int(first.get("orgnum") or 0), "USERID": plan.userid, "CHGDAT": _dt.date.today(),
         }))
@@ -682,8 +710,8 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
 def journal_rows(plan: _Plan) -> List[Tuple[str, str, str, Decimal]]:
     """凭证分录 [(SEQIT, 科目, 借贷, 金额)]：SEQIT 2 现金与各方式按（科目, 借贷）合并、按科目排（原生多方式的 RE 分录行按科目升序，
     与方式行的先后无关：RE2402979 TX 行在前、分录 1112-01 在前；RE2402889 DC / AP / TF 三行分录 4100-04、5220-02、5390-01），
-    负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；最后 SEQIT 6 贷应收合计（净额）。全抵（净额 0）没有凭证，回空。"""
-    if not plan.receipt.total:
+    负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；抵了定金另有 SEQIT 4 借定金科目；最后 SEQIT 6 贷应收合计（净额 + 定金）。冲掉的应收为 0 没有凭证，回空。"""
+    if not plan.receipt.receivable():
         return []
     merged: Dict[Tuple[str, str], Decimal] = {}
     if plan.receipt.cash > 0:
@@ -692,7 +720,9 @@ def journal_rows(plan: _Plan) -> List[Tuple[str, str, str, Decimal]]:
         side = S.TRNTYP_DEBIT if method.amount > 0 else S.TRNTYP_CREDIT
         merged[(acc, side)] = merged.get((acc, side), Decimal(0)) + abs(method.amount)
     rows = [(SEQIT_RECEIVED, acc, side, amount) for (acc, side), amount in sorted(merged.items())]
-    return rows + [(SEQIT_RECEIVABLE, plan.ar_acc, S.TRNTYP_CREDIT, plan.receipt.total)]
+    if plan.receipt.deposits():
+        rows.append((SEQIT_DEPOSIT, plan.deposit_acc, S.TRNTYP_DEBIT, plan.receipt.deposits()))
+    return rows + [(SEQIT_RECEIVABLE, plan.ar_acc, S.TRNTYP_CREDIT, plan.receipt.receivable())]
 
 
 def description(account_dir, jnlexp: str, customer: str) -> str:
@@ -808,7 +838,7 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
     credit = sum((amount for _s, _a, side, amount in got if side != S.TRNTYP_DEBIT), Decimal(0))
     receivable = sum((amount for seqit, _a, side, amount in got if seqit == SEQIT_RECEIVABLE and side != S.TRNTYP_DEBIT),
                      Decimal(0))
-    if debit != credit or receivable != receipt.total:
+    if debit != credit or receivable != receipt.receivable():
         fail(f"journal not balanced {debit} / {credit} (receivable {receivable})", "GLJNLIT")
     if plan.bank:
         got = sorted((str(r["BKTRNTYP"]).strip(), str(r["BNKACC"]).strip(), str(r["CHQNUM"]).strip(), _q2(r["AMOUNT"]))
@@ -822,5 +852,5 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
             fail(f"invoice {invoice} remaining {now[invoice].get('remaining')}", "ARTRN")
 
 
-__all__ = ["DIRECTION", "ERR_ALREADY_COLLECTED", "ERR_CASH_ACCOUNT", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE",
+__all__ = ["DIRECTION", "ERR_ALREADY_COLLECTED", "ERR_CASH_ACCOUNT", "ERR_DEPOSIT_ACCOUNT", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE",
            "REFUSALS", "Receipt", "Refused", "bank_name", "bank_row", "check_invoices", "existing", "parse", "plan_bank", "run_row", "write_receipt"]

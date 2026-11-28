@@ -1831,9 +1831,10 @@ class ReceiptContract(unittest.TestCase):
 
     def test_the_refusal_codes_go_to_a_person(self):
         codes = module_constants(COMPANION / "dbf_receipt.py")
-        names = ("ERR_ALREADY_COLLECTED", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE", "ERR_CASH_ACCOUNT")
+        names = ("ERR_ALREADY_COLLECTED", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE", "ERR_CASH_ACCOUNT", "ERR_DEPOSIT_ACCOUNT")
         self.assertEqual(tuple(codes[name] for name in names),
-                         ("already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing"))
+                         ("already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing",
+                          "deposit_account_missing"))
         outcome = method_source_of(COMPANION / "worker.py", "_outcome_for")
         for name in names:
             self.assertIn(f"'{codes[name]}': 'needs_review'", outcome)
@@ -1845,7 +1846,8 @@ class ReceiptContract(unittest.TestCase):
         erp = module_constants(ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py")
         refusals = module_constants(COMPANION / "dbf_receipt.py")
         cc_codes = {refusals[name] for name in ("ERR_ALREADY_COLLECTED", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE",
-                                                 "ERR_CASH_ACCOUNT", "ERR_BOOK", "ERR_CUSTOMER", "ERR_NOT_POSTABLE")}
+                                                 "ERR_CASH_ACCOUNT", "ERR_DEPOSIT_ACCOUNT", "ERR_BOOK", "ERR_CUSTOMER",
+                                                 "ERR_NOT_POSTABLE")}
         self.assertEqual(set(erp["RETURNABLE"]), cc_codes)
         self.assertLessEqual(set(erp["UNCOLLECTABLE"]), cc_codes)
         write = method_source_of(COMPANION / "dbf_receipt.py", "write_receipt")

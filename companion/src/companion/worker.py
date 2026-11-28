@@ -683,6 +683,7 @@ def _outcome_for(error_code: Optional[str]) -> Optional[str]:
         "invoice_not_found": "needs_review",
         "receipt_type_invalid": "needs_review",
         "cash_account_missing": "needs_review",
+        "deposit_account_missing": "needs_review",   # 载荷 23：抵了定金但账套没设定金科目
         # 载荷 21（引导录入，guided）：要人在引导卡上定一题（单位 / 出库成本 / 现金科目，回执 meta.choice 带候选），
         # 或新键的值不在这本账套里（单位码、分类、对方类型），重试结论一样（整单没写）
         "UNIT_CHOICE": "needs_review",

@@ -1259,9 +1259,9 @@ class Receipts(Base):
         self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "draft_version", "attempt"]), (C.DRAFT, 3, 2))
         self.assertEqual(service.withdraw(name)["status"], C.WITHDRAWN)  # 退回的草稿照样能撤回
 
-    def test_only_the_seven_codes_cc_refuses_before_writing_are_returned(self):
+    def test_only_the_eight_codes_cc_refuses_before_writing_are_returned(self):
         self.assertEqual(C.RETURNABLE, ("already_collected", "invoice_not_found", "receipt_type_invalid",
-                                        "cash_account_missing", "JOURNAL_BOOK_NOT_FOUND", "CUSTOMER_NOT_IN_ARMAS",
+                                        "cash_account_missing", "deposit_account_missing", "JOURNAL_BOOK_NOT_FOUND", "CUSTOMER_NOT_IN_ARMAS",
                                         "ACCOUNT_NOT_POSTABLE"))
         for reason in ("[WRITE_FAILED] x", "[VERIFY_FAILED] x", "cc_desktop.result_unknown", "[PERIOD_LOCKED] x"):
             name, job = self.released("10")

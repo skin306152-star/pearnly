@@ -145,6 +145,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "JOURNAL_BOOK_NOT_FOUND": act("ledger_setting", "p3"),               # POS 日汇总：没有可用的普通日记账单据簿
     "ACCOUNT_NOT_POSTABLE": act("ledger_setting", "p3"),                 # POS 日汇总：选的收款科目不能记账
     "cash_account_missing": act("ledger_setting", "p1"),                 # 收款：账套没设现金科目（同 collection.cash_account_missing）
+    "deposit_account_missing": act("ledger_setting", "p1"),              # 收款抵定金：账套没设定金科目（ISINFO.ACCNUM31）
     "REFUND_CUSTOMER_NOT_COPIED": act("ledger_setting", "p3"),           # 跨年退货：新年度账套没有现金客户档
     "REFUND_ORIGINAL_NOT_FOUND": act("check_in_ledger", "p3"),           # 收银退货：原单找不到 / 改过 / 没有这一行 / 退得比原单多
     "REFUND_ORIGINAL_CHANGED": act("check_in_ledger", "p3"),

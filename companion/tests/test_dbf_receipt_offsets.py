@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 
-from account_rules_fixture import seed
+from account_rules_fixture import isinfo, seed
 from companion import dbf_receipt as R
 from companion import payload_contract
 from test_dbf_receipt import AR, BBL_SA, CUSTOMER, DAY, _balance, _head, _journal, _payload, _re_bucket, _rows, _state, _write
@@ -24,8 +24,13 @@ def _doc(docnum, rectyp, net, *, received=0.0, customer=CUSTOMER, status="N"):
             "CMPLAPP": "N", "CNTYP": "2" if rectyp == "5" else ""}
 
 
+DEPOSIT = "2133-01"
+
+
 @pytest.fixture
 def acct(_base):
+    isinfo(_base, ACCNUM00="1111-00", ACCNUM02=AR, ACCNUM31=DEPOSIT)
+    seed(_base, "GLACC", [{"ACCNUM": DEPOSIT, "ACCNAM": DEPOSIT, "ACCTYP": "0", "USEDEP": "Y"}])
     seed(_base, "ARTRN", [_doc("SR002400054", "5", 6310.0), _doc("AI2400002", "0", 9798.0),
                           _doc("SRC2", "5", 100.0, customer="C2"), _doc("SRVOID", "5", 50.0, status="C")])
     return _base
@@ -59,8 +64,9 @@ def test_a_credit_note_takes_its_amount_off_like_native_re2400820(acct):
     assert {"docnum": "SR002400054", "remaining_after": "0.00"} in res.receipt["invoices"]
 
 
-def test_a_full_offset_writes_no_voucher_and_leaves_the_balances_like_native_re2400023(acct):
-    res = _write(acct, _pay((("IVP42400241", "1000.00"),), (), (("AI2400002", "0", "1000.00"),)))
+def test_a_credit_note_full_offset_writes_no_voucher_and_leaves_the_balances_like_native_re2400023(acct):
+    seed(acct, "ARTRN", [_doc("SR1000", "5", 1000.0)])
+    res = _write(acct, _pay((("IVP42400241", "1000.00"),), (), (("SR1000", "5", "1000.00"),)))
     assert res.ok, res.error
     head = _head(acct, res.docnum)
     assert (head["NETAMT"], head["IVCAMT"], head["CHQRCV"], head["CSHRCV"], head["DOCSTAT"], head["CMPLAPP"]) == \
@@ -68,13 +74,40 @@ def test_a_full_offset_writes_no_voucher_and_leaves_the_balances_like_native_re2
     assert _rows(acct, "ARRCPCQ", RCPNUM=res.docnum) == []
     assert _rows(acct, "GLJNL", VOUCHER=res.docnum) == [] and _journal(acct, res.docnum) == []
     assert _balance(acct) == 30000.0
-    ai = _artrn(acct, "AI2400002")  # 定金部分抵：余额减本次，没抵完不标完成（原生 AI2400002 分三张 RE 抵）
-    assert (ai["RCVAMT"], ai["REMAMT"], ai["CMPLAPP"]) == (1000.0, 8798.0, "N")
     assert _rows(acct, "ISRUN", DOCTYP="RE")[0]["DOCNUM"].strip() == "2403081"
 
 
+def test_a_deposit_moves_from_the_deposit_account_to_receivables_like_native_re2400956(acct):
+    """定金开单时记负债（借银行 / 贷 ISINFO.ACCNUM31），抵扣时转回应收：净额 0 也有凭证（DOCSTAT M）——借定金科目、贷应收；
+    ARBAL RE 桶与 ARMAS 按冲掉的应收（净额 + 定金）。部分抵：余额减本次，没抵完不标完成（原生 AI2400002 分三张 RE 抵）。"""
+    res = _write(acct, _pay((("IVP42400241", "1000.00"),), (), (("AI2400002", "0", "1000.00"),)))
+    assert res.ok, res.error
+    head = _head(acct, res.docnum)
+    assert (head["NETAMT"], head["IVCAMT"], head["DOCSTAT"]) == (0.0, 0.0, "M")
+    assert _journal(acct, res.docnum) == [(" 4", DEPOSIT, "0", Decimal("1000.0"), "CPI"), (" 6", AR, "1", Decimal("1000.0"), "CPI")]
+    assert _re_bucket(acct) == 1000.0 and _balance(acct) == 30000.0 - 1000.0
+    ai = _artrn(acct, "AI2400002")
+    assert (ai["RCVAMT"], ai["REMAMT"], ai["CMPLAPP"]) == (1000.0, 8798.0, "N")
+
+
+def test_a_deposit_with_money_credits_receivables_with_both(acct):
+    res = _write(acct, _pay((("IVP42400239", "9972.00"),), (("BB", "9000.00"),), (("AI2400002", "0", "972.00"),)))
+    assert res.ok, res.error
+    assert _head(acct, res.docnum)["IVCAMT"] == 9000.0
+    assert _journal(acct, res.docnum) == [(" 2", BBL_SA, "0", Decimal("9000.0"), "CPI"), (" 4", DEPOSIT, "0", Decimal("972.0"), "CPI"),
+                                          (" 6", AR, "1", Decimal("9972.0"), "CPI")]
+    assert _re_bucket(acct) == 9972.0 and _balance(acct) == 30000.0 - 9972.0
+
+
+def test_a_deposit_without_a_deposit_account_is_refused(acct):
+    isinfo(acct, ACCNUM00="1111-00", ACCNUM02=AR, ACCNUM31="")
+    before = _state(acct)
+    res = _write(acct, _pay((("IVP42400241", "1000.00"),), (), (("AI2400002", "0", "1000.00"),)))
+    assert not res.ok and res.error_code == R.ERR_DEPOSIT_ACCOUNT and _state(acct) == before
+
+
 def test_the_same_full_offset_replayed_returns_the_first_number(acct):
-    payload = _pay((("IVP42400241", "1000.00"),), (), (("AI2400002", "0", "1000.00"),))
+    payload = _pay((("IVP42400241", "1000.00"),), (), (("SR002400054", "5", "1000.00"),))
     first = _write(acct, payload)
     before = _state(acct)
     again = _write(acct, payload)

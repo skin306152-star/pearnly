@@ -154,7 +154,7 @@ UNCOLLECTABLE = ("already_collected", "invoice_not_found")
 # YOUREF 仍是记录号——上次万一其实写成了，CC 按同客户同 YOUREF 回原号、一行不写。其余失败（写到一半回滚、结果不明、
 # 没账套、撤掉）照旧记失败，不还回。
 RETURNABLE = ("already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing",
-              "JOURNAL_BOOK_NOT_FOUND", "CUSTOMER_NOT_IN_ARMAS", "ACCOUNT_NOT_POSTABLE")
+              "deposit_account_missing", "JOURNAL_BOOK_NOT_FOUND", "CUSTOMER_NOT_IN_ARMAS", "ACCOUNT_NOT_POSTABLE")
 
 
 class CollectionError(ValueError):
