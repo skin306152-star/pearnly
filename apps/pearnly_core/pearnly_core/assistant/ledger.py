@@ -257,8 +257,22 @@ def choose(session_id, ledger_id, by="page") -> dict:
     if str(row.get(FIELD) or "") != picked["id"]:
         frappe.db.set_value(SESSION, row.name, FIELD, picked["id"], update_modified=False)
         row[FIELD] = picked["id"]
+    if by == "page":
+        _remember(row, picked["id"])
     announce(row, picked["id"])
     return {"status": SET, "ledger": picked["id"], "label": picked["label"]}
+
+
+def _remember(row, ledger_id) -> None:
+    """人在选择器里选的交给产品记住（产品声明了 ``remember_ledger`` 才记；问一次记住，11-28 真机：选了 Z1 下次又回到默认）。"""
+    found = _provider()
+    keep = getattr(found, "remember_ledger", None) if found else None
+    if not callable(keep):
+        return
+    try:
+        keep(row.get("project") or "", row.get("period") or "", ledger_id, row.get("user") or frappe.session.user)
+    except Exception:  # noqa: BLE001 - 记不下不挡这次的选择
+        frappe.log_error(title="assistant ledger remember failed")
 
 
 def tool_choose(tool_input) -> str:

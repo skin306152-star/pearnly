@@ -85,25 +85,60 @@ def _span(item):
     return item.get("period_start"), item.get("period_end"), item.get("next_end")
 
 
-def ledgers(ref, period, work_scope, user) -> dict | None:
-    """这家这个月可选的账套与默认（见文件头）；不接 Express 的公司回 None。只读。"""
+# 这个月没有哪本账套覆盖时（如 Express 演示账 Z1 账期在 2021），人在选择器里选过的那本记在这一项下（问一次记住）
+FALLBACK_SUBJECT = "uncovered"
+
+
+def _blank_template(book) -> bool:
+    """Express 安装自带的空白模板账套（数据文件夹 ``DAT``，名「Z.ข้อมูลเปล่า…」）：服务商开新公司用，不能当默认去写（11-28 真机：
+    云端 Z1 与 DAT 同税号同分店同年度，默认落到 DAT）。"""
+    path = str(book.get("path") or "").rstrip("\\/")
+    return path.replace("/", "\\").rsplit("\\", 1)[-1].upper() == "DAT"
+
+
+def _covering(ref, period):
     import calendar
 
     from pearnly_core.cc_desktop import books
     from pearnly_core.express_rules.targets import account_match
-    from pearnly_erp_portal.express import choices, contracts, target
+    from pearnly_erp_portal.express import contracts
     from pearnly_erp_portal.masters import cc_service
 
     row = frappe.db.get_value(cc_service.COMPANY, ref, ["name", "tax_id", "branch", "express_enabled"], as_dict=True) \
         if isinstance(ref, str) and ref else None
     if not row or not row.get("express_enabled"):
-        return None  # 账本是 MR.ERP（`mrerp.push.handles` 要求没勾 Express）或纯 ERP 公司
+        return None, [], [], ""
     tax = contracts.tax13(row.get("tax_id"))
     every = books.for_company(tax, row.get("branch")) if tax else []
     month = str(period or "")[:7] or _this_month()
     year, number = int(month[:4]), int(month[5:7])
     first, last = f"{month}-01", f"{month}-{calendar.monthrange(year, number)[1]:02d}"
-    covering = account_match.for_month(every, first, last, _span)
+    return row, every, account_match.for_month(every, first, last, _span), first
+
+
+def remember_ledger(ref, period, ledger_id, user=None) -> None:
+    """人在对话的账套选择器里选了一本：记下来，下次同一家同样情况默认就是它（问一次记住）。同月几本都覆盖时记在该年度下
+    （同 ``ledgers`` 里 ``choices.chosen`` 的那一项），没有哪本覆盖时记在 :data:`FALLBACK_SUBJECT` 下。"""
+    from pearnly_erp_portal.express import choices, target
+
+    row, every, covering, first = _covering(ref, period)
+    if row is None:
+        return
+    book = next((item for item in every if item["key"] == ledger_id), None)
+    if book is None:
+        return
+    subject = target.year_subject(first, covering[0]) if len(covering) > 1 else FALLBACK_SUBJECT if not covering else ""
+    if subject:
+        choices.remember(row.name, choices.ACCOUNT_SET, subject, ledger_id, target.option_name(book))
+
+
+def ledgers(ref, period, work_scope, user) -> dict | None:
+    """这家这个月可选的账套与默认（见文件头）；不接 Express 的公司回 None。只读。"""
+    from pearnly_erp_portal.express import choices, target
+
+    row, every, covering, first = _covering(ref, period)
+    if row is None:
+        return None  # 账本是 MR.ERP（`mrerp.push.handles` 要求没勾 Express）或纯 ERP 公司
     if len(covering) > 1:
         wanted = choices.chosen(row.name, choices.ACCOUNT_SET, target.year_subject(first, covering[0]))
         chosen = next((item for item in covering if item["key"] == wanted), None)
@@ -111,7 +146,10 @@ def ledgers(ref, period, work_scope, user) -> dict | None:
         chosen = covering[0]
     else:
         writable = [item for item in every if item.get("writable")]
-        chosen = max(writable, key=lambda item: str(item.get("period_end") or ""), default=None)
+        wanted = choices.chosen(row.name, choices.ACCOUNT_SET, FALLBACK_SUBJECT)
+        chosen = next((item for item in writable if item["key"] == wanted), None) or max(
+            (item for item in writable if not _blank_template(item)),
+            key=lambda item: str(item.get("period_end") or ""), default=None)
     keys = {item["key"] for item in covering}
     rest = sorted((item for item in every if item["key"] not in keys and item.get("writable")),
                   key=lambda item: str(item.get("period_start") or ""), reverse=True)

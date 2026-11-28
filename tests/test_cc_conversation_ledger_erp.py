@@ -148,6 +148,31 @@ class LedgersTests(_Books):
         self.assertTrue(all(not item["covers"] for item in found["options"]))
         self.assertEqual(len(found["options"]), 3)
 
+    def _template_and_test(self):
+        # 11-28 真机：云端 Z1（TEST）与 Express 空白模板（DAT）同税号同分店同年度，这个月都不覆盖时默认落到了 DAT
+        def book(key, path, label):
+            return {"key": key, "path": path, "label": label, "writable": 1,
+                    "period_start": "2021-01-01", "period_end": "2021-12-31"}
+        return [book("k-dat", "D:\\W\\ExpressI-Cloud\\DAT", "Z.blank"), book("k-test", "D:\\W\\ExpressI-Cloud\\TEST", "Z1.test")]
+
+    def test_the_express_blank_template_is_never_the_default(self):
+        with mock.patch.object(books, "for_company", lambda *a, **k: self._template_and_test()):
+            found = self.ledgers("2026-11")
+        self.assertEqual(found["default"], "k-test")
+        self.assertEqual({item["id"] for item in found["options"]}, {"k-dat", "k-test"})   # 仍列出，只是不当默认
+
+    def test_a_ledger_picked_once_becomes_the_default_when_no_book_covers_the_month(self):
+        saved = {}
+        with mock.patch.object(books, "for_company", lambda *a, **k: self._template_and_test()), \
+                mock.patch.object(choices, "remember", lambda company, kind, subject, value, label="":
+                                  saved.update({(kind, subject): value})), \
+                mock.patch.object(choices, "chosen", lambda company, kind, subject: saved.get((kind, subject), "")):
+            self.projects.remember_ledger(COMPANY["name"], "2026-11", "k-dat")
+            self.assertEqual(saved, {(choices.ACCOUNT_SET, self.projects.FALLBACK_SUBJECT): "k-dat"})
+            self.assertEqual(self.ledgers("2026-11")["default"], "k-dat")   # 人选的就是它（问一次记住）
+            self.projects.remember_ledger(COMPANY["name"], "2026-11", "not-this-companys")
+            self.assertEqual(self.ledgers("2026-11")["default"], "k-dat")
+
     def test_no_month_uses_this_month(self):
         with mock.patch.object(self.projects, "_this_month", lambda: "2024-06"):
             self.assertEqual(self.ledgers("")["default"], self.t7)

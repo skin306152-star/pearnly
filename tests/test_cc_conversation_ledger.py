@@ -309,6 +309,16 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual([(item["id"], item["covers"]) for item in out["options"]], [(T8, True), (T9, True), (T7, False)])
         self.assertEqual(len(self.db.writes), writes)
 
+    def test_a_ledger_picked_on_the_page_is_handed_to_the_product_to_remember_but_not_one_cc_set(self):
+        # 11-28 真机：在选择器里选了 Z1，再选一次公司又回到默认——人选的交给产品记住（问一次记住）
+        self.row.update(period="2026-10", project_ledger="")
+        kept = []
+        self.provider.remember_ledger = lambda ref, period, ledger_id, user: kept.append((ref, period, ledger_id))
+        self.assertEqual(self.ledger.choose("sesn_abc001", T9)["status"], "set")
+        self.assertEqual(kept, [("co_abc1", "2026-10", T9)])
+        self.assertEqual(self._tool(T8, ["T.8"])["status"], "set")   # CC 按提问卡设的不记（只记人在选择器里选的）
+        self.assertEqual(kept, [("co_abc1", "2026-10", T9)])
+
     # ── CC 设账套 ──────────────────────────────────────────────────────────────
     def _tool(self, ledger, answers):
         frappe.local.pearnly_assistant = {"session_id": "sesn_abc001"}
