@@ -458,6 +458,34 @@ class TestLineLinks(unittest.TestCase):
         self.provider.release_line_person.assert_called_once_with(self.owner_of(LINE))
         self.assertEqual(self.links, {})
 
+    def own_row_not_in_view(self):
+        """本站这一行在这笔事务的读视图里看不到（读视图早于租户行锁时别的请求刚写的），加锁读看得到。"""
+        self.hidden.add(service._link_key("tenant-a", "erp", "owner-subject", ALIAS))
+
+    def test_link_with_a_previous_outside_the_locks_asks_to_retry(self):
+        # 加锁重读出的旧绑定不在已拿的命名锁里：不在锁着行之后补拿，回 unavailable，没写库、没调身份服务；重发照常改绑。
+        self.assertTrue(self.rpc("link-line")["ok"])
+        self.provider.ensure_line_person.reset_mock()
+        self.own_row_not_in_view()
+        self.log.clear()
+        self.assertEqual(self.rpc("link-line", line=LINE_B), {"ok": False, "error": "unavailable"})
+        self.provider.ensure_line_person.assert_not_called()
+        self.assertEqual(self.log, ["plain-get", "get_lock", "locked-get", "rollback", "release_all_locks"])
+        self.assertTrue(self.rpc("link-line", line=LINE_B)["ok"])
+        self.provider.release_line_person.assert_called_once_with(self.owner_of(LINE))
+        self.assertEqual([row.line_user_id for row in self.links.values()], [LINE_B])
+
+    def test_unlink_with_a_row_outside_the_locks_asks_to_retry(self):
+        # 同上，解绑：加锁重读多出来的 LINE 回 unavailable，不删行、不摘关联；重发照常解绑。
+        self.assertTrue(self.rpc("link-line")["ok"])
+        self.own_row_not_in_view()
+        self.log.clear()
+        self.assertEqual(self.rpc("unlink-line"), {"ok": False, "error": "unavailable"})
+        self.assertEqual(self.log, ["locked-read", "rollback", "release_all_locks"])
+        self.assertTrue(self.rpc("unlink-line")["ok"])
+        self.provider.release_line_person.assert_called_once_with(self.owner_of(LINE))
+        self.assertEqual(self.links, {})
+
     def test_unlink_is_scoped_too(self):
         self.assertEqual(self.unlink("member-subject"), {"subject": "member-subject"})
         self.provider.unlink_line.assert_called_once_with("member-subject", ALIAS)
@@ -853,6 +881,43 @@ class TestMoveMembers(_TwoPools):
         self.assertEqual(list(self.db.tables[service.LINE_LINK]), ["other"])
         self.assertIn(shared, self.pools["pearnly-business"].users)
         self.assertNotIn(lonely, self.pools["pearnly-business"].users)
+
+    def record_order(self):
+        """记命名锁与删 LINE 关联行的先后。"""
+        order = []
+
+        def sql(query, values=(), as_dict=False):
+            if "get_lock" in query:
+                order.append("get_lock")
+            return self.db.sql(query, values, as_dict)
+
+        def delete(doctype, filters=None):
+            if doctype == service.LINE_LINK:
+                order.append("delete")
+            return self.db.delete(doctype, filters)
+
+        self.native.db.sql.side_effect = sql
+        self.native.db.delete = delete
+        return order
+
+    def test_move_takes_line_locks_before_deleting_rows(self):
+        # 换池：先拿齐命名锁再删本租户旧池的关联行（锁着行再等命名锁，会与别的租户的 link / unlink 互等到超时）。
+        member = self.seed("cowork", "pearnly-business", "pearnly-business")
+        self.person("pearnly-business", "tenant-a", "cowork", member)
+        self.person("pearnly-business", "tenant-a", "cowork", "owner-sub", line="U" + "b" * 32)
+        order = self.record_order()
+        self.assertEqual(service.move_members("tenant-a", "cowork", COWORK)["line_links_released"], 2)
+        self.assertEqual(order, ["get_lock", "get_lock", "delete", "delete"])
+
+    def test_purge_takes_line_locks_before_deleting_rows(self):
+        # 注销同样先拿齐命名锁再删行。
+        self.person("pearnly-business", "tenant-a", "erp", "owner-sub")
+        self.person("pearnly-business", "tenant-a", "erp", "member-sub", line="U" + "b" * 32)
+        self.db.tenants["tenant-a"] = "deleting"
+        order = self.record_order()
+        service.purge_members("tenant-a")
+        self.assertEqual(order, ["get_lock", "get_lock", "delete"])
+        self.assertEqual(self.db.tables[service.LINE_LINK], {})
 
     def test_only_member_products_and_a_known_pool(self):
         for product, issuer in (("dms", COWORK), ("cowork", ""), ("cowork", "https://auth.example.test/realms/master")):

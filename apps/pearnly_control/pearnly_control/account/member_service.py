@@ -216,6 +216,14 @@ def _person_locks(lines):
         _person_lock(realm, alias, line_user_id)
 
 
+def _held_or_retry(found, held):
+    """加锁重读出的 LINE 必须都在已拿的命名锁里。多出来的不在这里补拿（已锁着行，补拿就违反「先命名锁、后行锁」），
+    回 unavailable：还没写库、没调身份服务，入口回滚放锁，站点当场重发一次（之后每小时对账），重发时按新读到的拿锁。
+    只有这笔事务的读视图早于租户行锁、别的请求刚改过本站这一行时才会碰到。"""
+    if set(found) - set(held):
+        raise MemberError("unavailable")
+
+
 def _old_direct_link(holder):
     """改造前 LINE 直接挂在租户账号上；这些账号都由本平台登记过，迁到专用身份时可以摘。"""
     return bool(frappe.db.exists(TENANT_IDENTITY, {"subject": holder})
@@ -259,9 +267,12 @@ def link_line(tenant, product, subject, line_user_id, login_channel, issuer=""):
     key = _link_key(tenant, product, subject, alias)
     # 先拿命名锁再锁行（与 unlink_line 同序）。这次普通读只用来知道还要锁哪个旧 LINE，以锁到之后的加锁重读为准。
     hint = frappe.db.get_value(LINE_LINK, key, ["line_user_id", "realm"], as_dict=True)
-    _person_locks([(provider.realm, alias, line_user_id)]
-                  + ([(hint.realm or provider.realm, alias, hint.line_user_id)] if hint else []))
+    held = [(provider.realm, alias, line_user_id)] + (
+        [(hint.realm or provider.realm, alias, hint.line_user_id)] if hint else [])
+    _person_locks(held)
     previous = frappe.db.get_value(LINE_LINK, key, ["line_user_id", "realm"], as_dict=True, for_update=True)
+    if previous:
+        _held_or_retry([(previous.realm or provider.realm, alias, previous.line_user_id)], held)
     provider.ensure_line_person(alias, line_user_id, _person_owner(provider, alias, line_user_id),
                                 _old_direct_link)
     # 租户账号自己不再挂 LINE（改造前可能挂着别的 LINE；没有就是 404）。
@@ -273,9 +284,7 @@ def link_line(tenant, product, subject, line_user_id, login_channel, issuer=""):
         _insert({"doctype": LINE_LINK, "name": key, "tenant": tenant, "product": product,
                  "subject": subject, "alias": alias, **values})
     if previous and (previous.line_user_id, previous.realm or provider.realm) != (line_user_id, provider.realm):
-        realm = previous.realm or provider.realm
-        _person_lock(realm, alias, previous.line_user_id)
-        _release(realm, alias, previous.line_user_id)
+        _release(previous.realm or provider.realm, alias, previous.line_user_id)
     return {"subject": subject}
 
 
@@ -290,7 +299,7 @@ def unlink_line(tenant, product, subject, login_channel, issuer=""):
     alias = _alias(login_channel)
     provider = MemberProvider(product, issuer=issuer)
     filters = {"tenant": tenant, "product": product, "subject": subject, "alias": alias}
-    # 普通读只用来知道要锁哪几个 LINE；锁到之后加锁重读为准（多出来的补拿，可重入）。
+    # 普通读只用来知道要锁哪几个 LINE；锁到之后加锁重读为准（多出来的回 unavailable，见 `_held_or_retry`）。
     held = {(row.realm or provider.realm, alias, row.line_user_id)
             for row in frappe.get_all(LINE_LINK, filters=filters, fields=["line_user_id", "realm"])}
     _person_locks(held)
@@ -298,7 +307,7 @@ def unlink_line(tenant, product, subject, login_channel, issuer=""):
         """select line_user_id, realm from `tabPearnly LINE Login Link`
            where tenant = %s and product = %s and subject = %s and alias = %s for update""",
         (tenant, product, subject, alias), as_dict=True)
-    _person_locks({(row.realm or provider.realm, alias, row.line_user_id) for row in rows} - held)
+    _held_or_retry([(row.realm or provider.realm, alias, row.line_user_id) for row in rows], held)
     frappe.db.delete(LINE_LINK, filters)
     # 改造前直接挂在这个账号上的关联（没有就是 404，不算错）。
     provider.unlink_line(subject, alias)
@@ -365,9 +374,12 @@ def move_members(tenant, product, issuer, *, dry_run=False):
                                              fields=["name", "realm", "alias", "line_user_id"], order_by="name asc")
              if link.realm and link.realm != provider.realm]
     if not dry_run:
+        # 先拿齐命名锁再删行（与 link / unlink 同序）：反过来时别的租户拿着同一个 LINE 的命名锁、加锁读扫到这边
+        # 删了没提交的行要等行锁，这边又在等它的命名锁，数据库看不出，只能等到 20 秒超时。
+        _person_locks((link.realm, link.alias, link.line_user_id) for link in stale)
         for link in stale:
             frappe.db.delete(LINE_LINK, {"name": link.name})
-            _person_lock(link.realm, link.alias, link.line_user_id)
+        for link in stale:
             _release(link.realm, link.alias, link.line_user_id)
     return {"realm": provider.realm, "members": members, "line_links_released": len(stale)}
 
@@ -419,9 +431,9 @@ def purge_members(tenant):
     frappe.db.delete(TENANT_IDENTITY, {"tenant": tenant})
     lines = {(row.realm, row.alias, row.line_user_id) for row in frappe.get_all(
         LINE_LINK, filters={"tenant": tenant}, fields=["realm", "alias", "line_user_id"]) if row.realm}
+    # 先拿齐命名锁再删行（同 move_members）；别的租户不再绑着的 LINE，专用身份一并删掉。
+    _person_locks(lines)
     frappe.db.delete(LINE_LINK, {"tenant": tenant})
-    # 别的租户不再绑着的 LINE，专用身份一并删掉。
     for realm, alias, line_user_id in sorted(lines):
-        _person_lock(realm, alias, line_user_id)
         _release(realm, alias, line_user_id)
     return {"members": len(members)}
