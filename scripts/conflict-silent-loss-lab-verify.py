@@ -29,6 +29,16 @@ def connect(site):
     os.chdir(SITES)
     frappe.init(site=site, sites_path=SITES)
     frappe.connect()
+    _like_a_request()
+
+
+def _like_a_request():
+    """同网页请求 / 后台任务开头的 `before_request` / `before_job`：出 PDF 解析样式的 cssutils 进程级开关设成「不抛」
+    （`pearnly_core.desk.print_css`）。直接调函数不经请求钩子，同一进程几个线程并发出 PDF 会撞上框架坏样式抛 SyntaxErr，
+    那是测试替身没走钩子，不是产品问题（11-28 核过：补上后 24 次并发出凭证全过）。"""
+    from pearnly_core.desk.print_css import lenient_css_parsing
+
+    lenient_css_parsing()
 
 
 def elsewhere(site, user, function):
@@ -39,6 +49,7 @@ def elsewhere(site, user, function):
         try:
             frappe.init(site=site, sites_path=SITES)
             frappe.connect()
+            _like_a_request()
             frappe.set_user(user)
             box["value"] = function()
             frappe.db.commit()
@@ -238,6 +249,7 @@ def void_with_children(site, rounds, results):
                 try:
                     frappe.init(site=site, sites_path=SITES)
                     frappe.connect()
+                    _like_a_request()
                     frappe.set_user(user)
                     box[label] = {"ok": function()}
                     frappe.db.commit()
