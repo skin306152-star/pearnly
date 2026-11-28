@@ -179,6 +179,11 @@ class Receipt:
         """冲掉的应收：净额 + Σ定金（减项单开单时已冲过应收，定金是负债转回）。"""
         return self.total + self.deposits()
 
+    def moves_money(self) -> bool:
+        """这张收款有没有凭证：应收、定金、现金、方式任一不为 0。只有减项单、正好抵平才没有（原生 DOCSTAT N）；退还定金把应收冲成 0 的
+        （发票 = 减项、定金退现金）应收不动、照样有凭证。"""
+        return bool(self.receivable() or self.deposits() or self.cash or self.methods)
+
 
 def _bytes(text: str) -> int:
     return len(str(text or "").encode("cp874", "replace"))
@@ -651,7 +656,7 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
             "CUSCOD": receipt.customer, "YOUREF": receipt.ref_no, "DUEDAT": docdat, "BILNUM": BILNUM,
             "NETAMT": float(receipt.total), "IVCAMT": float(receipt.total), "CSHRCV": float(receipt.cash),
             "CHQRCV": float(received), "CHQPAS": float(received), "INTRCV": 0.0, "RCVAMT": 0.0, "REMAMT": 0.0,
-            "CMPLAPP": "Y", "CMPLDAT": docdat, "DOCSTAT": DOCSTAT if receipt.receivable() else DOCSTAT_SETTLED,
+            "CMPLAPP": "Y", "CMPLDAT": docdat, "DOCSTAT": DOCSTAT if receipt.moves_money() else DOCSTAT_SETTLED,
             "SRV_VATTYP": SRV_VATTYP,
             "ORGNUM": int(first.get("orgnum") or 0), "USERID": plan.userid, "CHGDAT": _dt.date.today(),
         }))
@@ -722,7 +727,7 @@ def journal_rows(plan: _Plan) -> List[Tuple[str, str, str, Decimal]]:
     与方式行的先后无关：RE2402979 TX 行在前、分录 1112-01 在前；RE2402889 DC / AP / TF 三行分录 4100-04、5220-02、5390-01），
     负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；抵了定金另有 SEQIT 4 借定金科目；最后 SEQIT 6 贷应收合计（净额 + 定金）。冲掉的应收为 0 没有凭证，回空。
     净额 < 0 退现金（原生 RE0000034）：现金贷方、应收借方，金额正数。"""
-    if not plan.receipt.receivable():
+    if not plan.receipt.moves_money():
         return []
     merged: Dict[Tuple[str, str], Decimal] = {}
     if plan.receipt.cash:
@@ -734,6 +739,8 @@ def journal_rows(plan: _Plan) -> List[Tuple[str, str, str, Decimal]]:
     if plan.receipt.deposits():
         rows.append((SEQIT_DEPOSIT, plan.deposit_acc, S.TRNTYP_DEBIT, plan.receipt.deposits()))
     owed = plan.receipt.receivable()
+    if not owed:
+        return rows  # 应收不动（定金退现金正好冲成 0）：只有现金 / 方式与定金两边
     return rows + [(SEQIT_RECEIVABLE, plan.ar_acc, S.TRNTYP_CREDIT if owed > 0 else S.TRNTYP_DEBIT, abs(owed))]
 
 

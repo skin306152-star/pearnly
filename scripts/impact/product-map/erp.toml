@@ -593,9 +593,9 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-postback"
 anchor = "line:erp:postback:col"
-where = "LINE 录收款各步的按钮（a=col&s=…：选公司 / 客户 / 勾发票 / 方式 / 金额 / 再加一种方式 / 折扣 / 下次再收 / 确认 / 撤回 / 取消 / 查看结果；「เมนู」里的收款）；确认、撤回带一次性确认号，取消只认最新那条消息；抵减单（减项 / 定金，11-28）列在发票下面、勾了从合计里扣，正好抵平不问方式"
+where = "LINE 录收款各步的按钮（a=col&s=…：选公司 / 客户 / 勾发票 / 方式 / 金额 / 再加一种方式 / 折扣 / 下次再收 / 确认 / 撤回 / 取消 / 查看结果；「เมนู」里的收款）；确认、撤回带一次性确认号，取消只认最新那条消息；抵减单（减项 / 定金，11-28）列在发票下面、勾了从合计里扣，正好抵平不问方式、抵过头差额退现金（确认卡现金为负）"
 parts = ["line", "line-session"]
-tests = ["unit:tests/test_erp_collection_line.py::test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card", "unit:tests/test_erp_collection_line.py::test_cash_plus_transfer_with_a_voucher_and_a_discount", "unit:tests/test_erp_collection_line.py::test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent", "unit:tests/test_erp_collection_line.py::test_a_forged_button_on_someone_else_s_collection_is_refused_by_the_server", "unit:tests/test_erp_collection_line.py::test_an_old_card_cannot_write_again_after_a_new_collection_was_started", "unit:tests/test_erp_collection_line.py::test_tapping_confirm_twice_writes_once_and_the_second_tap_gets_no_reply", "unit:tests/test_erp_collection_line.py::test_cancel_only_from_the_current_step_and_it_discards_the_draft", "unit:tests/test_erp_collection_line.py::test_written_after_the_wait_is_not_pushed_and_is_told_by_reply", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_collection_events_go_to_the_collection_flow_before_other_typed_words", "unit:tests/test_erp_collection_line.py::test_a_credit_note_comes_off_and_the_rest_is_collected", "unit:tests/test_erp_collection_line.py::test_a_full_offset_goes_straight_to_the_card_without_a_method", "flow:erp.line.collection"]
+tests = ["unit:tests/test_erp_collection_line.py::test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card", "unit:tests/test_erp_collection_line.py::test_cash_plus_transfer_with_a_voucher_and_a_discount", "unit:tests/test_erp_collection_line.py::test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent", "unit:tests/test_erp_collection_line.py::test_a_forged_button_on_someone_else_s_collection_is_refused_by_the_server", "unit:tests/test_erp_collection_line.py::test_an_old_card_cannot_write_again_after_a_new_collection_was_started", "unit:tests/test_erp_collection_line.py::test_tapping_confirm_twice_writes_once_and_the_second_tap_gets_no_reply", "unit:tests/test_erp_collection_line.py::test_cancel_only_from_the_current_step_and_it_discards_the_draft", "unit:tests/test_erp_collection_line.py::test_written_after_the_wait_is_not_pushed_and_is_told_by_reply", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_collection_events_go_to_the_collection_flow_before_other_typed_words", "unit:tests/test_erp_collection_line.py::test_a_credit_note_comes_off_and_the_rest_is_collected", "unit:tests/test_erp_collection_line.py::test_a_full_offset_goes_straight_to_the_card_without_a_method", "unit:tests/test_erp_collection_line.py::test_offsets_above_the_invoices_go_to_the_card_paying_the_difference_back_in_cash", "flow:erp.line.collection"]
 
 [[row]]
 id = "erp.line.collection-edit"
@@ -740,9 +740,9 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-collections:New"
-where = "「销售 → 收款」页头「新建」（有「收款」权限的人：收款岗位、管理员；原生弹窗，提交即放行写 Express RE；点开还没写进 Express 的可改、可撤回，不分谁录的，11-14；抵减单（减项 / 定金）列在发票下面、未收记负数，11-28）"
+where = "「销售 → 收款」页头「新建」（有「收款」权限的人：收款岗位、管理员；原生弹窗，提交即放行写 Express RE；点开还没写进 Express 的可改、可撤回，不分谁录的，11-14；抵减单（减项 / 定金）列在发票下面、未收记负数，抵过头现金不填即退现金、转账格填负数即转账退，11-28）"
 cc_na = "CC 里录收款是收款工具（erp_collection_*），同一个 collection.service"
-tests = ["unit:tests/test_erp_collection.py::test_a_submit_records_and_releases_once_per_dialog", "unit:tests/test_erp_collection.py::test_the_same_rules_refuse_with_the_same_sentence", "unit:tests/test_erp_collection.py::test_only_people_with_the_collection_permission_can_submit", "unit:tests/test_erp_collection.py::test_a_person_given_company_a_cannot_record_for_company_b", "unit:tests/test_erp_collection.py::test_the_collections_page_withdraws_like_line_for_anyone_with_the_permission", "unit:tests/test_erp_collection.py::test_the_customer_box_searches_on_the_server_one_page_at_a_time", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "unit:tests/test_erp_collection.py::test_a_credit_note_comes_off_the_total_and_lines_keep_invoices_first", "flow:erp.web.collection"]
+tests = ["unit:tests/test_erp_collection.py::test_a_submit_records_and_releases_once_per_dialog", "unit:tests/test_erp_collection.py::test_the_same_rules_refuse_with_the_same_sentence", "unit:tests/test_erp_collection.py::test_only_people_with_the_collection_permission_can_submit", "unit:tests/test_erp_collection.py::test_a_person_given_company_a_cannot_record_for_company_b", "unit:tests/test_erp_collection.py::test_the_collections_page_withdraws_like_line_for_anyone_with_the_permission", "unit:tests/test_erp_collection.py::test_the_customer_box_searches_on_the_server_one_page_at_a_time", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "unit:tests/test_erp_collection.py::test_a_credit_note_comes_off_the_total_and_lines_keep_invoices_first", "unit:tests/test_erp_collection.py::test_offsets_above_the_invoices_pay_the_difference_back_in_cash_or_by_transfer", "flow:erp.web.collection"]
 
 [[row]]
 id = "erp.desk.pearnly-company"
@@ -2218,7 +2218,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_collection_guide"
 where = "CC 工具 erp_collection_guide（打字说要收款：只在对话里打开收款卡，说到的客户名 / 单号预填进搜索框；客户、发票、金额由用户在卡上选填）"
-tests = ["unit:tests/test_erp_collection_cc.py::test_opening_starts_the_collection_guide_in_this_conversation_with_the_hint", "unit:tests/test_erp_collection_guide.py::test_a_credit_note_is_listed_last_and_comes_off_what_the_methods_must_split"]
+tests = ["unit:tests/test_erp_collection_cc.py::test_opening_starts_the_collection_guide_in_this_conversation_with_the_hint", "unit:tests/test_erp_collection_guide.py::test_a_credit_note_is_listed_last_and_comes_off_what_the_methods_must_split", "unit:tests/test_erp_collection_guide.py::test_offsets_above_the_invoices_pay_the_difference_back_in_cash"]
 
 [[row]]
 id = "erp.cc.tool.erp_collection_customers"

@@ -179,6 +179,18 @@ def test_offsets_larger_than_the_invoices_with_a_line_that_collects_are_refused(
     assert not res.ok and res.error_code == R.ERR_VALIDATION and _state(acct) == before
 
 
+def test_a_deposit_paid_back_with_the_receivable_settled_still_has_a_balanced_voucher(acct):
+    """发票 = 减项、定金退现金：应收冲成 0（ARBAL / ARMAS 不动），凭证借定金、贷现金，DOCSTAT M（审查 11-28：原来整张没有凭证）。"""
+    seed(acct, "ARTRN", [_doc("SR1000", "5", 1000.0)])
+    res = _write(acct, _pay((("IVP42400241", "1000.00"),), (), (("SR1000", "5", "1000.00"), ("AI2400002", "0", "500.00")),
+                            cash="-500.00"))
+    assert res.ok, res.error
+    head = _head(acct, res.docnum)
+    assert (head["NETAMT"], head["CSHRCV"], head["DOCSTAT"]) == (-500.0, -500.0, "M")
+    assert _journal(acct, res.docnum) == [(" 2", "1111-00", "1", Decimal("500.0"), "CPI"), (" 4", DEPOSIT, "0", Decimal("500.0"), "CPI")]
+    assert _balance(acct) == 30000.0
+
+
 def test_negative_cash_is_refused_when_the_invoices_are_larger(acct):
     before = _state(acct)
     res = _write(acct, _pay((("IVP42400239", "9972.00"),), (("BB", "10072.00"),), (), cash="-100.00"))
