@@ -131,7 +131,7 @@ const moved=await until(()=>frappe.get_route()[1]&&frappe.get_route()[1]!=='amen
 return {{via, route: frappe.get_route().join('/'), moved: !!moved, msg: msg()}};"""},
         {"name": "作废", "js": JS + ACTION + OPEN + DIALOG + f"""
 if(!await open({v['voiding']}, {v['voiding_no']})) return {{error:'stocked purchase did not open '+window.__opened}};
-const via=await action(__('Cancel')); if(!via) return {{error:'no Cancel item'}};
+const via=await action(__('trade.void')); if(!via) return {{error:'no Void item'}};
 const done=await dialog({{reason: {v['reason']}}}); if(!done) return {{error:'no cancel dialog'}};
 return {{via, ...done}};"""},
     ]

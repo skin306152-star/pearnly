@@ -1256,8 +1256,8 @@ product = "ERP"
 channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
-anchor = "action:erp:pearnly-purchase:Cancel"
-where = "pearnly-purchase 页头「Cancel」"
+anchor = "action:erp:pearnly-purchase:trade.void"
+where = "pearnly-purchase 页头「trade.void」（作废）"
 tests = ["flow:erp.purchase.actions"]
 
 [[row]]
@@ -1357,8 +1357,8 @@ product = "ERP"
 channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
-anchor = "action:erp:pearnly-sales:Cancel"
-where = "pearnly-sales 页头「Cancel」"
+anchor = "action:erp:pearnly-sales:trade.void"
+where = "pearnly-sales 页头「trade.void」（作废）"
 tests = ["flow:erp.sales.actions"]
 
 [[row]]

@@ -132,7 +132,7 @@ const body=d?(d.$body.text()||'').replace(/\\s+/g,' ').trim():''; if(d) d.hide()
 return {{button:true, via, dialog: body.slice(0, 300), calls:window.__calls}};"""},
         {"name": "作废", "js": JS + ACTION + OPEN + DIALOG + f"""
 if(!await open({v['voiding']}, {v['voiding_no']})) return {{error:'stocked sale did not open '+window.__opened}};
-const via=await action(__('Cancel')); if(!via) return {{error:'no Cancel item'}};
+const via=await action(__('trade.void')); if(!via) return {{error:'no Void item'}};
 const done=await dialog({{reason: {v['reason']}}}); if(!done) return {{error:'no cancel dialog'}};
 return {{via, ...done}};"""},
     ]
