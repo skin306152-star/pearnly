@@ -32,6 +32,16 @@ def _require(company):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 
+def _fresh(function, *args, **kwargs):
+    """代录任务只动本库的写入口（11-28 B ②）：先结束请求开头建的读视图（到这里还没写过），再整笔重来地调 ``function``——
+    `tasks._own(for_update=True)` 先锁任务行，之后的普通读读到的是别人刚提交的值；撞上死锁或保存前比对整笔回滚重来，用尽回
+    「请稍后重试」。要开 / 删引擎会话的（新建、删除、任务里的对话）有外部读写，不在这里包（归 B ④）。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()
+    return conflicts.attempt(function, *args, **kwargs)
+
+
 @frappe.whitelist(methods=["POST"])
 def documents(company, period, offset=0, limit=50, task=""):
     """资料清单（服务端分页）。``task``：这次代录任务（准备中）——现查到的单记进任务的快照，第一页另补快照里已不在清单里的单
@@ -292,7 +302,7 @@ def task_create(company, period, company_title=""):
 def task_update(name, title=None, starred=None, company=None, company_title=None, period=None):
     if company is not None:
         _require(company)
-    return tasks.update(name, title=title, starred=starred, company=company, company_title=company_title, period=period)
+    return _fresh(tasks.update, name, title=title, starred=starred, company=company, company_title=company_title, period=period)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -302,12 +312,12 @@ def task_delete(name):
 
 @frappe.whitelist(methods=["POST"])
 def task_running(name):
-    return tasks.mark_running(name)
+    return _fresh(tasks.mark_running, name)
 
 
 @frappe.whitelist(methods=["POST"])
 def task_settle(name):
-    return tasks.settle(name)
+    return _fresh(tasks.settle, name)
 
 
 # ── 任务里的对话与选项（对话框甲）────────────────────────────────────────────────────────────────
@@ -324,7 +334,7 @@ def task_answer(name, doc_id, answers):
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, list):
         frappe.throw(_("Invalid request"))
-    return tasks.answer(name, str(doc_id or ""), answers)
+    return _fresh(tasks.answer, name, str(doc_id or ""), answers)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -333,16 +343,16 @@ def task_answer_many(name, answers):
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, dict) or len(answers) > BATCH_MAX or any(not isinstance(v, list) for v in answers.values()):
         frappe.throw(_("Invalid request"))
-    return tasks.answer_many(name, {str(k): v for k, v in answers.items()})
+    return _fresh(tasks.answer_many, name, {str(k): v for k, v in answers.items()})
 
 
 @frappe.whitelist(methods=["POST"])
 def task_resume(name):
     """整批停下以后的「继续」：因整批停而没录成的单按原批次号交回原来那台电脑。"""
-    return tasks.resume(name)
+    return _fresh(tasks.resume, name)
 
 
 @frappe.whitelist(methods=["POST"])
 def task_controls(name):
     """执行的那台电脑的 CC 页面取走对话里交代的跳过 / 重做（取走即清空）。"""
-    return {"controls": tasks.take_controls(name)}
+    return {"controls": _fresh(tasks.take_controls, name)}
