@@ -3256,3 +3256,35 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
 ]
+
+[[flow]]
+id = "erp.line.lane"
+title = "LINE 同一个人连发 10 张图（途中点卡片「取消」）、重投同一事件、两个人同时连发、线程死在半路由扫描接走：每张都收下、各扣一次、都出卡、没有「Could not store」、不推送（LINE 按用户一条道，11-28）"
+module = "scripts/flows/line_lane_burst.py"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/line.py",
+  "apps/pearnly_core/pearnly_core/line_lane/__init__.py",
+  "apps/pearnly_core/pearnly_core/line_lane/lane.py",
+  "apps/pearnly_core/pearnly_core/line_session.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py",
+]
+
+[[flow]]
+id = "cowork.line.lane"
+title = "Cowork LINE 同一个人连发 10 张（仅识别）、重投同一事件、两个人同时连发：每张都收下、各受理一次、都出卡、没有「Could not store」、不推送（LINE 按用户一条道，11-28）"
+module = "scripts/flows/line_lane_burst.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/line_lane/lane.py",
+  "apps/pearnly_cowork/pearnly_cowork/line/flow.py",
+  "apps/pearnly_cowork/pearnly_cowork/line/ask.py",
+  "apps/pearnly_cowork/pearnly_cowork/line/intake.py",
+]
