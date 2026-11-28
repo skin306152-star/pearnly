@@ -49,7 +49,18 @@ PRUNE_BATCH = 1000
 PRUNE_ROUNDS = 10
 FINISHED = ("done", "ignored", "failed", "expired")
 
+# 处理中保活：一条事件跑得比租约还久时，持道的人每隔一段在 Redis 里报一次「还活着」，别人抢道、判中断都先看它
+ALIVE_PREFIX = "pearnly:line:lane-alive:"
+ALIVE_SECONDS = 45
+ALIVE_EVERY = 15
+
 _slots = threading.BoundedSemaphore(THREADS)
+# 网页进程要退出了（gunicorn 按 max-requests 回收）：排空线程跑完手上这条就放道，不再接新的
+_stopping = threading.Event()
+try:
+    threading._register_atexit(_stopping.set)  # 在等非守护线程之前调（concurrent.futures 同一做法）
+except Exception:  # noqa: BLE001
+    pass
 
 
 def utcnow() -> datetime:
@@ -215,20 +226,74 @@ def _changed() -> bool:
 
 
 def acquire(line_user_id: str, holder: str) -> bool:
-    """抢道：租约空或到点才拿得到（影响 1 行）。提交。"""
-    if not frappe.db.exists(LANE, line_user_id):
-        frappe.get_doc({"doctype": LANE, "line_user_id": line_user_id}).insert(
-            ignore_permissions=True, ignore_if_duplicate=True)
+    """抢道：租约空或到点、且持道的人没在 Redis 里报活着才拿得到（影响 1 行）。提交。"""
+    alive = _alive_holder(line_user_id)
+    if alive and alive != holder:
+        return False
+    for _attempt in range(2):
+        if not frappe.db.exists(LANE, line_user_id):  # loop-query: 最多两次（清理删了闲置的道时重建一次）
+            frappe.get_doc({"doctype": LANE, "line_user_id": line_user_id}).insert(
+                ignore_permissions=True, ignore_if_duplicate=True)
+            frappe.db.commit()
+        now = utcnow()
+        frappe.db.sql(  # loop-query: 最多两次（清理删了闲置的道时重建一次）
+            "update `tabPearnly LINE Lane` set holder=%s, lease_until=%s, modified=%s "
+            "where name=%s and (lease_until is null or lease_until<%s)",
+            (holder, now + timedelta(seconds=LEASE_SECONDS), now, line_user_id, now),
+        )
+        got = _changed()
         frappe.db.commit()
-    now = utcnow()
-    frappe.db.sql(
-        "update `tabPearnly LINE Lane` set holder=%s, lease_until=%s, modified=%s "
-        "where name=%s and (lease_until is null or lease_until<%s)",
-        (holder, now + timedelta(seconds=LEASE_SECONDS), now, line_user_id, now),
-    )
-    got = _changed()
-    frappe.db.commit()
-    return got
+        # 0 行且这一行没了：每天的清理刚好在这一刻删了闲置的道，重建一次再抢
+        if got or frappe.db.exists(LANE, line_user_id):  # loop-query: 最多两次（清理删了闲置的道时重建一次）
+            return got
+    return False
+
+
+def _alive_key(line_user_id: str):
+    cache = frappe.cache()
+    return cache, cache.make_key(ALIVE_PREFIX + line_user_id)
+
+
+def _alive_holder(line_user_id: str) -> str:
+    try:
+        cache, key = _alive_key(line_user_id)
+        value = cache.execute_command("GET", key)
+    except Exception:  # noqa: BLE001 —— Redis 不在就只看数据库租约
+        return ""
+    return value.decode() if isinstance(value, bytes) else str(value or "")
+
+
+def _keep_alive(line_user_id: str, holder: str):
+    """处理一条事件期间每 :data:`ALIVE_EVERY` 秒报一次活着（另起线程，只碰 Redis），返回停止函数。
+    处理器跑得比 :data:`LEASE_SECONDS` 还久时，扫描起的新一轮抢不到道、不会把还在跑的这条判成中断。"""
+    try:
+        cache, key = _alive_key(line_user_id)
+    except Exception:  # noqa: BLE001
+        return lambda: None
+    done = threading.Event()
+
+    def beat():
+        try:
+            cache.execute_command("SET", key, holder, "EX", ALIVE_SECONDS)
+        except Exception:  # noqa: BLE001
+            logger.warning("[line_lane] 报活着失败", exc_info=True)
+
+    def loop():
+        while not done.wait(ALIVE_EVERY):
+            beat()
+
+    beat()
+    thread = threading.Thread(target=loop, name="pearnly-line-lane-alive", daemon=True)
+    thread.start()
+
+    def stop():
+        done.set()
+        try:
+            cache.execute_command("DEL", key)
+        except Exception:  # noqa: BLE001
+            pass
+
+    return stop
 
 
 def renew(line_user_id: str, holder: str) -> bool:
@@ -256,6 +321,11 @@ def drain(line_user_id: str, holder: str) -> None:
     """持道时一条一条处理本人排队的事件；道被接走或排空就走。"""
     while True:
         frappe.db.commit()  # 结束读视图：下一条读到的都是最新的
+        if _stopping.is_set():
+            # 进程在退出：放道，余下的由下一条 webhook 或扫描接走
+            release(line_user_id, holder)  # loop-query: 道里一条事件一轮，进程退出时放一次就走
+            frappe.db.commit()
+            return
         if not renew(line_user_id, holder):  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
             return
         _interrupted(line_user_id)  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
@@ -389,6 +459,7 @@ def _run(name: str, line_user_id: str, holder: str) -> None:
         return
     _reset()
     frappe.local.pearnly_line_lane_mark = {"user": line_user_id, "mark": _mark_for(name)}
+    stop_alive = _keep_alive(line_user_id, holder)
     try:
         with line_session.serialized(line_user_id):
             handled = line._dispatch_with_feedback(event, waited=waited)
@@ -403,8 +474,13 @@ def _run(name: str, line_user_id: str, holder: str) -> None:
         except Exception:  # noqa: BLE001 —— 记不上日志也要把这条记成 failed
             frappe.db.rollback()
             logger.warning("[line_lane] 记错误日志失败", exc_info=True)
+        answered = replied(name)
         _finish(name, "failed", str(exc)[:400])
+        if not answered:
+            # 处理器没回过本人就失败了（含串行块等不到锁）：本人发了消息不能石沉大海，同中断的口径告诉一次
+            _tell_retry(line_user_id, event, "failed")
     finally:
+        stop_alive()
         _reset()
 
 

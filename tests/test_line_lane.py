@@ -148,6 +148,9 @@ class LaneCase(unittest.TestCase):
         self.fail_on, self.reply_on, self.marks = set(), set(), set()
         self.patch(line_lane, "_mark_for", lambda name: lambda: self.marks.add(name))
         self.patch(line_lane, "replied", lambda name: name in self.marks)
+        self.alive = {}
+        self.patch(line_lane, "_alive_holder", lambda user: self.alive.get(user, ""))
+        self.patch(line_lane, "_keep_alive", lambda user, holder: (lambda: None))
 
     def patch(self, owner, name, value, **kwargs):
         return self.stack.enter_context(patch.object(owner, name, value, **kwargs))
@@ -224,6 +227,45 @@ class Draining(LaneCase):
         order = self.db.log
         self.assertLess(order.index("handler-raised"), order.index("rollback"))
         self.assertLess(order.index("rollback"), order.index("log_error"))
+
+    def test_a_handler_that_fails_before_answering_tells_the_sender_once(self):
+        self.fail_on.add("a")
+        self.queue(self.event("a", 1000))
+        line_lane.start(USER)
+        self.assertEqual(self.db.events["evt-a"]["status"], "failed")
+        self.assertEqual([(to, m[0]["text"]) for to, m, _k in self.pushed], [(USER, "Please try again later")])
+
+    def test_a_handler_that_fails_after_answering_is_not_followed_by_a_retry_message(self):
+        self.fail_on.add("a")
+        self.reply_on.add("a")
+        self.queue(self.event("a", 1000))
+        line_lane.start(USER)
+        self.assertEqual((self.db.events["evt-a"]["status"], self.db.events["evt-a"]["replied"]), ("failed", 1))
+        self.assertEqual(self.pushed, [])
+
+    def test_a_holder_still_running_a_long_event_keeps_the_lane(self):
+        self.queue(self.event("a", 1000))
+        self.alive[USER] = "busy-holder"  # its lease ran out but it still reports alive
+        line_lane.start(USER)
+        self.assertEqual(self.dispatched, [])
+        self.assertEqual(self.db.events["evt-a"]["status"], "queued")
+
+    def test_a_process_on_its_way_out_releases_the_lane_after_the_current_event(self):
+        self.queue(self.event("a", 1000), self.event("b", 2000))
+
+        def dispatch(event, waited=0.0):
+            self.dispatched.append(event["message"]["id"])
+            line_lane._stopping.set()
+            return True
+
+        try:
+            with patch.object(line, "_dispatch_with_feedback", dispatch):
+                line_lane.start(USER)
+        finally:
+            line_lane._stopping.clear()
+        self.assertEqual(self.dispatched, ["a"])
+        self.assertEqual(self.db.events["evt-b"]["status"], "queued")
+        self.assertIsNone(self.db.lanes[USER]["holder"])
 
     def interrupt(self, name):
         self.db.events[name].update(status="processing", lease_until=line_lane.utcnow() - timedelta(seconds=1))
