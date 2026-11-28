@@ -515,3 +515,26 @@
 | 4 Cowork 选项缓存整份写回 | 否（已是加锁读） | 否 | 同上 |
 | 5 落快照两段加锁、MR.ERP 读无重试 | 部分（无重试是真的；加锁顺序不改） | 加重试 | 同上 |
 | 6 记原件抛别的错留孤儿 | 是 | 是 | 同上 |
+
+### 共用件 erp-transactions 逐入口实测（`transactions.js`：单据页 Express 弹窗原因行、`shown_state` 同名常量；挂 d6c8440be）
+
+`python3 scripts/check-impact.py --base 24e3f1e3f` 命中 erp-transactions 24 个入口，全部在本机实验栈 maclab `pearnly-b3`（`erp.maclab.localhost:19391`，挂本工作树 d6c8440be，静态资源核过是新版）用无头 Chrome（chrome-headless-shell）实测，账号 `acc.erp@…`（界面中文）。
+自动的 19 个用 `scripts/smoke/run.py --target local`（只把站点名换成实验站，不改仓库文件）；人工的 5 个把现成流程（`scripts/flows/<模块>.py` 的 prepare / steps / judge / verify，驱动 `scripts/regression/ui_steps.mjs`）搬到实验站跑，流程没覆盖的动作自己写页面步骤。
+接 Express 一侧用公司现状（接着），不接一侧临时取消「接 Express」、多建一个仓，测完还原；造的单、物料、仓、盘点、期初都已清掉。截图：`~/pearnly-devtools/handoff-1128/b3-logs/transactions-24/`（文件名 = 入口）。
+每页控制台都有一条 `Error connecting to socket.io: Unauthorized`：实验站实时连接的环境问题，与本改动无关，不计。
+
+| 入口 | 结果 | 说明 |
+|---|---|---|
+| `erp.page.inventory` | 通过 | 2.2 秒 |
+| `erp.page.stock-in` / `stock-out` / `stock-transfer` / `stock-adjust` / `stock-card` / `stock-count` | 通过 ×6 | 各 0.5 秒 |
+| `erp.page.purchase` / `sales` / `pos-receipts` / `pos-shifts` | 通过 ×4 | 各 0.5 秒 |
+| `erp.detail.sales.submitted` / `sales.void` / `purchase.submitted` / `purchase.void` | 通过 ×4 | 按钮齐全、无页面异常 |
+| `erp.detail.sales.draft` / `purchase.draft` / `stock-in.submitted` / `stock-out.void` | 通过 ×4 | 实验站原本没有这几种状态的单（第一遍记没测到），按正式函数各造一张后重跑通过 |
+| 迟到写成单的 Express 弹窗（附在 `erp.detail.purchase.submitted`） | 通过 | 造一张已提交采购单：停下 + `cc_desktop.result_unknown:moved_during_write` + 单号；单据页「Express」弹窗：状态「失败」（现状）、Express 单号、原因「已写进 Express，需人工处理」 |
+| `erp.place.header` | 通过 | 11-19 起仓库按行（登记的「单头仓 + 库位」说法已过时，按现行为测）：新建采购 / 销售第一行按服务端建议仓（这家多仓、没有本人上次 → 空），改第一行仓后加行跟上一行；入库第一行预填本人上次的仓、第二行跟上一行，两行两仓提交后各落各仓；`erp_stock_out_new`、`erp_stock_transfer`（单头调出仓变行跟着变、同仓被拒、作废回滚）流程全过。没测：采购 / 销售提交（接 Express 侧）、切公司后预填 |
+| `erp.products.new-dialog.opening` | 通过 | 接 Express：新建弹窗没有期初表；不接：`erp_product_opening` 两个仓各一行 5、3 提交，两仓账面就是期初数。没测：整页带期初、一行出错整件不建 |
+| `erp.inventory.opening.row-warehouse` | 通过 | 表头预填本人上次的仓；两行一行空着（落表头仓 2）、一行选第二个仓（1）→ 预览 → 提交，两仓各自入账；`erp_stock_opening_scan` 流程也过。没测：Excel 带仓库列导入 |
+| `erp.warehouses.express-new-hidden` | 通过 | 接 Express：仓库页没有新建；选择框原地新建、别处「新建」跳过来都弹「请在 Express 中建仓库，再在公司页点「同步 Express」」；不接：有「新建仓库」、原地新建开编辑弹窗 |
+| `erp.report.stock-count-variance` | 通过 | 不带筛选跳回盘点页（框架原生，伴一条框架自己的 `Filter missing` 未处理拒绝，`errors.js` 已登记不算）；带一份盘点：`erp_stocktake_report` 差异、只看差异、打印两种表、导出全过 |
+
+合计：通过 24，不通过 0，没测到 0（人工 5 个里登记的个别子项没测，写在各行）。栈仍挂本工作树 d6c8440be。
