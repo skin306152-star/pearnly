@@ -107,29 +107,52 @@ def explain(module, keys) -> dict:
     return out
 
 
-def _mounts(module) -> dict:
-    """当前有效绑定的人各自挂着的个人菜单（没有挂的不列）。只读（GET）。"""
-    out = {}
+def _rejected(exc) -> bool:
+    """LINE 说这个用户 ID 本身无效（400 ...'userId'...，例如部署回读留下的假身份；DMS 抛 UserRejected）：这个人看不到任何菜单，跳过。"""
+    return type(exc).__name__ == "UserRejected" or ("400" in str(exc) and "userId" in str(exc))
+
+
+def _bound() -> list:
     # bounded: 一个租户的有效 LINE 绑定（每人至多一条），与产品自己的 reconcile() 同一个名单
-    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id"):  # bounded: 同上
-        menu_id = (module._request("GET", "user/" + quote(line_user_id, safe="") + "/richmenu", missing_ok=True) or {}).get(
-            "richMenuId")
+    return frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id")  # bounded: 同上
+
+
+def _mounts(module, skipped: set) -> dict:
+    """当前有效绑定的人各自挂着的个人菜单（没有挂的不列；LINE 说 ID 无效的记进 ``skipped``）。只读（GET）。"""
+    out = {}
+    for line_user_id in _bound():
+        try:
+            menu_id = (module._request("GET", "user/" + quote(line_user_id, safe="") + "/richmenu", missing_ok=True)
+                       or {}).get("richMenuId")
+        except Exception as exc:
+            if not _rejected(exc):
+                raise
+            skipped.add(line_user_id)
+            continue
         if menu_id:
             out[line_user_id] = menu_id
     return out
 
 
-def _remount(module, before: dict) -> dict:
+def _remount(module, before: dict, skipped: set) -> dict:
     """发布后给每个有效绑定的人当场重挂（不等队列），再回读：发布前挂着个人菜单的人一个不少、每个人挂的都是这一版的菜单。
-    发布前没挂、这次挂上的（例如以前一次重挂失败漏掉的）算补上，只计数。"""
-    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"status": "active"}, pluck="line_user_id"):  # bounded: 一个租户的有效 LINE 绑定
-        module.remount(line_user_id)
+    发布前没挂、这次挂上的（例如以前一次重挂失败漏掉的）算补上，只计数；LINE 说 ID 无效的跳过并计数。"""
+    for line_user_id in _bound():
+        if line_user_id in skipped:
+            continue
+        try:
+            module.remount(line_user_id)
+        except Exception as exc:
+            if not _rejected(exc):
+                raise
+            skipped.add(line_user_id)
     frappe.db.commit()
-    after = _mounts(module)
+    after = _mounts(module, skipped)
     published = set((frappe.conf.get(module.CONFIG) or {}).values())
     stale = sorted(uid[:8] for uid, menu_id in after.items() if menu_id not in published)
     lost = sorted(uid[:8] for uid in before if uid not in after)
-    result = {"mounted_before": len(before), "mounted_after": len(after)}
+    lost = [uid for uid in lost if uid not in {u[:8] for u in skipped}]
+    result = {"mounted_before": len(before), "mounted_after": len(after), "rejected_ids": len(skipped)}
     if lost or stale:
         raise RuntimeError(f"{frappe.local.site} {module.SURFACE} remount readback: {len(before)} users had a personal menu "
                            f"before, {len(after)} after; lost: {lost}; not on this release: {stale}")
@@ -169,10 +192,11 @@ def sync_site(product: str, emit=print) -> dict:
                                   ensure_ascii=False, sort_keys=True))
         emit("BEFORE " + json.dumps({"site": frappe.local.site, "surface": module.SURFACE, "config": before},
                                     ensure_ascii=False, sort_keys=True))
-        mounted = _mounts(module)  # loop-query: 每个产品只声明一个表面（富菜单），一个站点只查一次本站绑定
+        skipped = set()
+        mounted = _mounts(module, skipped)  # loop-query: 每个产品只声明一个表面（富菜单），一个站点只查一次本站绑定
         module.publish()
         frappe.db.commit()  # publish() 末尾 reconcile() 排的重挂任务是 enqueue_after_commit（幂等，与下面当场重挂不冲突）
-        users = _remount(module, mounted)  # loop-query: 同上，一个站点一次
+        users = _remount(module, mounted, skipped)  # loop-query: 同上，一个站点一次
         after = module.drift()
         if not clean(after):
             raise RuntimeError(f"{frappe.local.site} {module.SURFACE} still differs after publish: "

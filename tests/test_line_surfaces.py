@@ -51,6 +51,10 @@ class Channel:
         if method == "GET" and path.startswith("richmenu/") and path.count("/") == 1:
             menu_id = path.split("/")[1]
             return Response(self.bodies.get(menu_id, {}), status=200 if menu_id in self.bodies else 404)
+        if path.startswith("user/U") and path.split("/")[1] in getattr(self, "rejected", ()):
+            response = Response({}, status=400)
+            response.text = "{\"message\":\"The value for the 'userId' parameter is invalid\"}"
+            return response
         if path.startswith("user/U") and path.endswith("/richmenu") and method == "GET":
             menu_id = self.user_menus.get(path.split("/")[1])
             return Response({"richMenuId": menu_id} if menu_id else {}, status=200 if menu_id else 404)
@@ -144,6 +148,8 @@ class Surfaces(unittest.TestCase):
             stack.append(patch.object(surface.line, "can_send", lambda: can_send))
 
         def remount(line_user_id):
+            if line_user_id in getattr(channel, "rejected", ()):
+                raise RuntimeError("LINE rich menu HTTP 400: The value for the 'userId' parameter is invalid")
             key = self.bindings[line_user_id]
             if not self.remount_works:
                 return
@@ -251,6 +257,21 @@ class Surfaces(unittest.TestCase):
                 channel.user_menus = {"Ualice": dict(self.conf[module.CONFIG])[keys[0]]}
                 with self.assertRaisesRegex(RuntimeError, "lost: \\['Ualice'\\]"):
                     line_surfaces.sync_site(product, emit=lambda text: None)
+                patch.stopall()
+
+    def test_user_ids_line_rejects_are_skipped_not_a_failure(self):
+        """部署回读留下的假身份：LINE 回 400 userId。跳过并计数，不让整站（整次部署）失败；别的错照样失败。"""
+        for product in MODULES:
+            with self.subTest(product):
+                channel = Channel()
+                self.published_old(product, channel)
+                module = self.stage(product, channel)
+                key = sorted(k for k in self.conf[module.CONFIG] if ":" in k)[0]
+                self.bindings = {"Ualice": key, "Ufake": key}
+                channel.user_menus = {"Ualice": self.conf[module.CONFIG][key]}
+                channel.rejected = {"Ufake"}
+                row = line_surfaces.sync_site(product, emit=lambda text: None)["rich_menu"]
+                self.assertEqual((row["mounted_before"], row["mounted_after"], row["rejected_ids"]), (1, 1, 1))
                 patch.stopall()
 
     def test_remount_that_leaves_users_on_old_menus_fails(self):
