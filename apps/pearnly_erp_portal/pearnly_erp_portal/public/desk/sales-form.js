@@ -248,10 +248,12 @@
 			// 收满之后不再给收款入口（用户 2026-09-23：「已收不可更改」）。
 			if (doc.doc_kind === "receipt" && doc.payment_status !== "paid")
 				page.set_primary_action(__("Collection"), () => u.payment(doc, reload));
-			page.add_menu_item(__("Cancel"), () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
+			// 作废动作、确认框标题、完成提示与状态同一个词（用户 11-28「统一已作废」，沿用 POS 的 trade.void / trade.state.void）；
+			// 确认框里关掉对话框的那颗按钮是框架自己的，不动
+			page.add_menu_item(__("trade.void"), () => p.dialog(__("trade.void"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
 				__("Confirm"), async (values, dialog) => {
 					await u.call("api_cancel_sale", {name: doc.name, ...values}, true);
-					dialog.hide(); p.success(__("Cancelled"), "cancel"); await reload();
+					dialog.hide(); p.success(__("trade.state.void"), "cancel"); await reload();
 				}));
 		}
 		// 报价单 / 销售单打印（打印第二批）：标题按税票口径由版面定（接 Express 打送货单，没接打收据，都不印税票字样）；

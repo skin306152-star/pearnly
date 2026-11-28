@@ -72,6 +72,14 @@ Cowork 识别记录 posting_kind 已一致；DMS 推送记录页头自己的 Sel
 | 打印作废章（`printing/templates/trade.html`、`goods_receipt.html`、`goods_issue.html`、`thermal.html`） | ยกเลิก / CANCELLED | ยกเลิก / VOIDED |
 
 查过、不改（不是单据作废这个状态）：收款 withdrawn「已取消」；盘点调整单「已撤销」；写账件被撤下的原因（`express/pending.py` / `transactions.js` 的 cancelled / replaced / voided → 已取消，是写账任务被撤，不是单据状态）；LINE / CC 里「Cancelled」都是操作被取消的回复；CC 结果卡没有单据作废状态词。
-**留给主会话定**：销售单 / 采购单详情菜单里作废动作叫「Cancel（取消）」、确认框标题「Cancel」、完成提示「Cancelled（已取消）」——是动作名与操作提示，POS 那边叫「作废」。要不要一起改成作废，本分支没动。
+作废动作（主会话 11-28 定，依据同一句用户原话「统一已作废」：状态与使它变成该状态的按钮是同一件事）：
 
-改的都是代码里引用哪条已有词条（Cancelled → Voided），词条本身一字没改，`check-copy.py` 记为「代码引用新增 2」、改动 0、拦截 0；打印章是模板里的固定字。
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| 销售 / 采购详情菜单的作废动作（`sales-form.js` / `purchase-form.js`） | `__("Cancel")` 取消 / Cancel | `__("trade.void")` 作废 / Void（th ยกเลิก、ja 取消 不变） |
+| 作废确认框标题 | `__("Cancel")` 取消 / Cancel | `__("trade.void")` 作废 / Void |
+| 作废完成提示 | `__("Cancelled")` 已取消 / Cancelled | `__("trade.state.void")` 已作废 / Voided |
+
+确认框里关掉对话框的那颗按钮是框架自己的（放弃这次操作），没改；确认框的主按钮「Confirm 确认」与原因栏「Reason for Cancellation 取消原因」没在定词范围内，没改。
+
+改的都是代码里引用哪条已有词条（Cancelled → Voided、Cancel → trade.void），词条本身一字没改，`check-copy.py` 记为「代码引用新增 6」、改动 0、拦截 0；打印章是模板里的固定字。

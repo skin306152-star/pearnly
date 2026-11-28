@@ -270,10 +270,12 @@
 			// 付清之后不再给付款入口（用户 2026-09-23：「已付不可更改」）。
 			if (doc.payment_status !== "paid") page.set_primary_action(__("Payment"), () => u.payment(doc, reload));
 			page.add_menu_item(__("Amend"), () => go("amend", doc.name));
-			page.add_menu_item(__("Cancel"), () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
+			// 作废动作、确认框标题、完成提示与状态同一个词（用户 11-28「统一已作废」，沿用 POS 的 trade.void / trade.state.void）；
+			// 确认框里关掉对话框的那颗按钮是框架自己的，不动
+			page.add_menu_item(__("trade.void"), () => p.dialog(__("trade.void"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
 				__("Confirm"), async (values, dialog) => {
 					await u.call("api_cancel_purchase", {name: doc.name, ...values}, true);
-					dialog.hide(); p.success(__("Cancelled"), "cancel"); await reload();
+					dialog.hide(); p.success(__("trade.state.void"), "cancel"); await reload();
 				}));
 			for (const kind of ["substitute_receipt", ...(Number(doc.wht_amount) > 0 ? ["wht_cert"] : [])]) {
 				page.add_menu_item(u.label(kind), () => act(async () => { // entry: substitute_receipt, wht_cert
