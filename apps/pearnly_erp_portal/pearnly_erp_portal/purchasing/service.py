@@ -302,8 +302,9 @@ def update_purchase(name, **changes):
 
 def set_status(name, target, reason=None, receive_stock=None):
     """流转：草稿→提交、草稿/提交→作废。非法流转一律拒绝。"""
-    guard.require("purchase.write")
+    # 先加锁、再做任何普通读（11-28 B ③）：读视图从拿到锁之后才建，作废保存时不会用旧副本盖回别人刚写的账本栏
     frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
+    guard.require("purchase.write")
     doc = _get(name)
     if (doc.calculation_version or 0) >= 2 and target == contracts.VOID:
         from pearnly_erp_portal.purchasing import entry

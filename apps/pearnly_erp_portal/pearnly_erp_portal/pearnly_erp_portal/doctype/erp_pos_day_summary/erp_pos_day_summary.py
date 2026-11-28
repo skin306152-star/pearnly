@@ -2,6 +2,9 @@
 
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import ledger_guard
+
 
 class ERPPOSDaySummary(Document):
-    pass
+    def validate(self):
+        ledger_guard.keep_current(self)  # 账本栏只由写账链路写：旧副本保存不盖回（11-28 B ③）

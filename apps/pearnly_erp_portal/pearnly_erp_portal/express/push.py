@@ -439,7 +439,8 @@ def send(doctype, name, operator=None, session=""):
         return _send(doctype, name, operator)
 
 
-LEDGER_SEEN = ("ledger_state", "ledger_job", "ledger_reason", "ledger_book", "ledger_needed")  # 写回前再核的账本栏
+# 写回前再核的账本栏与单据状态（准备途中提交过、作废恰好在这个空档完成：状态变了也放弃这次排件，11-28 B ③）
+LEDGER_SEEN = ("ledger_state", "ledger_job", "ledger_reason", "ledger_book", "ledger_needed", "status")
 
 
 def _ledger_seen_of(row) -> tuple:
@@ -636,12 +637,14 @@ def void(doctype, name):
                               for_update=True)
     if not row or row.get("ledger_void_job"):
         return
+    # 不变式（11-28 B ③）：作废的单没有没撤销的写账件。按来源单据在写账件表里加锁找出全部还没写的（排队中、转人工）一律撤掉，
+    # 不只认单据上记的 ``ledger_job``：作废前用旧副本保存过的路径（「修改」作废原单、别的事务里调作废）会把它盖回空。
+    # 「照 Express 原生作废原单」那一件不在此列。电脑正在写的撤不了，写完回执到了再按作废处理（`job_changed`）。
+    unwritten = _cancel_unwritten(doctype, name)
     if row.ledger_state in contracts.OPEN_STATES:
         # 还没写进去：排队中的写账撤掉（电脑正在写的撤不了，写完回执到了再作废，见 `job_changed`；验收 10-25）
         job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
-        if job and job["status"] in ("queued", "manual"):
-            jobs.cancel(job["job"], "voided")
-        if not job or job["status"] in ("queued", "manual"):
+        if not job or job["job"] in unwritten or job["status"] in ("queued", "manual", "cancelled"):
             _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
     if doctype != STOCK or row.ledger_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.ledger_docnum:
@@ -656,6 +659,19 @@ def void(doctype, name):
                        actor=frappe.session.user or row.owner, book_key=result["book"]["key"], payload=payload,
                        payload_version=int(payload["payload_version"]), label=row.ledger_docnum)
     _set(doctype, name, {"ledger_void_state": contracts.QUEUED, "ledger_void_job": job["job"], "ledger_void_reason": ""})
+
+
+def _cancel_unwritten(doctype, name) -> set:
+    """撤掉这张单全部还没写的写账件（排队中、转人工；不含原生作废那一件），回撤掉的件名。加锁读：别人刚排上的也看得到。"""
+    rows = frappe.db.sql(f"""select name, request_key from `tab{jobs.JOB}` where source_doctype=%s and source_name=%s
+        and status in ('queued', 'manual') for update""", (doctype, name), as_dict=True)
+    done = set()
+    for row in rows:
+        if str(row.request_key or "").startswith(stock_entry.VOID_REQUEST):
+            continue
+        jobs.cancel(row.name, "voided")
+        done.add(row.name)
+    return done
 
 
 def _void_changed(view):
@@ -701,7 +717,8 @@ def still_wanted(view) -> bool:
         return True
     if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
         return True
-    return frappe.db.get_value(doctype, name, "status") != "void"
+    # 加锁读：领单那笔事务前面已有普通读（排头），关快照隔离后普通读看不到读视图之后才提交的作废（11-28 B ③，最后一道闸）
+    return frappe.db.get_value(doctype, name, "status", for_update=True) != "void"
 
 
 def job_changed(view):

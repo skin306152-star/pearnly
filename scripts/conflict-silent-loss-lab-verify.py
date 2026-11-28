@@ -202,11 +202,122 @@ def guarded(results, name, function, *args):
         traceback.print_exc(file=sys.stderr)
 
 
+PITFALLS = ("LinkValidationError", "QueryDeadlockError", "TimestampMismatchError", "Traceback")
+
+
+def void_with_children(site, rounds, results):
+    """11-26 第一版「先锁后读」踩过的两个坑，在作废入口上专门验（11-28 B ③）：同一张采购单同时到「作废」「补开收据」（新建 File、
+    挂附件子表）「付款」（付款子表），几张单一起。作废那一路不许报 LinkValidationError（读到别人刚挂附件的新单）、不许把子表
+    间隙锁的 QueryDeadlockError / 保存前比对漏给用户：只能成功，或按业务规则拒（已作废）。另两路的结果只记录（付款、附件入口归 ②）。"""
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import entry, suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+
+    def made(index):
+        doc = entry.post({"company": co, "supplier": supplier, "doc_date": frappe.utils.nowdate(), "currency": "THB", "fx_rate": 1,
+                          "has_vat": 1, "price_mode": "exclusive", "doc_kind": "purchase_invoice", "is_paid": 0,
+                          "update_stock": 0, "doc_no": f"{TAG}-VC-{secrets.token_hex(3)}-{index}",
+                          "lines": [{"item_type": "service", "description": f"{TAG} void children", "qty": 1, "unit": "งาน",
+                                     "unit_price": 1000, "vat_rate": 7, "wht_rate": 3}]},
+                         request_id=f"{TAG}-vc-{secrets.token_hex(6)}")
+        frappe.db.commit()
+        return doc["name"]
+
+    for _ in range(rounds):
+        names = [made(index) for index in range(4)]
+        box, threads = {}, []
+
+        def call(label, function):
+            def run():
+                try:
+                    frappe.init(site=site, sites_path=SITES)
+                    frappe.connect()
+                    frappe.set_user(user)
+                    box[label] = {"ok": function()}
+                    frappe.db.commit()
+                except Exception as error:  # noqa: BLE001
+                    box[label] = {"error": "".join(traceback.format_exception_only(type(error), error)).strip()[:300],
+                                  "trace": traceback.format_exc()[-600:]}
+                    frappe.db.rollback()
+                finally:
+                    frappe.destroy()
+            threads.append(threading.Thread(target=run))
+
+        from pearnly_erp_portal.purchasing import api as purchase_api
+        for name in names:
+            call(("void", name), lambda name=name: (frappe.db.sql("select 1"), purchase_api.api_cancel_purchase(name, "b3lab"))[1])
+            call(("voucher", name), lambda name=name: purchase_api.api_purchase_voucher(name, "substitute_receipt"))
+            call(("pay", name), lambda name=name: purchase_api.api_purchase_payment(
+                name, json.dumps({"amount": 100, "method": "cash", "request_id": f"{TAG}-p-{secrets.token_hex(4)}"})))
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(120)
+        frappe.db.rollback()
+        voids = {key[1]: value for key, value in box.items() if key[0] == "void"}
+        bad = {name: value for name, value in voids.items()
+               if "error" in value and any(word in value["error"] + value.get("trace", "") for word in PITFALLS)}
+        states = {name: frappe.db.get_value("Purchase Document", name, "status") for name in names}
+        tally(results, "erp.void_with_children", not bad and all(state == "void" for state in states.values()),
+              {"bad_void": bad, "states": states,
+               "others": {f"{k[0]} {k[1]}": v.get("error", "ok")[:120] for k, v in box.items() if k[0] != "void"}})
+        results.setdefault("erp.void_with_children.others", {"ok": 0, "bad": 0, "errors": []})
+        results["erp.void_with_children.others"]["errors"] += [v["error"][:100] for k, v in box.items()
+                                                               if k[0] != "void" and "error" in v][:6]
+
+
+def stale_save_keeps_ledger(site, rounds, results):
+    """账本栏只由写账链路写（`express.ledger_guard`，11-28 B ③）：写账回执刚记下 Express 单号并提交，本连接（读视图更早，拿着旧副本）
+    经付款保存这张单 → 单号仍在（修前被盖空：巡检会再写一遍，重复入账）。付款直调 `entry.payment`（内部路径，入口层的 commit 管不到）。"""
+    from pearnly_erp_portal.express import push
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import entry, suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    for _ in range(rounds):
+        name = entry.post({"company": co, "supplier": supplier, "doc_date": frappe.utils.nowdate(), "currency": "THB", "fx_rate": 1,
+                           "has_vat": 1, "price_mode": "exclusive", "doc_kind": "purchase_invoice", "is_paid": 0,
+                           "update_stock": 0, "doc_no": f"{TAG}-SS-{secrets.token_hex(3)}",
+                           "lines": [{"item_type": "service", "description": f"{TAG} stale save", "qty": 1, "unit": "งาน",
+                                      "unit_price": 1000, "vat_rate": 7}]}, request_id=f"{TAG}-ss-{secrets.token_hex(6)}")["name"]
+        frappe.db.commit()
+        docnum = f"{TAG}-RR{secrets.token_hex(3)}"
+        read_view("Purchase Document")
+        frappe.get_doc("Purchase Document", name)  # 本连接先读过这张单
+        elsewhere(site, user, lambda: push._set(push.PURCHASE, name, {"ledger_state": "written", "ledger_docnum": docnum}))
+        try:
+            entry.payment(name, amount=100, method="cash")
+            frappe.db.commit()
+            outcome = "paid"
+        except Exception as error:  # noqa: BLE001
+            frappe.db.rollback()
+            outcome = repr(error)[:200]
+        row = frappe.db.get_value("Purchase Document", name, ["ledger_state", "ledger_docnum", "paid_amount"], as_dict=True)
+        tally(results, "erp.stale_save_keeps_ledger", row.ledger_docnum == docnum and row.ledger_state == "written",
+              {"outcome": outcome, "row": dict(row)})
+        frappe.db.set_value("Purchase Document", name, {"ledger_state": None, "ledger_docnum": None}, update_modified=False)
+        frappe.db.commit()
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
     guarded(results, "core.operator_listed", operator_listed, site, rounds, results)
     frappe.set_user("Administrator")  # 看板权限：管理员能改所有看板
+    guarded(results, "erp.void_with_children", void_with_children, site, rounds, results)
+    guarded(results, "erp.stale_save_keeps_ledger", stale_save_keeps_ledger, site, rounds, results)
+    frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
     return results

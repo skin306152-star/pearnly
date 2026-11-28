@@ -192,7 +192,8 @@ def api_submit_stock_entry(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_void_stock_entry(**kwargs):
     kwargs = _clean(kwargs)
-    return documents.void_entry(kwargs.get("name"))
+    frappe.db.commit()  # 结束请求开头建的读视图：作废在新事务里先锁单据再读（11-28 B ③，同采购 / 销售作废）
+    return conflicts.attempt(documents.void_entry, kwargs.get("name"))
 
 
 # ── 直接动库存（盘点 / 调整 / 快速出入）─────────────────────────────────────
