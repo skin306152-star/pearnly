@@ -587,3 +587,8 @@
 经入口的修前（退货窗口最小修 2d70d6f27 单独挂栈）没跑。
 
 迟到写成的出口离线核（test_erp_express_direct）：`test_result_unknown_is_its_own_status_word_and_a_late_write_shows_in_it_without_rewrite_exits`（状态词「结果不明」、`result_unknown` 不含它；LINE 回执「结果不明 · 已写进 Express，需人工处理 · 单号」只有【查看结果】；CC 列单不带核对标记、带 needs_person、不再推）、`test_a_late_write_on_a_pos_day_keeps_the_handled_exit_but_not_write_again`（日汇总弹窗不给「再写一次」、留「已在 Express 手工处理」，`api.retry` 拒）：改前 api.py / line_cards.py 两条都红，改后绿。采购 / 销售单的弹窗与 `api.retry` 原来就不给（同上一轮表）。作废 / 「修改」（= 作废原单 + 新单）：`push.void` 原来把停下的单都当「还没写进去」——迟到写成的出入库单作废时不排 Express 作废原单（Express 里那张没人管）。改成按已写入作废：出入库照样排作废原单、账本栏不清（`test_a_late_write_held_for_a_person_is_voided_as_written` 修前红、修后绿）；采购 / 销售原来就不清（写账件已成功），加 `test_voiding_a_late_write_keeps_the_ledger_columns` 守住。「修改」后新单照常写一张，与正常已写入的单同一口径（采购 / 销售没有原生作废载荷，旧单由人在 Express 处理，不是本次新口径）。
+
+实验栈回归（挂 e8431063e）：
+- 全格各 3 轮：ERP 36 格、Cowork 7 格全过。前一轮（挂 9c821c3c2）ERP 12 格报 1054 `Unknown column 'ledger_word'`：保存时账本栏回填（`ledger_guard.keep_current`）按 `ledger_` 前缀从元数据取列，把不落库的虚字段也读了，采购 / 销售 / 出入库一保存就失败。改成跳过虚字段，`LedgerGuardSkipsVirtualFields` 用三张单据真实的 DocType 定义核（修前红、修后绿）。离线替身的元数据里没有这个字段，所以只有实验栈抓得到。
+- 出入库筛选真库核：入库方向 19 张（另造 8 种状态组合，事后回滚），每档列表与逐张判定一致、合计一致，迟到写成落「结果不明」档；出库方向实验库里没有接 Express 的单（0 张，只核了不报错）。
+- 库里有 LINE 按用户排队分支单向迁移留下的新表与新字段（`Pearnly LINE Lane`、事件行几列），本分支的格子都不受影响。
