@@ -1085,6 +1085,21 @@ class PosPayload(unittest.TestCase):
         self.assertEqual(server, 3)
         self.assertIn(server, helper)
 
+    def test_the_stock_void_version_and_keys_match(self):
+        """库存单作废（OU / JU / TK）：ERP 盖的版本 8 CC 认得；单别 TK 在 CC 作废认的单别里；单号、明细的存货码 / 仓 / 数量两边同名。
+        作废回链照原生（11-24 / 11-25 / 11-28 实录：盘盈行记写前指针、作废照行回写）只用账本里的明细，不加载荷键，旧服务端的载荷照常认。"""
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
+        version = _literal(erp / "stock_entry.py", "VOID_PAYLOAD_VERSION")
+        self.assertEqual(version, 8)
+        self.assertIn(version, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        self.assertEqual(_literal(COMPANION / "dbf_void.py", "ACTION"), "void")
+        self.assertIn('"action": "void"', (erp / "stock_entry.py").read_text(encoding="utf-8"))
+        self.assertIn('ISSUE, ADJUST, COUNT = "OU", "JU", "TK"', (COMPANION / "dbf_stock.py").read_text(encoding="utf-8"))
+        server, void = (erp / "stock_entry.py").read_text(encoding="utf-8"), (COMPANION / "dbf_void.py").read_text(encoding="utf-8")
+        for key in ("docnum", "items", "code", "loccod", "qty"):
+            self.assertTrue(quoted(server, key), key)
+            self.assertTrue(quoted(void, key), key)
+
     def test_the_stock_transfer_version_and_keys_match(self):
         """调拨 RL（多仓闭环 P2）：ERP 盖的版本 CC 认得；单别、调入仓键两边同名；CC 主档报 RL 单据簿与核过的单别。"""
         erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
