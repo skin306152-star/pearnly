@@ -1022,12 +1022,18 @@ FILES_ASK_NOTE = ("<files_without_business>The user sent files without choosing 
                   "pearnly_guide with that business and these files (their paths as given in the message); the guide card "
                   "recognises them and the user reviews them there. Do not recognise or enter them another way.</files_without_business>")
 
+GUIDE_BUSY_NOTE = ("<guide_files>A {business} guide card is still open in this conversation and has moved past taking files, so "
+                   "the files in this message were not read. Tell the user in one short sentence to finish or cancel that card "
+                   "first and then send these files again. Do not recognise or enter them another way.</guide_files>")
+
 
 def composer_files_note(planned) -> str:
     """批末系统消息里的一段：这句带着的文件怎么接的（`guide.composer.plan` 的结果）；不接回空。"""
     planned = planned or {}
     if planned.get("run"):
         return GUIDE_FILES_NOTE.format(business=_tag_body(planned.get("business"), 40))
+    if planned.get("busy"):
+        return GUIDE_BUSY_NOTE.format(business=_tag_body(planned.get("busy"), 40))
     if planned.get("ask"):
         return FILES_ASK_NOTE.format(choices=", ".join(_tag_body(item, 40) for item in planned["ask"]))
     return ""

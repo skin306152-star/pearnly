@@ -2791,6 +2791,10 @@ class NoticeTests(unittest.TestCase):
             text = posted[-1][-1]["content"][0]["text"]
             self.assertIn("ask once with ask_user which of these they are: purchase, sales", text)
             self.assertIn("pearnly_guide", text)
+            # 同业务的卡还开着、已过交文件：告诉模型请用户先办完再交
+            composer.plan.return_value = {"busy": "purchase", "files": ["file_1"]}
+            sessions.send("sesn_mine1", note)
+            self.assertIn("A purchase guide card is still open", posted[-1][-1]["content"][0]["text"])
             # composer 出错：照旧发出，不带说明
             composer.plan.side_effect = RuntimeError("boom")
             sessions.send("sesn_mine1", note)

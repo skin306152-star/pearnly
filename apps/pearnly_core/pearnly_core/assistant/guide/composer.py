@@ -53,7 +53,8 @@ def _run_taking_files(session_id: str, business: str) -> str | None:
 
 def plan(row: Mapping[str, Any], text: str) -> Dict[str, Any]:
     """发出前（`sessions.send`）：这句带着的本人上传文件怎么接。回 ``{"business", "run", "files"}``（交进这次引导，引导已开好）/
-    ``{"ask": [业务…], "files"}``（没选业务，叫模型问一次）/ ``{}``（不接）。出错不挡发消息，只记日志。"""
+    ``{"ask": [业务…], "files"}``（没选业务，叫模型问一次）/ ``{"busy": 业务, "files"}``（同业务的卡还开着、已过交文件）/
+    ``{}``（不接）。出错不挡发消息，只记日志。"""
     if row.get("operator_task"):
         return {}
     from pearnly_core.assistant import files
@@ -67,7 +68,8 @@ def plan(row: Mapping[str, Any], text: str) -> Dict[str, Any]:
         if business in offered:
             name = _run_taking_files(row.session_id, business)
             if name is None:
-                return {}
+                # 同业务的卡还开着、已过交文件（上一张在识别 / 题卡 / 复核）：不另开（会把那张作废），叫模型请用户先办完或取消再交
+                return {"busy": business, "files": ids}
             if not name:
                 from pearnly_core.assistant.guide import run
 
@@ -118,9 +120,11 @@ def open_with_files(session_id: str, business: str, refs) -> Dict[str, Any]:
     from pearnly_core.assistant.guide import documents, run
 
     row = sessions.owned(session_id)
-    mode = "operator" if row.get("operator_task") else "chat"
-    if business not in documents_businesses(row.session_id, mode):
-        return {"status": "refused", "reason": "business_not_offered", "offered": documents_businesses(row.session_id, mode)}
+    if row.get("operator_task"):
+        # 代录会话：发出即由代录任务识别（`files.start_sent`），不另开引导再识别一遍
+        return {"status": "refused", "reason": "operator_takes_files_on_send"}
+    if business not in documents_businesses(row.session_id, "chat"):
+        return {"status": "refused", "reason": "business_not_offered", "offered": documents_businesses(row.session_id, "chat")}
     ids = list(dict.fromkeys(files.resolve(ref) for ref in refs or () if str(ref or "").strip()))[:FILES_MAX]
     if not ids:
         return {"status": "refused", "reason": "no_files"}

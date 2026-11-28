@@ -132,7 +132,9 @@ class ComposerTests(unittest.TestCase):
         self.assertEqual(engine.started, [])
         for documents in ('{"batches": ["B1"]}', '{"preset": true, "doc_ids": ["I:LI-1"]}'):
             engine = Engine([{**waiting, "documents": documents}])
-            self.assertEqual(self._plan(engine, Row(session_id="s1", business="purchase")), {}, documents)
+            # 同业务的卡已过交文件：不另开（会把它作废），交回 busy 让模型请用户先办完
+            self.assertEqual(self._plan(engine, Row(session_id="s1", business="purchase")),
+                             {"busy": "purchase", "files": ["file_1", "file_2"]}, documents)
             self.assertEqual(engine.started, [])
         # 开着的是别的业务（收款）：开采购这一条（run.start 会取消收款那条）
         engine = Engine([{**waiting, "business": "collection"}])
@@ -185,6 +187,12 @@ class ComposerTests(unittest.TestCase):
         for patch in patches:
             patch.start()
         try:
+            sessions = sys.modules["pearnly_core.assistant.sessions"]
+            owned = sessions.owned
+            sessions.owned = lambda session_id: Row(session_id=session_id, operator_task="T1")
+            self.assertEqual(composer.open_with_files("s1", "purchase", ["file_1"])["reason"], "operator_takes_files_on_send")
+            sessions.owned = owned
+            self.assertEqual(engine.started, [])
             refused = composer.open_with_files("s1", "collection", ["file_1"])
             self.assertEqual((refused["status"], refused["reason"], refused["offered"]),
                              ("refused", "business_not_offered", ["purchase", "sales"]))
