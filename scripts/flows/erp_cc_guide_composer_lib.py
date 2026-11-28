@@ -22,7 +22,12 @@ frappe.db.set_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "
 frappe.db.commit()
 print(json.dumps({{"session": made["id"]}}))
 """)
-    return {**out, "tag": tag, "business": business, "company": company(manifest), "file": f"{tag}.png", "cases": []}
+    params = {**out, "tag": tag, "business": business, "company": company(manifest), "file": f"{tag}.png", "cases": []}
+    try:
+        return {**params, **lib.configure(lab, manifest)}
+    except Exception:
+        cleanup(lab, manifest, params)
+        raise
 
 
 def verify(lab, manifest, params, camera_code=None):
@@ -43,6 +48,7 @@ print(json.dumps({{"rows": rows}}, default=str))
 
 
 def cleanup(lab, manifest, params):
+    lib.release(lab, manifest, params)
     lab.python(manifest["site"], f"""
 from pearnly_core.assistant import sessions
 frappe.set_user({USER!r})

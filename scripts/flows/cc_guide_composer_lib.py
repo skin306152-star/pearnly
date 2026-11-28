@@ -15,13 +15,36 @@
 from __future__ import annotations
 
 import json
+import time
 
 from cc_lib import JS
 
 CARD = "qa('[data-slot=\"cc-guide-run\"]').pop()"
 WORD = {"purchase": "采购", "sales": "销售"}
+# 识别受理要的站点配置（同 `cc_send_while_waiting` / 线上 `site-step.py`）：没有预算 Redis，识别提交当场「推迟」、交文件那一题不收。
+# 凭据是占位的：识别受理后一直排着（实验室没有识别进程），不会真识别、不花钱；收尾作废这一格交的识别、还原配置
+OCR_CONFIG = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"}, "pearnly_cowork_ocr_policy": {"mode": "economy"},
+              "pearnly_ocr_credentials": "/nonexistent/flow-placeholder.json", "pearnly_ocr_budget_redis": "redis://redis:6379/6"}
 # 1×1 的 PNG（同 `erp_cc_operator_intake` 造的票图）
 PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def configure(lab, manifest):
+    """准备的最后一步：打开识别受理（`lab.site_config` 等网页进程都看到新值）。回 ``{config_before, start}`` 并进参数。"""
+    start = lab.python(manifest["site"], 'print(json.dumps({"now": str(frappe.utils.now_datetime())}))')["now"]
+    return {"config_before": lab.site_config(manifest["site"], OCR_CONFIG), "start": start}
+
+
+def release(lab, manifest, params):
+    """收尾（成功失败都跑）：作废这一格交的识别（不占后面流程的排队名额），还原站点配置。"""
+    if params.get("start"):
+        lab.python(manifest["site"], f"""
+frappe.db.sql("update `tabPearnly OCR Work` set status='cancelled' where status in ('queued', 'deferred') and creation >= %s", ({params['start']!r},))
+frappe.db.commit()
+print("{{}}")
+""")
+    if params.get("config_before") is not None:
+        lab.site_config(manifest["site"], params["config_before"])
 
 
 def steps(params, camera_code=None):
@@ -43,24 +66,30 @@ if(!window.__fileHook){{window.__fileHook=1; const orig=HTMLInputElement.prototy
 const bytes=Uint8Array.from(atob({json.dumps(PIXEL)}),c=>c.charCodeAt(0));
 window.__nextFile=new File([bytes], {name}, {{type:'image/png'}});
 const add=qa('button.cc-attach').find(seen); if(!add) return {{picked, error:'no attach button'}}; add.click();
-const shown=await until(()=>document.body.innerText.includes({name}),80);
+// 图片附件在输入框里画缩略图，文件名只在附件按钮的无障碍名称里（「附件：<文件名> · …」）
+const shown=await until(()=>document.body.innerText.includes({name})||qa('[aria-label]').some(e=>(e.getAttribute('aria-label')||'').includes({name})),80);
 const ready=await until(()=>{{const b=q('button.aui-composer-send'); return b&&!b.disabled;}},160);
 const before=qa('[data-slot="cc-guide-run"]').length;
 q('button.aui-composer-send')?.click();
-// 引导卡：服务端在发出时开、事件推到页面；输入框交的票由后台交进去，卡离开交文件那一题
+// 引导卡：服务端在发出时开（事件推到页面）
 const opened=await until(()=>card()&&card().dataset.business==={business},240);
-const moved=await until(()=>card()&&card().dataset.stage&&card().dataset.stage!=='files',240);
+await sleep(8000);  // 输入框交的票由后台交进卡里（实验室没有实时通道，下一步重新打开对话再看）
+return {{picked, prompt, shown, ready, before, opened, cards: qa('[data-slot="cc-guide-run"]').length}};"""},
+        {"name": "重新打开对话", "wait_ms": 6000, "js": JS +
+         f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['session'])})),0); return true;"},
+        {"name": "引导卡", "js": JS + f"""
+const card=()=>{CARD};
+const moved=await until(()=>card()&&card().dataset.business==={business}&&card().dataset.stage&&card().dataset.stage!=='files',240);
 await sleep(500);
 const c=card();
-return {{picked, prompt, shown, ready, before, opened, moved, cards: qa('[data-slot="cc-guide-run"]').length,
-  business: c?.dataset.business||'', stage: c?.dataset.stage||'', status: c?.dataset.status||'', run: c?.dataset.run||'',
-  text: (c?.innerText||'').slice(0,300)}};"""},
+return {{moved, cards: qa('[data-slot="cc-guide-run"]').length, business: c?.dataset.business||'', stage: c?.dataset.stage||'',
+  status: c?.dataset.status||'', run: c?.dataset.run||'', text: (c?.innerText||'').slice(0,300)}};"""},
     ]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    sent = by.get("选业务再用输入框上传发出") or {}
+    sent, card = by.get("选业务再用输入框上传发出") or {}, by.get("引导卡") or {}
     business = params["business"]
     return [
         {"case": f"业务菜单点了「{WORD[business]}」，CC 那句「请上传…」出来了；输入框挂上了票、能发",
@@ -68,9 +97,9 @@ def judge(params, results, camera_code=None):
          "ok": bool((sent.get("picked") or {}).get("label")) and bool(sent.get("prompt")) and bool(sent.get("shown"))
          and bool(sent.get("ready"))},
         {"case": f"只发文件：对话里出了一张{WORD[business]}引导卡（服务端开的，不经模型），且已过交文件那一步（票交进去识别了）",
-         "seen": {k: sent.get(k) for k in ("opened", "moved", "cards", "business", "stage", "status", "text")},
-         "ok": bool(sent.get("opened")) and bool(sent.get("moved")) and sent.get("business") == business
-         and sent.get("stage") in ("reading", "asking", "review") and sent.get("status") in ("asking", "reviewing")},
+         "seen": {"opened": sent.get("opened"), **card},
+         "ok": bool(sent.get("opened")) and bool(card.get("moved")) and card.get("cards") == 1 and card.get("business") == business
+         and card.get("stage") in ("reading", "asking", "review") and card.get("status") in ("asking", "reviewing")},
     ]
 
 

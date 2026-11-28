@@ -12,8 +12,13 @@ steps, judge = lib.steps, lib.judge
 
 
 def prepare(lab, manifest):
-    params = form.prepare(lab, manifest, tag_prefix="gcc")
-    return {**params, "business": BUSINESS, "file": f"{params['tag']}.png"}
+    params = {**form.prepare(lab, manifest, tag_prefix="gcc"), "business": BUSINESS}
+    params["file"] = f"{params['tag']}.png"
+    try:
+        return {**params, **lib.configure(lab, manifest)}
+    except Exception:
+        cleanup(lab, manifest, params)
+        raise
 
 
 def verify(lab, manifest, params, camera_code=None):
@@ -21,4 +26,5 @@ def verify(lab, manifest, params, camera_code=None):
 
 
 def cleanup(lab, manifest, params):
+    lib.release(lab, manifest, params)
     return form.cleanup(lab, manifest, params)
