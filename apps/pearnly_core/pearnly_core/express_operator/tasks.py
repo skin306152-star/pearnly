@@ -61,13 +61,18 @@ def _require_company(company) -> None:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 
-def _own(name, *, for_update: bool = False):
-    """本人在本站产品里的这一条；别人的、别的产品的、不存在的一律「找不到」。"""
+def _own_name(name, *, for_update: bool = False) -> str:
+    """本人在本站产品里的这一条的名字；别人的、别的产品的、不存在的一律「找不到」。"""
     row = frappe.db.get_value(DOCTYPE, {"name": str(name or ""), "owner": _user(), "product": site_product()}, "name",
                               for_update=for_update)
     if not row:
         frappe.throw(_("Not found"), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, row)
+    return row
+
+
+def _own(name, *, for_update: bool = False):
+    """本人在本站产品里的这一条（整份文档）。"""
+    return frappe.get_doc(DOCTYPE, _own_name(name, for_update=for_update))
 
 
 def _period(value) -> str:

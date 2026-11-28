@@ -152,7 +152,9 @@ def retarget(history, connection, account_set):
     状态与原因；一样就不写。调用方已核过这张票的读取范围。"""
     if not connection or not account_set:
         return
-    found = frappe.db.get_value('Cowork OCR History', history, ['push_connection', 'push_account_set'], as_dict=True)
+    # 加锁读：「一样就不写」按别人刚提交的去向判（关快照隔离后普通读是旧值，11-28 B ③）
+    found = frappe.db.get_value('Cowork OCR History', history, ['push_connection', 'push_account_set'], as_dict=True,
+                                for_update=True)
     if not found or ((found.push_connection or ''), (found.push_account_set or '')) == (str(connection), str(account_set)):
         return
     frappe.db.set_value('Cowork OCR History', history, {'push_connection': str(connection),
@@ -177,7 +179,8 @@ def record_assessment(history, *, cls, tier, reasons='', proposal=None, checked_
 
 def withdrawn(row):
     """人撤回了排队中的推送（推送记录已转 ``cancelled``）：票上的推送状态还指着它就清回「没推」，可以重推。不升 ``record_version``。"""
-    found = frappe.db.get_value('Cowork OCR History', row.history, 'last_push_record')
+    # 加锁读：另一路刚重推、已提交的新记录，普通读看不到——会把新那条的推送状态清掉（11-28 B ③，同下面 withdraw_automation）
+    found = frappe.db.get_value('Cowork OCR History', row.history, 'last_push_record', for_update=True)
     if found != row.name:
         return
     frappe.db.set_value('Cowork OCR History', row.history, {

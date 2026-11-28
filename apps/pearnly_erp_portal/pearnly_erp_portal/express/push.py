@@ -630,7 +630,10 @@ def void(doctype, name):
     if doctype not in (STOCK, PURCHASE, SALES):
         return
     fields = ["name", "creation", "owner", "ledger_state", "ledger_docnum", "ledger_job"]
-    row = frappe.db.get_value(doctype, name, fields + (["ledger_void_job"] if doctype == STOCK else []), as_dict=True)
+    # 加锁读（作废事务已锁着这张单）：普通读是事务开头的旧值，看不到另一路刚排上的写账件，撤不掉它，作废了的单照样写进 Express
+    # （关快照隔离后，11-28 B ③）
+    row = frappe.db.get_value(doctype, name, fields + (["ledger_void_job"] if doctype == STOCK else []), as_dict=True,
+                              for_update=True)
     if not row or row.get("ledger_void_job"):
         return
     if row.ledger_state in contracts.OPEN_STATES:

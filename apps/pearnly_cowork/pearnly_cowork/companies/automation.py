@@ -45,14 +45,17 @@ def _json(value, default):
     return found if isinstance(found, type(default)) else default
 
 
-def _row(company):
+def _row(company, *, lock=False):
     return frappe.db.get_value(AUTOMATION, {"company": company},
-                               ["name", "tier", "since", "reason", "evidence_json", "history_json"], as_dict=True)
+                               ["name", "tier", "since", "reason", "evidence_json", "history_json"], as_dict=True,
+                               for_update=lock)
 
 
-def state(company) -> dict:
-    """这家此刻的档位：``{tier, since, reason, readback, periods, history}``（没有行是 L0）。不核权限，调用方核。"""
-    row = _row(company) if company else None
+def state(company, *, lock=False) -> dict:
+    """这家此刻的档位：``{tier, since, reason, readback, periods, history}``（没有行是 L0）。不核权限，调用方核。
+    ``lock``：写路径用——加锁读这家的档位行，拿到别人刚提交的值并锁到本事务结束。两条写路径是别的事务里的钩子（回读处理完、
+    写入核不上），读视图早已建立，普通读读到的是旧档位：按旧档位算出的结果写回去，会把刚降的 L0 撤销（11-28，B ③）。"""
+    row = _row(company, lock=lock) if company else None
     if not row:
         return {"tier": tier_rules.L0, "since": None, "reason": "", "readback": "", "periods": {}, "history": []}
     evidence = _json(row.evidence_json, {})
@@ -138,7 +141,7 @@ def _set(company, tier, reason, *, evidence=None, period="", restart=False):
     workspace = frappe.db.get_value("Cowork Company", company, "workspace")
     if not workspace:
         return None
-    existing = frappe.db.get_value(AUTOMATION, {"company": company}, "name")
+    existing = frappe.db.get_value(AUTOMATION, {"company": company}, "name", for_update=True)  # 别人刚建的行也看得到
     if existing:
         doc = read(AUTOMATION, existing, for_update=True)
     else:
@@ -310,8 +313,8 @@ def on_readback(connection, account_set_key, period, readback=None) -> dict | No
     company, _branch = account_company(connection, row) if row else (None, "")
     if not company:
         return None
+    current = state(company, lock=True)  # 先锁这家的档位行、读最新档位，再按它算（见 `state`）
     docs, qualified = documents(company, period)
-    current = state(company)
     if not qualified:
         return {"company": company, "tier": current["tier"], "changed": False}
     periods = {**current["periods"], period: automation_rules.tally(docs)}
@@ -331,7 +334,7 @@ def on_mismatch(connection, account_set, account_row) -> dict | None:
     company, _branch = account_company(connection, account_row)
     if not company:
         return None
-    before = state(company)["tier"]
+    before = state(company, lock=True)["tier"]
     _set(company, tier_rules.L0, "written_mismatch", restart=True)
     return {"company": company, "tier": tier_rules.L0, "changed": before != tier_rules.L0}
 

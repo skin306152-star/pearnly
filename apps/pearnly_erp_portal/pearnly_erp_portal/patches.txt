@@ -4,6 +4,8 @@
 # 必须跑在模型同步**之前**：它要读 `ERP Warehouse.is_default`（这一轮删掉的那一位）
 # 才能把"当时实际生效的仓"抄到收银台上。
 pearnly_erp_portal.patches.v1_5_terminal_warehouse
+# 销售单 request_id 加唯一索引（11-28 B ③）：模型同步建索引之前把空串改 NULL、万一有的重号改成「原号#单号」，不删单据
+pearnly_erp_portal.patches.v1_34_sales_request_id_unique
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated

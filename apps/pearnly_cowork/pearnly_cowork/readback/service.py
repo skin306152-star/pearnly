@@ -45,6 +45,7 @@ from pearnly_cowork.push.application import service as push_service
 from pearnly_cowork.readback import contracts, diff, storage, workbooks
 from pearnly_cowork.readback.access import READBACK, read, write
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+from pearnly_core.transaction import conflicts
 
 CONNECTION = "Cowork ERP Connection"
 KIND = "express_read"
@@ -382,7 +383,9 @@ def _announce_ready(row):
         try:
             frappe.db.savepoint("cowork_readback_ready")
             frappe.get_attr(path)(row.connection, row.account_set_key, row.period, row.name)
-        except Exception:  # noqa: BLE001 — 见上
+        except Exception as error:  # noqa: BLE001 — 见上
+            if conflicts.is_conflict(error):
+                raise  # 数据库冲突交外层整笔重来，不当成「入口出错」吞掉（同 B ① 的保存点，11-28 B ③）
             frappe.db.rollback(save_point="cowork_readback_ready")
             frappe.clear_messages()
             frappe.log_error(title="Cowork readback ready hook failed", message=frappe.get_traceback()[-1500:])

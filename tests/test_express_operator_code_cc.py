@@ -121,7 +121,11 @@ def fake_frappe(state):
 
     def get_value(doctype, filters, field, for_update=False, as_dict=False):
         found = [row for row in state["tasks"] if match(row, filters)]
-        return found[0][field] if found else None
+        if not found:
+            return None
+        if isinstance(field, list):  # 多列：同 Frappe 回一行（as_dict 时可按属性取）
+            return types.SimpleNamespace(**{f: found[0].get(f) for f in field}, get=lambda key, row=found[0]: row.get(key))
+        return found[0][field]
 
     def get_all(doctype, filters=None, fields=None, order_by="", limit_page_length=None, limit_start=0, **kwargs):
         state["queries"].append((doctype, dict(filters or {}), order_by, limit_page_length))

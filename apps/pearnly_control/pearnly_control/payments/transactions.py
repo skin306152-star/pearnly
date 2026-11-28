@@ -10,6 +10,8 @@ import time
 
 import frappe
 
+from pearnly_core.transaction import conflicts
+
 
 def retry_service(function):
     @wraps(function)
@@ -24,8 +26,11 @@ def retry_service(function):
             frappe.db.after_commit.add(mark_committed)
             try:
                 return function(*args, **kwargs)
-            except frappe.QueryDeadlockError:  # conflict-ok: 计费服务的重试 retry_service；扣费撞 1213 重试不生效的原有问题按主会话定随 B ③ 修
-                if committed or attempt == 11:
+            except Exception as error:
+                # 关隔离后同一种冲突也会是保存前比对（B ①）；已提交过的不重来（会重放已落库的写）。扣费入口的那次「先结束
+                # 读快照」的空提交放在本包装外面（`billing_api.service_charge`），否则它一提交就把这里标成「已提交」、之后撞
+                # 1213 不再重试（11-28 B ③：漏收费的原有问题）。
+                if not conflicts.is_conflict(error) or committed or attempt == 11:
                     raise
                 frappe.db.rollback()
                 time.sleep(random.uniform(.025, min(.5, .05 * (2 ** attempt))))

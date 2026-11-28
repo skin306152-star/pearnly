@@ -18,6 +18,7 @@ from pearnly_cowork.push import choices as choice_store
 from pearnly_cowork.push.automation import rules
 from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_cowork.push.express import company_choices
+from pearnly_core.transaction import conflicts
 
 TIER_HOOK = "cowork_push_company_tier"
 DAY_HOOK = "cowork_push_day_books"
@@ -147,7 +148,9 @@ def mismatch(connection, account_set, account_row):
         try:
             frappe.db.savepoint("cowork_push_verify_mismatch")
             frappe.get_attr(path)(connection, account_set, account_row)
-        except Exception:  # noqa: BLE001
+        except Exception as error:  # noqa: BLE001
+            if conflicts.is_conflict(error):
+                raise  # 数据库冲突交回执的整笔重来：吞掉就等于这次没降 L0（管钱底线，11-28 B ③）
             frappe.db.rollback(save_point="cowork_push_verify_mismatch")
             _log("Cowork push verify mismatch hook failed")
 

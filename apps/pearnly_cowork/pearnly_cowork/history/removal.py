@@ -32,12 +32,14 @@ def _pushing(doc):
     # 删单据抛 TypeError，`tests/test_frappe_list_kwargs.py` 拦住同类写法）
     records = frappe.db.sql("""SELECT name, status, result_unknown FROM `tabCowork Push Record`
         WHERE history=%s FOR UPDATE""", (doc.name,), as_dict=True)
-    return any(row.status in _IN_FLIGHT or row.result_unknown for row in records) or bool(
+    busy = any(row.status in _IN_FLIGHT or row.result_unknown for row in records) or bool(
         records and frappe.db.exists("Cowork Push Writer Lock", {"holder": ["in", [row.name for row in records]]}))
+    return busy, [row.name for row in records]
 
 
-def _drop_related(name):
-    records = frappe.get_all(RECORD, filters={"history": name}, pluck="name", ignore_permissions=True)
+def _drop_related(name, records):
+    """``records``：`_pushing` 加锁读出的这张票的推送记录。不再普通 ``get_all`` 找一遍：读视图之后才建的记录普通读看不到，
+    删不到就成了孤儿（11-28 B ③）。"""
     if records:
         frappe.db.delete("Cowork Push Attempt", {"push_record": ["in", records]})
         frappe.db.delete("Cowork Push Notification", {"push_record": ["in", records]})
@@ -63,12 +65,13 @@ def delete(records):
             continue
         doc = frappe.get_doc(storage.DOCTYPE, name)
         scope.require_scope(doc.workspace, doc.client)
-        if _pushing(doc):
+        busy, pushed = _pushing(doc)
+        if busy:
             skipped += 1
             continue
         if doc.source_file:
             sources.append(doc.source_file)
-        _drop_related(name)
+        _drop_related(name, pushed)
         # 不在「Deleted Document」里留备份（删就删干净，不占库）。
         frappe.delete_doc(storage.DOCTYPE, name, force=True, ignore_permissions=True, delete_permanently=True,
                           flags={"cowork_history_delete": DELETE})
