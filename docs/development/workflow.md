@@ -86,6 +86,14 @@ PR 使用 [模板](../../.github/PULL_REQUEST_TEMPLATE.md)。只改文档时允�
 
 生产统一部署用 `scripts/production/deploy.sh` 一条命令串起构建、放镜像、逐个产品激活与通用回读（先 `--dry-run`；做法见 [一条命令部署](../work/2026-10-28-one-command-deploy.md)）。按**发布标记**部署（10-31）：不带参数时从远端 main 当前提交打 `release-<UTC 年月日-时分>` 并推上去，`--tag <标记>` 部署已有标记（重跑、或 main 上更早的提交）；构建、放镜像、服务器核对镜像 revision 都针对标记所指的提交，部署不冻结 main。激活时每个站点迁移前后各数一次 DocType，变少就停在维护里、不放开流量、后面的站点不迁移，并打印少了哪些（`scripts/production/doctype_guard.py`；有意删的登记在 `doctype-removals.txt`），实验室 `run.py` 迁移同样逐站这样核。构建前它核对标记所指提交在 GitHub 上的 `pearnly/flows` 是全套通过（GitHub 的 Flows 工作流 `scope=all` 或本机回归实验室 `scripts/flows/run.py --all --post-status` 回写），没有或没过就停下并打印补跑命令，没有绕过开关；本机睡眠或实验室没起来时照样拦；本机最多三套实验栈并行、收尾清残留，补跑见 [流程用例](../../tests/flows/README.md)。
 
+**站外 LINE 表面（富菜单）随部署同步**（11-28，[记录](../work/2026-11-26-deploy-line-menu-sync.md)）：本批改到菜单（词条、格子图、按钮）或第一次带上这套同步时，部署按
+**先放镜像 → `deploy.sh --dry-run --tag <标记> --digest <新镜像>` 看 PLAN → 正式部署**：
+1. 放镜像：`gh workflow run stage-production.yml --ref <标记> -f digest=<新镜像>`（只拉到生产机、不启动）；
+2. 演练带 `--digest`：用新镜像起一次性只读容器逐站预览，打印每个站点「无变化 / 将发布 N 套及每套改了哪些文字字段、图变没变 / 跳过」。**必看项**：
+   将发布的站点与套数和本批改动对得上；没有「没跑成」「读不出」行；预览容器沿用网页容器 DNS 那一处（11-28 改后没上测试机复验）在这里第一次真跑，读不到 LINE 就停下查；
+3. 正式部署：`deploy.sh --tag <标记> --digest <新镜像> --skip-stage`。激活前再用新镜像预览一遍（`plan` 步骤，没跑成即失败、线上没动）；三个产品激活后
+   `surfaces` 步骤逐站同步——**测试租户（test 开头）先于正式租户**，任一站发布、重挂或回读不过就停（`failed surfaces`，后面的正式站不动，日志里 `ROLLBACK` 行给出该站回退命令）。
+
 **手工动过生产**（11-04 产品地图事故回放待补项 F；10-22 手工重建 web 漏挂 frontend 致全站 502、10-03 剖析脚本顶掉真实操作员 LINE 绑定）：
 - 不经过 `deploy.sh` 动了生产（重建 / 重启容器、改 site_config、拷脚本进容器跑）的，动完当场在生产机单独跑一次
   `bash /opt/pearnly/deploy/scripts/production/deploy-readback.sh <当前镜像> <动手前的 Unix 秒>`，回读通过才算做完。

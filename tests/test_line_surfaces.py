@@ -393,14 +393,47 @@ class FakeFrappe:
 class Runner(unittest.TestCase):
     """``python -m pearnly_core.line_surfaces``：逐站跑、出错的站点不挡后面的站、有漂移 / 出错退出码 1、跳过的照列。"""
 
-    def run_main(self, sites):
-        fake, lines = FakeFrappe(sites), []
-        with patch.object(runner, "frappe", fake), patch.object(runner, "_sites", lambda only: iter(sorted(sites))), \
-                patch.object(runner.line_surfaces, "check_site", lambda product: fake.conf["__rows"]), \
+    def run_main(self, sites, mode="check"):
+        fake, lines, self.visited = FakeFrappe(sites), [], []
+
+        def rows(product, **kwargs):
+            self.visited.append(fake.site)
+            if fake.conf.get("__raise"):
+                raise RuntimeError(fake.conf["__raise"])
+            return fake.conf["__rows"]
+
+        with patch.object(runner, "frappe", fake), patch.object(runner.os, "listdir", lambda path: list(sites)), \
+                patch.object(runner.os.path, "isfile", lambda path: True), \
+                patch.object(runner.line_surfaces, "check_site", rows), patch.object(runner.line_surfaces, "sync_site", rows), \
                 patch("builtins.print", lambda text, **k: lines.append(text)):
-            code = runner.main(["check", "--product", "cowork"])
+            code = runner.main([mode, "--product", "cowork"])
+        self.lines = lines
         summary = [line for line in lines if line.startswith("SUMMARY ")]
         return code, json.loads(summary[0].removeprefix("SUMMARY "))
+
+    def test_test_tenants_go_first_and_a_failed_sync_leaves_the_formal_tenants_alone(self):
+        """11-28 主会话：testcowork 的发布是 erpcowork 之前的真实演练——测试站先，任一站不过就停，后面的正式站不动。"""
+        ok = {"rich_menu": {"behind": [], "missing": [], "ok": True, "published": True}}
+        sites = {"erpcowork.pearnly.com": {"pearnly_product": "cowork", "__rows": ok},
+                 "acme.pearnly.com": {"pearnly_product": "cowork", "__rows": ok},
+                 "testcowork.pearnly.com": {"pearnly_product": "cowork", "__raise": "remount readback: lost"}}
+        code, summary = self.run_main(sites, mode="sync")
+        self.assertEqual(code, 1)
+        self.assertEqual(self.visited, ["testcowork.pearnly.com"])
+        self.assertEqual(summary["not_run"], ["acme.pearnly.com", "erpcowork.pearnly.com"])
+        self.assertTrue(any(line.startswith("ROLLBACK testcowork.pearnly.com: ") and "restore --product cowork" in line
+                            for line in self.lines))
+        sites["testcowork.pearnly.com"] = {"pearnly_product": "cowork", "__rows": ok}
+        code, summary = self.run_main(sites, mode="sync")
+        self.assertEqual((code, summary["not_run"]), (0, []))
+        self.assertEqual(self.visited, ["testcowork.pearnly.com", "acme.pearnly.com", "erpcowork.pearnly.com"])
+
+    def test_check_still_reads_every_site_after_a_failure(self):
+        ok = {"rich_menu": {"behind": [], "missing": [], "ok": True}}
+        code, summary = self.run_main({"testcowork.pearnly.com": {"pearnly_product": "cowork", "__raise": "x"},
+                                       "erpcowork.pearnly.com": {"pearnly_product": "cowork", "__rows": ok}})
+        self.assertEqual(self.visited, ["testcowork.pearnly.com", "erpcowork.pearnly.com"])
+        self.assertEqual((list(summary["failed"]), summary["not_run"]), (["testcowork.pearnly.com"], []))
 
     def test_drift_skips_and_failures_are_reported(self):
         code, summary = self.run_main({

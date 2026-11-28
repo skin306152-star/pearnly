@@ -4,7 +4,9 @@
     python -m pearnly_core.line_surfaces sync    --product dms        有漂移才发布，发布后回读（部署）
     python -m pearnly_core.line_surfaces restore --product dms --site ris.pearnly.com --surface rich_menu --before '<JSON>'
 
-输出：每站一行 ``SITE <JSON>``，发布前 ``BEFORE <JSON>``（可原样交回 restore），最后 ``SUMMARY <JSON>``。
+输出：每站一行 ``SITE <JSON>``，发布前 ``PLAN`` / ``BEFORE <JSON>``（BEFORE 可原样交回 restore），最后 ``SUMMARY <JSON>``。
+站点顺序：测试租户（test 开头）在前、正式租户在后；sync 时任何一站出错就停（``ROLLBACK`` 行给出该站回退命令），
+后面的站点列进 ``SUMMARY.not_run``、一个都不动。check 照常逐站全跑。
 退出码：0 全部一致（跳过的照列）；1 有站点出错、发布后仍不一致，或 check 发现漂移；2 用法错。
 """
 import argparse
@@ -18,9 +20,10 @@ from pearnly_core import line_surfaces
 
 
 def _sites(only):
-    for site in sorted(os.listdir(".")):
-        if os.path.isfile(os.path.join(site, "site_config.json")) and (not only or site in only):
-            yield site
+    """测试租户（test 开头）排在正式租户前面：同步时 testcowork 的发布就是 erpcowork 之前的真实演练。"""
+    names = [site for site in os.listdir(".")
+             if os.path.isfile(os.path.join(site, "site_config.json")) and (not only or site in only)]
+    yield from sorted(names, key=lambda site: (not site.startswith("test"), site))
 
 
 def main(argv=None) -> int:
@@ -35,8 +38,13 @@ def main(argv=None) -> int:
         parser.error("restore needs one --site, --surface and --before")
 
     summary = {"product": args.product, "mode": args.mode, "ok": [], "drift": [], "published": [],
-               "skipped": {}, "failed": {}, "changes": {}}
-    for site in _sites(args.site):
+               "skipped": {}, "failed": {}, "changes": {}, "not_run": []}
+    sites = list(_sites(args.site))
+    for index, site in enumerate(sites):
+        if args.mode == "sync" and summary["failed"]:
+            # 同步时任何一站发布或回读不过就停：后面的站点（正式租户排在测试租户后面）一个都不动
+            summary["not_run"] = sites[index:]
+            break
         try:
             frappe.init(site=site, sites_path=".")
             frappe.connect()
@@ -71,6 +79,10 @@ def main(argv=None) -> int:
         except Exception as exc:
             frappe.db.rollback()
             summary["failed"][site] = repr(exc)[:400]
+            if args.mode == "sync":
+                print(f"ROLLBACK {site}: python -m pearnly_core.line_surfaces restore --product {args.product} --site {site} "
+                      "--surface <surface> --before '<config of this site's BEFORE line above>'"
+                      " (no BEFORE line for this site = nothing was published there)", flush=True)
         finally:
             frappe.destroy()
     print("SUMMARY " + json.dumps(summary, ensure_ascii=False, sort_keys=True), flush=True)
