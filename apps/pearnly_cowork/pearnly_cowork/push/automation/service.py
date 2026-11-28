@@ -150,7 +150,7 @@ def mismatch(connection, account_set, account_row):
             frappe.get_attr(path)(connection, account_set, account_row)
         except Exception as error:  # noqa: BLE001
             if conflicts.is_conflict(error):
-                raise  # 数据库冲突交回执的整笔重来：吞掉就等于这次没降 L0（管钱底线，11-28 B ③）
+                raise  # 数据库冲突交回执的整笔重来：吞掉就等于这次没降 L0（管钱底线，11-28 B ③）；升档那条（回读钩子）照旧吞掉，下次回读再评
             frappe.db.rollback(save_point="cowork_push_verify_mismatch")
             _log("Cowork push verify mismatch hook failed")
 

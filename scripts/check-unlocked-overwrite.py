@@ -664,6 +664,9 @@ def marked(lines: list[str], call: ast.Call) -> bool:
 
 
 def scan(root: Path = ROOT, *, extended: bool = False):
+    # 缓存按节点 id 记：上一次扫描的树释放后 id 会被新节点复用，每次扫描先清空（code-review 11-28）
+    for cache in (_NAMES, _CALLS, _WALKED, _VALUE_NAMES, Flow._static):
+        cache.clear()
     found, parsed, index = [], [], Index()
     for path in sorted((root / "apps").rglob("*.py")):
         rel = path.relative_to(root)

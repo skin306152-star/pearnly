@@ -170,6 +170,7 @@ def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False
                 # 普通 get_doc 读不到它
                 if access.document_permission(existing, "read", frappe.session.user) is False:
                     frappe.throw(_("Not permitted"), frappe.PermissionError)
+                frappe.has_permission(DOCTYPE, "read", throw=True)  # 角色那一层（原来 doc.check_permission）
                 if existing.request_hash != fingerprint:
                     frappe.throw(_("Request ID already exists"))
                 return {"name": existing.name, "status": existing.status, "duplicate": True}

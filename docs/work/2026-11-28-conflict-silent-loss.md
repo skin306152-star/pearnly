@@ -18,7 +18,7 @@
 | # | 位置 | 原来（原文核过） | 现在 |
 |---|---|---|---|
 | 1 | Cowork `companies/automation.on_readback` / `on_mismatch`（自动推送档位） | 先普通读旧档位算出 tier，`_set` 再锁行写回：与「核不上降 L0」并发会把 L0 撤销 | `state(company, lock=True)` 加锁读档位行再算；`_set` 查行号也加锁读（别人刚建的行看得到） |
-| 1b | Cowork `push/automation/service.mismatch`、`readback/service._announce_ready`（两条钩子的保存点） | `except Exception` 一律回到保存点、记日志：数据库冲突被吞掉 = 这次没降 L0 | `conflicts.is_conflict` 的往外抛，交外层整笔重来（同 B ① 保存点类） |
+| 1b | Cowork `push/automation/service.mismatch`（写入核不上降 L0 的钩子保存点） | `except Exception` 一律回到保存点、记日志：数据库冲突被吞掉 = 这次没降 L0 | `conflicts.is_conflict` 的往外抛，交回执的整笔重来（同 B ① 保存点类）。回读钩子 `_announce_ready`（只管升档）照旧吞掉：引导式回读不重来、保存前比对会被当成失败原文回给用户（code-review 11-28），下一次回读再评 |
 | 2 | Core `express_operator/listed.remember` | `tasks._own` 锁行名、普通 `get_doc` 取快照，合并后 `set_value` 写回：丢另一路刚记的单 | 快照与公司、状态三列加锁读；新增 `tasks._own_name`（`_own` 不变） |
 | 3 | Cowork / ERP `work/service.move`、`move_list`（看板位置） | 不是丢更新（邻卡位置是加锁读，卡片 `save` 有比对）；同一空隙同时拖卡算出同一个位置（原来就有） | 拖卡在目标列表行上加锁排队；`_past_taken` 加锁读出两边之间别人刚放进的，落到它们后面 |
 | 4 | 控制面 `onboarding/welcome.queue_for_request`（欢迎信） | 加锁 SELECT 只取 name，普通 `get_doc` 判「排过没有」：会再排一封带初始密码的信 | 加锁的那条 SELECT 直接带出 `welcome_email_queue` 判断 |
@@ -94,3 +94,9 @@
 
 - 闸门 285 处存量的处置（逐处修还是登记基线），已发主会话。
 - 不在 ③：`tasks._own` 根函数与其余代录入口（②/④）；ERP `post` 拿锁后其余普通读（与隔离开关无关，② E7/E9 一起定）。
+
+### code-review（medium，范围 fdd454b77...HEAD）
+
+| 发现 | 真问题 | 修了 | 耗时 |
+|---|---|---|---|
+| 6 | 3（闸门缓存按 id 跨扫描不清、回读钩子往外抛冲突会让引导式回读失败、重复请求路径少了角色权限检查） | 3 修；另 3 条不改：用尽日志在「已提交后冲突」时误记（扣费里提交是最后一句，现无此路径）；镜像卡拖动同空隙重号（原有问题，记已知）；拖卡先锁列表再锁卡的锁序（死锁由 conflicts.attempt 重来） | 约 15 分钟 |
