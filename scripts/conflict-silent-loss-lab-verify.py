@@ -418,11 +418,19 @@ def amend_vs_payment(site, rounds, results, web):
                    "doc_no": doc.doc_no + "-A", "lines": [{"item_type": "service", "description": f"{TAG} amended", "qty": 1,
                                                           "unit": "งาน", "unit_price": 1000, "vat_rate": 7}]}
         if web:
-            box = _threads(site, user, [
-                ("pay", lambda: purchase_api.api_purchase_payment(name, json.dumps(
-                    {"amount": 200, "method": "cash", "request_id": f"{TAG}-am1-{name}"}))),
-                ("amend", lambda: (__import__("time").sleep(0.3), purchase_api.api_post_purchase(
-                    json.dumps(payload), f"{TAG}-amend-{name}", amended_from=name))[1])])
+            import time
+
+            def paying():
+                time.sleep(0.3)  # 落在「修改」那路建好读视图之后、拿锁之前
+                return purchase_api.api_purchase_payment(name, json.dumps(
+                    {"amount": 200, "method": "cash", "request_id": f"{TAG}-am1-{name}"}))
+
+            def amending():
+                frappe.db.sql("select count(*) from `tabPurchase Document`")  # 请求开头的普通读：读视图从这里起
+                time.sleep(0.8)
+                return purchase_api.api_post_purchase(json.dumps(payload), f"{TAG}-amend-{name}", amended_from=name)
+
+            box = _threads(site, user, [("pay", paying), ("amend", amending)])
         else:
             read_view("Purchase Document")
             frappe.get_doc("Purchase Document", name)  # 本连接（内部调用方的事务）先读过原单
