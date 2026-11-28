@@ -145,7 +145,7 @@ assert.equal(v.card!.questions[0].key, "invoices");
 assert.equal(v.card!.questions[0].wait, true);                  // 第一次取：在读
 v = await t.view(run);
 assert.equal(v.card!.questions[0].wait, undefined);              // 再取：有了
-assert.equal(v.card!.questions[0].options!.length, 3);
+assert.equal(v.card!.questions[0].options!.length, 4);   // 三张发票 + 一张减项单（SR6900007）
 v = await t.answer(run, { invoices: [{ code: "IV6900123", amount: "10700.00" }] }, v.version);
 assert.deepEqual(v.card!.questions.map((x) => x.key), ["methods"]);
 v = await t.answer(run, { methods: [{ code: "transfer:KB", amount: "10700.00" }] }, v.version);
