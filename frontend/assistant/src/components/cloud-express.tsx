@@ -41,6 +41,8 @@ export type CloudStatus = {
   cloud: CloudSummary | null;
   /** 桥有「删除连接」（cloud_forget）：「断开连接」只断开、留着已存密码，删连接与密码是这一项（11-28 用户定） */
   forget: boolean;
+  /** 桥正在替人装云端 CC（段 ③ a）：页面不自己生成安装命令（会让桥的令牌作废） */
+  installing: boolean;
 };
 
 const DEFAULT_PORT = 3389;
@@ -49,7 +51,7 @@ const DEFAULT_PORT = 3389;
 export function cloudStatus(raw: unknown): CloudStatus | null {
   const value = (raw ?? {}) as {
     ok?: boolean; state?: string; link?: CloudStatus["link"]; places?: unknown; remembered?: unknown; reason?: unknown;
-    cloud?: Partial<CloudSummary> | null; forget?: unknown;
+    cloud?: Partial<CloudSummary> | null; forget?: unknown; installing?: unknown;
   };
   if (!value.ok) return null;
   const states: CloudState[] = ["idle", "connecting", "connected", "login_failed", "replaced"];
@@ -65,6 +67,7 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
     link: value.link && typeof value.link.host === "string" ? value.link : null,
     places, remembered: value.remembered === true, reason: typeof value.reason === "string" ? value.reason : "", cloud,
     forget: value.forget === true,
+    installing: value.installing === true,
   };
 }
 
@@ -268,7 +271,7 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
           onClose={(connected) => {
             setDialog("");
             // 云端那份 CC 还没报过状态（没装好）：给出安装命令（自动安装做好前的兜底）
-            if (connected && !cloud) pair();
+            if (connected && !cloud && !status.installing) pair();
             reload();
           }}
         />

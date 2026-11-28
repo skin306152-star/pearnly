@@ -808,6 +808,17 @@ class CloudHost:
         self._poke()   # 中转线程按新的过期时刻重算等多久
         return ticket
 
+    def window_handle(self) -> int:
+        """连接窗口（顶层窗口）的句柄，给首次自动安装发键用；没有窗口回 0。"""
+        window = self._window
+        return int(window.winId()) if window is not None else 0
+
+    def minimize_window(self) -> None:
+        """自动安装配好后把连接窗口收回最小化（默认样子）。"""
+        window = self._window
+        if window is not None:
+            window.showMinimized()
+
     def pairing_status(self) -> dict:
         """``{state, code, expires}``：idle / waiting / answered / paired / failed；不含令牌。"""
         current = self._pairing

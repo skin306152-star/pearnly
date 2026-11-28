@@ -20,7 +20,7 @@ from companion.cloud_link import host as host_mod
 from companion.cloud_link import tunnel_protocol as protocol
 from companion.cloud_link.host import CloudHost, HostUnavailable, TunnelDriveError
 from companion.cloud_link.link_store import LinkStore
-from companion.cloud_link.session import CloudSession, State
+from companion.cloud_link.session import CloudSession, Snapshot, State
 from companion.cloud_link.tunnel_relay import Incoming
 
 HOST = "198.51.100.7"
@@ -763,3 +763,77 @@ def test_off_windows_the_default_watcher_only_waits():
     from companion.cloud_link import dir_watch
 
     assert isinstance(dir_watch.open_watcher("."), dir_watch.ManualWatcher) == (sys.platform != "win32")
+
+
+# ── 段 ③ a 首次自动安装（桥这边：等连上 → 备 cc\ → 令牌 → 发键 → 等配对） ────────────────────
+
+class _InstallHost:
+    def __init__(self, paired=True):
+        self.host, self.root, self.drive, self.cloud_state = HOST, "Z:\\", "Z:", None
+        self.session = types.SimpleNamespace(snapshot=lambda: Snapshot(State.CONNECTED, None, None, "", 0, None))
+        self.paired, self.minimized, self.running = paired, 0, True
+
+    def window_handle(self):
+        return 4242
+
+    def begin_pairing(self, lang=""):
+        return types.SimpleNamespace(token="7K3M-Q9TB-ABCD-EFGH-JKMN-PQRS-TVXX", expires=0)  # scan: fake
+
+    def pairing_status(self):
+        return {"state": "paired" if self.paired else "failed"}
+
+    def minimize_window(self):
+        self.minimized += 1
+
+
+def _auto(tmp_path, monkeypatch, host, sent_ok=True):
+    from companion.cloud_link import auto_install
+
+    bridge = _bridge(tmp_path, {}, [])
+    bridge._later = lambda ms, fn: fn()
+    bridge._cloud_prepare = lambda root, name: None
+    bridge._cloud_host = host
+    sent = []
+    monkeypatch.setattr(auto_install, "Sender", lambda handle: ("sender", handle))
+    monkeypatch.setattr(auto_install, "run", lambda command, sender: sent.append((command, sender)) or sent_ok)
+    seen = []
+    bridge._start_auto_install(host)
+    seen.append(json.loads(bridge.call("cloud_status", "{}")).get("installing"))
+    from PySide6.QtWidgets import QApplication
+    deadline = time.monotonic() + 5
+    while bridge._auto_installing and time.monotonic() < deadline:
+        QApplication.processEvents()
+        time.sleep(0.01)
+    return bridge, sent, seen
+
+
+def test_the_bridge_installs_the_cloud_cc_once_by_itself_and_minimizes_the_window(tmp_path, monkeypatch):
+    host = _InstallHost()
+    bridge, sent, seen = _auto(tmp_path, monkeypatch, host)
+    assert seen == [True]   # 进行中页面看到 installing，不自己发令牌
+    [(command, sender)] = sent
+    assert command.endswith("cloud_install.ps1 -Token 7K3M-Q9TB-ABCD-EFGH-JKMN-PQRS-TVXX") and sender == ("sender", 4242)
+    assert bridge._auto_installing == "" and host.minimized == 1
+    assert "installing" not in json.loads(bridge.call("cloud_status", "{}"))
+    bridge._start_auto_install(host)   # 同一台主机本进程不再试
+    assert len(sent) == 1
+    bridge.shutdown()
+
+
+def test_when_sending_or_pairing_fails_the_page_falls_back_to_the_install_command(tmp_path, monkeypatch):
+    host = _InstallHost(paired=False)
+    bridge, sent, _ = _auto(tmp_path, monkeypatch, host)
+    assert len(sent) == 1 and bridge._auto_installing == "" and host.minimized == 0
+    bridge.shutdown()
+    other = _InstallHost()
+    bridge, sent, _ = _auto(tmp_path / "b", monkeypatch, other, sent_ok=False)
+    assert bridge._auto_installing == "" and other.minimized == 0
+    bridge.shutdown()
+
+
+def test_a_host_the_cloud_cc_already_reports_from_is_not_installed_again(tmp_path, monkeypatch):
+    host = _InstallHost()
+    host.cloud_state = {"version": "1.12.26"}
+    bridge, sent, seen = _auto(tmp_path, monkeypatch, host)
+    assert sent == [] and seen == [None]
+    bridge.shutdown()

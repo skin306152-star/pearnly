@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import uuid
 from typing import Callable, Optional, Tuple
 from urllib.parse import urlsplit
@@ -95,6 +96,19 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # cloud_add_place（D4）。不带 inline 的旧页面照旧弹原生小窗、页面交的密码一概不看。
 FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",
             "mrerp_login_inline", "connect_dialog")
+
+
+# 段 ③ a 首次自动安装：连上后最多等多久（秒）、发键后最多等配对多久（秒）、轮询间隔（毫秒）
+AUTO_INSTALL_CONNECT_WAIT = 90.0
+AUTO_INSTALL_PAIR_WAIT = 120.0
+AUTO_INSTALL_TICK_MS = 1000
+
+
+def _later(ms: int, fn) -> None:
+    """界面线程上过 ``ms`` 毫秒再做 ``fn``（测试注入同步的）。"""
+    from PySide6.QtCore import QTimer
+
+    QTimer.singleShot(int(ms), fn)
 
 
 def _local_login(parent, lang: str, title_key: str, user: str) -> Optional[Tuple[str, str]]:
@@ -158,6 +172,10 @@ class TomoBridge(QObject):
         self._cloud_refresh = cloud_refresh or _cloud_refresh
         self._cloud_package_lock = threading.Lock()
         self._cloud_package_code = ""
+        # 段 ③ a 首次自动安装：每台云端主机本进程只试一次；进行中的主机名（cloud_status 回 installing，页面不自己发令牌）
+        self._auto_install_tried: set = set()
+        self._auto_installing = ""
+        self._later = _later
 
     @Slot(result=str)
     def state(self) -> str:
@@ -507,6 +525,91 @@ class TomoBridge(QObject):
         self._cloud_forgets.discard("default")
         self._cloud_cred_forget(cred_handoff.bridge_target(host_name, "default"))
 
+    # ---- 段 ③ a：云端 CC 首次自动安装（cloud_link/auto_install.py） ----
+    def _start_auto_install(self, host) -> None:
+        """（界面线程）连上云端、云端那份 CC 还没报过状态时，替人装：等连上 → 备好 cc\\ → 拿令牌 → 发键 → 等配对回执。
+        每台主机本进程只试一次；不成就照旧由页面出「云端安装命令」（兜底）。"""
+        name = getattr(host, "host", "")
+        if not name or name in self._auto_install_tried or getattr(host, "cloud_state", None) is not None \
+                or not callable(getattr(host, "window_handle", None)):   # 没有连接窗口可发键的宿主不自动装
+            return
+        self._auto_install_tried.add(name)
+        self._auto_installing = name
+        deadline = time.monotonic() + AUTO_INSTALL_CONNECT_WAIT
+        log.info("云端自动安装 · 开始 · 主机=%s", name)
+
+        def connected() -> bool:
+            from .cloud_link import settings_link
+
+            session = getattr(host, "session", None)
+            return settings_link.status_of(session.snapshot() if session is not None else None) == "connected"
+
+        def tick() -> None:
+            if self._cloud_host is not host or getattr(host, "cloud_state", None) is not None:
+                return self._end_auto_install(host, "skipped")
+            if not (connected() and getattr(host, "drive", "")):
+                if time.monotonic() < deadline:
+                    return self._later(AUTO_INSTALL_TICK_MS, tick)
+                return self._end_auto_install(host, "not_connected")
+            self._job(lambda: self._package_step(self._cloud_prepare, host.root, name) or {"ok": True},
+                      after=lambda result: self._auto_install_send(host, result))
+
+        tick()
+
+    def _auto_install_send(self, host, result: dict) -> dict:
+        """（界面线程）cc\\ 备好了：生成令牌、后台发键，再等配对回执。"""
+        if not result.get("ok") or self._cloud_host is not host:
+            self._end_auto_install(host, str(result.get("code") or "prepare_failed"))
+            return result
+        try:
+            from .cloud_link.cloud_package import install_command
+
+            ticket = host.begin_pairing("")
+            command = install_command(str(host.drive or ""), ticket.token)
+            handle = int(host.window_handle())
+        except Exception as exc:
+            log.warning("云端自动安装没能开始：%s", type(exc).__name__)
+            self._end_auto_install(host, "not_running")
+            return result
+
+        def send() -> dict:
+            from .cloud_link import auto_install
+
+            return {"ok": auto_install.run(command, auto_install.Sender(handle))}
+
+        self._job(send, after=lambda sent: self._auto_install_wait(host, sent))
+        return result
+
+    def _auto_install_wait(self, host, sent: dict) -> dict:
+        """（界面线程）键发出去了：每 2 秒看一次配对，成了收尾，超时或失败退回兜底。"""
+        if not sent.get("ok"):
+            self._end_auto_install(host, "send_failed")
+            return sent
+        deadline = time.monotonic() + AUTO_INSTALL_PAIR_WAIT
+
+        def check() -> None:
+            if self._cloud_host is not host:
+                return self._end_auto_install(host, "stopped")
+            state = str((host.pairing_status() or {}).get("state") or "")
+            if state == "paired":
+                return self._end_auto_install(host, "paired")
+            if state == "failed" or time.monotonic() >= deadline:
+                return self._end_auto_install(host, state or "timeout")
+            self._later(AUTO_INSTALL_TICK_MS * 2, check)
+
+        check()
+        return sent
+
+    def _end_auto_install(self, host, outcome: str) -> None:
+        log.info("云端自动安装 · 结束 · 主机=%s 结果=%s", getattr(host, "host", ""), outcome)
+        self._auto_installing = ""
+        if outcome == "paired":
+            try:
+                host.minimize_window()
+            except Exception:
+                log.exception("云端连接窗口收起失败")
+        self.changed.emit()
+
     def _cloud_pair(self, method: str, lang: str) -> dict:
         """设备密钥的一次性配对：查状态（不含令牌）/ 先在后台备好隧道盘 ``cc\\``，再生成令牌（回 job）。宿主没起回 ``not_running``。"""
         host = self._cloud_host
@@ -589,6 +692,8 @@ class TomoBridge(QObject):
             # 只停连接、留着连接记录与已存密码（启动不自动连）；cloud_forget 停连接并删连接记录、远程桌面密码与实操登录。
             # 同其它云端动作不进 FEATURES，页面看这一项决定出不出「删除连接」
             result["forget"] = True
+            if self._auto_installing:
+                result["installing"] = True   # 桥在替人装云端 CC：页面别自己点 cloud_pair_begin（会让桥的令牌作废）
             return result
         if method in ("cloud_disconnect", "cloud_forget"):
             # 「断开」只停连接、留着连接记录与已存密码（重新登录免输，启动不自动连）；「删除连接」（cloud_forget）停了再删连接记录、
@@ -676,6 +781,7 @@ class TomoBridge(QObject):
                 host.request_forget(connection)
             self._cloud_forgets.clear()
             self._refresh_cloud_package(host)
+            self._start_auto_install(host)
         except HostUnavailable:
             log.info("这台电脑起不了云端连接窗口（不是 Windows 或没有 PySide6、comtypes）")
         except Exception as exc:

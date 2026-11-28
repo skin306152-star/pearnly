@@ -165,7 +165,7 @@ def pairing_block(text):
 class CloudPairingBlock(unittest.TestCase):
     def test_shown_after_connect_and_from_the_menu(self):
         text = read(ROW)
-        self.assertIn("if (connected && !cloud) pair();", text)   # 云端那份 CC 还没报过状态（没装好）才给命令
+        self.assertIn("if (connected && !cloud && !status.installing) pair();", text)   # 云端没报过状态、桥也没在替人装才给命令
         self.assertIn("onClose(true);", text)
         self.assertIn('<Dialog open onOpenChange={(v) => !v && onClose(false)}>', text)
         self.assertIn("{pairing !== null && <CloudPairing key={pairing} api={api} onDone={() => setPairing(null)} />}", text)
