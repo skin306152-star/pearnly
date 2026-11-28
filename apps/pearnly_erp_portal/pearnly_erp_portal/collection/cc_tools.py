@@ -443,6 +443,8 @@ def push(tool_input) -> str:
         out["docnum"] = view["docnum"]
     elif result in (FAILED, direct_push.UNCONFIRMED):
         out["reason"] = view["reason"]
+        if result == direct_push.UNCONFIRMED:
+            out["reason_text"] = view.get("reason_text") or ""  # 定式让模型照说这句，不说原码
     elif result == QUEUED and _mrerp(view):
         out["note"] = MRERP_QUEUED_NOTE
     elif result == QUEUED:
