@@ -28,14 +28,6 @@ class StepHint(Exception):
 # ERP / Cowork 的按权限富菜单（DMS 走自己的 `rich_menu`）。发布后站点配置里才有菜单表，
 # 没发布过绑定的人就只看到空白官方号（mrerp / erpcowork 开户后都没有，2026-09-30）。
 LINE_MENUS = {"erp": "pearnly_erp_portal.integrations.line_menu", "cowork": "pearnly_cowork.line.menu"}
-# 每个产品站点只装共用层与本产品自己的 App（11-28）：9 月 erpcowork / testcowork 的 Cowork 菜单泰文「盘点」取到的是 ERP 的词条
-# （同一个原文 "Stock count" 两个产品译法不同，Frappe 按站点已装的 App 合并译文、后装的覆盖先装的）——站点上装了别的产品的 App，
-# 本产品的界面词条就可能变成别的产品的。服务端拒绝，不靠控制面不发这种请求。
-PRODUCT_APPS = {"dms": "pearnly_dms", "erp": "pearnly_erp_portal", "cowork": "pearnly_cowork"}
-
-
-def installable(group: str, app: str) -> bool:
-    return group not in PRODUCT_APPS or app in ("pearnly_core", PRODUCT_APPS[group])
 COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
               "pearnly_cowork_ocr_policy": {"mode": "economy"}}
 
@@ -401,8 +393,6 @@ def main():
         # 安装 ERPNext 全套业务，控制面也从不请求它（provision-agent 只放行
         # pearnly_core 与该产品自己的 App），实测只装 Core + ERP 门户即可安装与迁移。
         # 用户 2026-09-21 明确要求不要它。
-        if not installable(group, p["app"]):
-            raise ValueError(f"A {group} site installs only pearnly_core and {PRODUCT_APPS[group]}, not {p['app']}")
         if p["app"] not in frappe.get_installed_apps():
             install_app(p["app"])
     elif action == "set_oidc":

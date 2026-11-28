@@ -16,23 +16,6 @@ REGIONS = [{"location": "asia-southeast1", "processor": "6c7dfffac937fcd9",
             "version": "pretrained-ocr-v2.1-2024-08-07", "rpm": 120}]
 
 
-class ProductApps(unittest.TestCase):
-    """产品站点只装共用层与本产品的 App（11-28：Cowork 站点装着 ERP 的 App 时，Cowork 菜单的泰文词条取成了 ERP 的）。"""
-
-    def test_a_product_site_takes_only_core_and_its_own_app(self):
-        for group, app in step.PRODUCT_APPS.items():
-            self.assertTrue(step.installable(group, "pearnly_core"))
-            self.assertTrue(step.installable(group, app))
-            for other in set(step.PRODUCT_APPS.values()) - {app}:
-                self.assertFalse(step.installable(group, other), (group, other))
-            self.assertFalse(step.installable(group, "erpnext"))
-
-    def test_install_step_refuses_before_installing(self):
-        source = path.read_text(encoding="utf-8")
-        branch = source[source.index('elif action == "install_app":'):]
-        self.assertLess(branch.index("installable(group, p[\"app\"])"), branch.index("install_app(p[\"app\"])"))
-
-
 class Endpoints(unittest.TestCase):
     """数据库与 Redis 地址只靠 runtime.env（2026-10-02 可拆分自检）：不填就是同一台机器的服务名，填了就用填的。"""
 
