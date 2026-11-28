@@ -79,3 +79,24 @@ ERP「采购 / 销售」声明是按单据办（`express/cc_guides.py`，`source
   but it has not been recognized yet … This conversation has no recognized documents so far.」，并反问要不要开始采购录入。没有识别、没有建单、没有写账。
   截图 `~/pearnly-devtools/handoff-1128/cc-upload-online/testerp-online-568f4b7f6.jpg`。
 - 收尾：用 CC 自己的「删除对话」删掉这段，回读侧栏清单已无此会话（22:20）。识别没发生，没有扣费。
+
+## 6. 验证（分支 pearnly/cc-upload-into-recognition，基于 train-1128e 9f70f4ecc）
+
+- 单测：`tests/test_assistant.py` 268（新：只发文件判不出语言、发出时交进引导 / 问一次 / 卡还开着）、`tests/test_cc_guide_composer.py` 6（新）、`test_cc_guide_run` 73。
+- 本地全闸门（`gate.sh`）exit=0；候选离线（生产镜像 4cf9c… 挂本分支）LANE EXIT 0，115 组。
+- code-review（medium）：
+
+  | 发现 | 真问题 | 修了 | 耗时 |
+  |---|---|---|---|
+  | 4 | 2（同业务卡已过交文件时第二张票没人接；代录会话里打字路径会再识别一遍） | 2（另两条：选过业务后之后的文件都进识别——按「已选业务就按已选的」不改；发不出时空卡留着——重发复用，不改） | 约 10 分钟 |
+
+- 页面流程（pearnly-cov3-lab，镜像 4cf9c…，数据集 new；实验栈不受理识别，流程每格临时配预算 Redis + 占位凭据、收尾作废并还原，不真识别）：
+  - 修前（9f70f4ecc + 新流程）`erp.cc.guide.purchase-composer` / `erp.cc.guide.sales-composer` / `cowork.cc.guide.purchase-composer` × 桌面 + 手机 **6/6 不通过**：
+    对话里没有卡、引导运行 0、ERP 收单记录 0（业务记着、上传的文件在）。
+  - 修后 **6/6 通过**（每格约 55 秒）：卡出现并进「识别中」，一条该业务引导运行、交的是那一份、有识别批次，ERP 建了对话收单记录（来源 cc、方向 = 菜单业务、请求键 = 文件编号）。
+- 共用件连带回归（`check-impact`：CC 对话 13 个入口）：同栈跑 14 条流程 × new / old × 桌面 / 手机 **29/29 通过**——
+  `erp.cc.guide.purchase`、`erp.cc.guide.sales`、`cowork.cc.guide.purchase`、`cowork.cc.guide`（pearnly_guide 卡）、`erp.cc.guide.collection`、
+  `cc.attach-delete`、`cc.send-unblocked`、`cowork.cc.send-unblocked`、`cc.chat`、`cc.operator.upload-on-send`、`erp.cc.operator.intake` 与三条新流程。
+  覆盖到的入口：cc.assistant、shared.assistant、cowork.assistant、cowork.cc-chat.push、erp.cc.chat-push（直写引导确定交直写）、cc.operator.thread / cc.operator.start-card（代录上传与开始卡）、erp.cc.collection。
+  没测到：control.assistant（fatcc.com 登录，本支不碰登录与入口）、erp.cc.companies、erp.cc.stocktake、cowork.cc.troubleshooting、erp.page.collections——本支只改发消息时附件的去向与语言判定，不碰这些入口的取数与页面。
+- 没做：B（没选业务、模型问一次再 `pearnly_guide {business, files}`）的真模型复验——实验栈是假智能体，要测试机 / 线上真模型，最小样本，排在合入后由验收顺带看；离线由单测守住。
