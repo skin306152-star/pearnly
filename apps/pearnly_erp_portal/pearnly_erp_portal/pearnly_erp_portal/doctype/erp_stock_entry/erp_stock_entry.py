@@ -9,9 +9,12 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import ledger_guard
+
 
 class ERPStockEntry(Document):
     def validate(self):
+        ledger_guard.keep_current(self)  # 账本栏只由写账链路写：旧副本保存不盖回（11-28 B ③）
         if not self.get("lines"):
             frappe.throw(_("A stock entry needs at least one line"))
         for line in self.lines:

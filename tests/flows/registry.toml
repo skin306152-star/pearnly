@@ -2530,6 +2530,21 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.express.void-while-sending"
+title = "ERP 作废与写账同时到（11-28 管钱底线）：后台正在排写账件时作废（采购、销售、采购修改作废原单），作废的单没有没撤销的写账件（两条线程各自连库）"
+module = "scripts/flows/erp_express_void_while_sending.py"
+start = "/desk"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_guard.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/api.py",
+]
+
+[[flow]]
 id = "erp.office-actor"
 title = "ERP 写账人领单时判（11-17 定稿，替代 11-16 排队时换人）：只用手机的销售员的单由办公室只有 A 登录过 CC 的电脑领单时替写、记下 A，写账件与 ERP 仍记原发单人、单据页与对话不再说未连接；别家公司的电脑不领"
 module = "scripts/flows/erp_office_actor.py"

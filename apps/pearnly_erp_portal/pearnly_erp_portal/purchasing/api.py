@@ -213,8 +213,11 @@ def api_submit_purchase(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_void_purchase(**kwargs):
+    from pearnly_core.transaction import conflicts
+
     kwargs = _clean(kwargs)
-    return service.set_status(kwargs.pop("name", None), "void", reason=kwargs.get("reason"))
+    frappe.db.commit()  # 同 :func:`api_cancel_purchase`（11-28 B ③）
+    return conflicts.attempt(service.set_status, kwargs.pop("name", None), "void", reason=kwargs.get("reason"))
 
 
 @frappe.whitelist(methods=["POST"])

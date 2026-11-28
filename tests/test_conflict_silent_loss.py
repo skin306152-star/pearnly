@@ -337,5 +337,46 @@ class LockedReadsStay(unittest.TestCase):
         self.assertIn("SELECT welcome_email_queue FROM `tabPearnly Issue` WHERE name=%s FOR UPDATE", source)
 
 
+class VoidEntries(unittest.TestCase):
+    """作废这一类（11-28 B ③ 第二段）：入口先结束读视图再整笔重来、先锁后读；撤件按来源单据；领件兜底加锁读；账本栏保存不盖回。"""
+
+    def function(self, path, name):
+        tree = ast.parse((APPS / "pearnly_erp_portal/pearnly_erp_portal" / path).read_text(encoding="utf-8"))
+        return next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == name)
+
+    def test_void_entries_commit_then_attempt(self):
+        for path, name in (("purchasing/api.py", "api_cancel_purchase"), ("purchasing/api.py", "api_void_purchase"),
+                           ("sales/api.py", "api_cancel_sale"), ("inventory/api.py", "api_void_stock_entry")):
+            source = ast.unparse(self.function(path, name))
+            self.assertIn("frappe.db.commit()", source, name)
+            self.assertIn("conflicts.attempt(", source, name)
+            self.assertLess(source.index("frappe.db.commit()"), source.index("conflicts.attempt("), name)
+
+    def test_lock_comes_before_any_plain_read(self):
+        for path, name in (("purchasing/access.py", "get_document"), ("sales/access.py", "get_document"),
+                           ("purchasing/service.py", "set_status")):
+            source = ast.unparse(self.function(path, name))
+            self.assertLess(source.index("for update"), source.index("guard.require"), name)
+
+    def test_void_cancels_every_unwritten_job_of_the_source(self):
+        source = ast.unparse(self.function("express/push.py", "_cancel_unwritten"))
+        self.assertIn("for update", source)
+        self.assertIn("source_doctype=%s and source_name=%s", source)
+        self.assertIn("_cancel_unwritten(doctype, name)", ast.unparse(self.function("express/push.py", "void")))
+
+    def test_claim_time_check_and_send_recheck_see_a_fresh_void(self):
+        self.assertIn("for_update=True", ast.unparse(self.function("express/push.py", "still_wanted")))
+        source = (APPS / "pearnly_erp_portal/pearnly_erp_portal/express/push.py").read_text(encoding="utf-8")
+        line = next(row for row in source.splitlines() if row.startswith("LEDGER_SEEN = "))
+        self.assertIn('"status"', line)
+
+    def test_ledger_columns_are_kept_on_every_save(self):
+        for doctype in ("purchase_document", "erp_sales_document", "erp_stock_entry", "erp_stock_count", "erp_pos_day_summary"):
+            path = APPS / f"pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/{doctype}/{doctype}.py"
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            validate = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "validate")
+            self.assertEqual(ast.unparse(validate.body[0]), "ledger_guard.keep_current(self)", doctype)
+
+
 if __name__ == "__main__":
     unittest.main()

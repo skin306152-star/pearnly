@@ -6,11 +6,14 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import ledger_guard
+
 from pearnly_erp_portal.purchasing import contracts
 
 
 class PurchaseDocument(Document):
     def validate(self):
+        ledger_guard.keep_current(self)  # 账本栏只由写账链路写：旧副本保存不盖回（11-28 B ③）
         previous = self.get_doc_before_save()
         if ((self.calculation_version or 0) >= 2 or (previous and (previous.calculation_version or 0) >= 2)) and not self.flags.get("purchase_action"):
             if self.is_new() or (previous and previous.status != "draft") or self.status != "draft":

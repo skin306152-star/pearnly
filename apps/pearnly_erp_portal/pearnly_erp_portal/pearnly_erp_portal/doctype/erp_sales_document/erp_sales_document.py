@@ -8,11 +8,14 @@
 import frappe
 from frappe.model.document import Document
 
+from pearnly_erp_portal.express import ledger_guard
+
 from pearnly_erp_portal.sales import contracts
 
 
 class ERPSalesDocument(Document):
     def validate(self):
+        ledger_guard.keep_current(self)  # 账本栏只由写账链路写：旧副本保存不盖回（11-28 B ③）
         if self.is_new() or self.status in contracts.EDITABLE_STATUSES:
             self._apply_totals()
 

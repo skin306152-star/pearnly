@@ -9,9 +9,10 @@ DOCTYPE = "ERP Sales Document"
 
 
 def get_document(name, *, write=False, lock=False):
-    guard.require("sales.write" if write else "sales.read")
     if lock:
+        # 先加锁、再做任何普通读（11-28 B ③，同采购 `purchasing.access.get_document`）
         frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", (name,))
+    guard.require("sales.write" if write else "sales.read")
     doc = frappe.get_doc(DOCTYPE, name)
     if document_permission(doc, "write" if write else "read", frappe.session.user) is False:
         frappe.throw(_("Not permitted"), frappe.PermissionError)

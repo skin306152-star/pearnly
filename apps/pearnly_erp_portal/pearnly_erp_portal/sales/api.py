@@ -55,7 +55,10 @@ def api_sales_amounts(payload):
 
 @frappe.whitelist(methods=["POST"])
 def api_cancel_sale(name, reason=None):
-    return entry.cancel(name, reason)
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()  # 结束请求开头建的读视图（到这里还没写过）：作废在新事务里先锁单据再读（11-28 B ③）
+    return conflicts.attempt(entry.cancel, name, reason)
 
 
 @frappe.whitelist(methods=["POST"])
