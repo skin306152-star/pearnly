@@ -2559,9 +2559,9 @@ files = ["apps/pearnly_cowork/pearnly_cowork/public/desk/stocktake.js", "apps/pe
 [[entry]]
 id = "erp.place.header"
 product = "ERP"
-where = "采购 / 销售 / 入库 / 出库单头「仓库 + 库位」（多仓闭环 P1）"
-steps = "多仓公司新建采购单：单头仓库已预填（本人上次 → 卖货仓 → 唯一仓 → 空）；换单头仓 → 明细行跟着换、单头库位清空；逐行改过的行不跟；选商品不改行仓；提交后详情单头显示所选仓与库位；销售、入库、出库同样走一遍；多仓公司单头不选仓提交被拒"
-expect = "货落到单头（或逐行改过的）仓与库位；不再落登录时的卖货仓；切公司后新建单按新公司预填"
+where = "采购 / 销售 / 入库 / 出库明细行「仓库」（多仓闭环 P1；11-19 起按行选仓、不再有单头仓与库位，调拨仍是单头一出一进）"
+steps = "多仓公司新建采购单：第一行仓按建议预填（本人上次 → 卖货仓 → 唯一仓 → 空）；加行沿用上一行的仓，逐行可改；「批量编辑」的「全部」一键设同一个仓；选商品不改行仓；提交后各行货落各自的仓；销售、入库、出库同样走一遍（入库两行两仓提交后各落各仓，流程 erp_stock_out_new）；调拨单头调出仓变、行跟着变，同仓被拒（流程 erp_stock_transfer）；多仓公司库存行不选仓提交被拒"
+expect = "货落到每行选的仓；不再落登录时的卖货仓；切公司后新建单按新公司预填"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-form.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales-fields.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/positions.py"]
 
