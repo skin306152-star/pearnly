@@ -79,7 +79,8 @@ def _mark(row, reason, *, cls="", tier="", proposal=None, at=None):
 
 
 def one(row) -> str:
-    """判并（该推的）推一张票，回这一张的结局：pushed / propose / stop / no_permission / no_computer / failed / skipped。"""
+    """判并（该推的）推一张票，回这一张的结局：pushed / propose / stop / no_permission / no_computer / failed / skipped /
+    human（判完到推之间人改过、推过这张，留给人）。"""
     user = str(row.owner or "")
     if not user or user in ("Guest", "Administrator") or not scope.allowed("intake", user):
         _mark(row, "no_permission")
@@ -122,10 +123,13 @@ def one(row) -> str:
 def _push(row, found) -> str:
     key = push_key(row.name, row.record_version)
     revision = frappe.db.get_value(CONNECTION, row.push_connection, "record_revision")
+    # 候选是一轮开头的普通读：之后人可能刚在网页推了这张，推送服务锁住票后按现值再核一次（11-28 ④ A2 #3）
     result = application.submit(row.name, row.push_connection, key, row.record_version, revision,
                                 found["account_set"], None, None, row.posting_kind or None,
-                                automation=found["automation"])
+                                automation=found["automation"], unattended=True)
     frappe.db.commit()
+    if result.get("status") == "human":
+        return "human"
     if result.get("status") != "prepared":
         return "pushed" if result.get("status") in ("pending", "success") else "failed"
     try:

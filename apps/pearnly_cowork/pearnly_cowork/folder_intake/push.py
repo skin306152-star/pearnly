@@ -226,10 +226,14 @@ def _push_to(entry, rule, history, row, account_set, fixed, attempt, final):
         automation = judged.get("automation")
     revision = frappe.db.get_value(CONNECTION, rule.connection, "record_revision")
     key = push_key(entry.name, history, row.record_version, attempt)
+    # 无人值守：`push_one` 开头判「没人动过」之后人可能刚在网页推了这张，推送服务锁住票后按现值再核一次（11-28 ④ A2 #1）
     result = application.submit(history, rule.connection, key, row.record_version, revision,
                                 account_set, None, None, posting_kind, fixed=fixed,
-                                route_device=device if adapter == "express" else "", automation=automation)
+                                route_device=device if adapter == "express" else "", automation=automation,
+                                unattended=True)
     frappe.db.commit()
+    if result.get("status") == "human":
+        return {"status": "human"}
     if result.get("status") == "failed":
         return {"status": "failed", "reason": str(result.get("reason") or "")[:300]}
     if result.get("status") == "cancelled":

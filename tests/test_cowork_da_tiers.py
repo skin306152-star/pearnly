@@ -973,6 +973,9 @@ class Sweep:
 
     def submit(self, history, connection, key, version, revision, account_set, *args, automation=None, **kwargs):
         self.submits.append((history, key, version, automation))
+        self.unattended = getattr(self, "unattended", []) + [kwargs.get("unattended")]
+        if history in getattr(self, "touched", ()):  # 推送服务锁住票后核出人刚推过 / 改过（`application.prepare`）
+            return {"status": "human", "history": history}
         return {"status": "prepared", "name": "CWP-" + history, "revision": 1}
 
     def confirm(self, name, revision, key):
@@ -1017,6 +1020,17 @@ class UploadSweep(unittest.TestCase):
         # 先记判定（auto_checked_at）再推：下一轮不再扫到它
         self.assertEqual(sweep.marks[0][1]["cls"], "A")
         self.assertIsNotNone(sweep.marks[0][1]["checked_at"])
+
+    def test_a_ticket_a_person_pushed_after_the_candidates_were_read_is_left_to_them(self):
+        """11-28 ④ A2 #3：候选是一轮开头的普通读，判完到推之间人在网页推了这张：推送时声明无人值守，推送服务锁住票后按现值
+        再核，回 human 就不确认、不记失败，这一张算留给人。"""
+        sweep = Sweep([_ticket("H1"), _ticket("H2")], _judged("A", "push"))
+        sweep.touched = {"H1"}
+        failed = []
+        sweep.module.application.submission_failed = lambda *a: failed.append(a)
+        self.assertEqual(sweep.module.run(), {"human": 1, "pushed": 1})
+        self.assertEqual(sweep.unattended, [True, True])
+        self.assertEqual((sweep.confirms, failed), ([("CWP-H2", "confirm:" + sweep.module.push_key("H2", 2))], []))
 
     def test_proposals_stops_no_permission_and_no_computer_are_left_to_people(self):
         sweep = Sweep([_ticket("H1")], _judged("B", "propose"))

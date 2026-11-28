@@ -12,3 +12,7 @@ apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py	send	ERP Collectio
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	queue	$doctype	判断	误报（11-28 B ②）：读的是本事务里刚保存的那张单（新建或已加锁的草稿），自己的写读得到；网页提交入口另在拿 post 锁后 commit
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit	ERP LINE Intake	借函数	误报（11-28 B ②）：写的字段名由卡片方向（采购 / 销售）决定，方向建卡后不变；卡片行已先锁后读（_owned(lock=True)），重复提交由 post 的加锁查重挡住
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit_chat	ERP LINE Intake	借函数	误报（11-28 B ②）：同 submit
+apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py	_push	Cowork OCR History	跨函数	误报（11-28 ④ A2 #2）：传下去的是文件行（泵在 Redis 锁下单跑、每次写回前 read(FILE, for_update=True) 重读），对票的写都在 push_one → 推送服务里，推送服务锁住票后按现值重核（见 push_one）
+apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py	_push_step	Cowork Folder Intake File	跨函数	误报（11-28 ④ A2 #2）：文件行只有泵写（outcome_json 全仓只有 pump.py 写），泵由 Redis 锁 cowork:folder:pump 单跑（120 秒 > 每步 45 秒）；锁过期两路并跑时同一张票的请求号由（文件、票、版本、第几次）定（push.push_key），推送服务按请求号回原记录（ledger.lookup_request），不会推两次
+apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py	push_one	Cowork OCR History	跨函数	已修（11-28 ④ A2 #1）：开头普通读判「没人改过、没推过」只用来挑票；推送时声明 unattended，推送服务锁住票后按现值再核（人改过 / 推过回 human，不建推送记录）；picked 只决定这次推往的去向（retarget 自己加锁读比）
+apps/pearnly_cowork/pearnly_cowork/push/automation/sweep.py	run	Cowork OCR History	跨函数	已修（11-28 ④ A2 #3）：候选是一轮开头的普通读，只用来挑票；推送时声明 unattended，推送服务锁住票后按现值再核（同 push_one）；判定只写 auto_* 几栏（record_assessment，不升版本）

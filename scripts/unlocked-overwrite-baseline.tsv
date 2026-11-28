@@ -62,9 +62,6 @@ apps/pearnly_cowork/pearnly_cowork/companion/credentials.py	full_report_due	$DOC
 apps/pearnly_cowork/pearnly_cowork/companion/credentials.py	request_full_report	$DOCTYPE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/folder_intake/company_folders.py	bind	Cowork Company Folder	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/folder_intake/company_folders.py	unbind	Cowork Company Folder	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py	_push	Cowork OCR History	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：同 push_one
-apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py	_push_step	Cowork Folder Intake File	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：同 push_one
-apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py	push_one	Cowork OCR History	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：文件夹自动推送：普通读票上的推送状态 / 改单次数判「人推过没有」，再交推送服务；推送服务自己的幂等是否兜住待核；带外部推送，随 ④
 apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py	delete	Cowork Folder Intake File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/history/removal.py	delete	$DOCTYPE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/line/ask.py	arrive	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
@@ -79,7 +76,6 @@ apps/pearnly_cowork/pearnly_cowork/ocr/execution/service.py	submit	Cowork Source
 apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py	_persist	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py	run	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/pos_import/service.py	admit	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_cowork/pearnly_cowork/push/automation/sweep.py	run	Cowork OCR History	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：自动推送扫描：按普通读出的候选逐张判推，判与推的幂等待核；随 ④
 apps/pearnly_cowork/pearnly_cowork/recon_center/rerun.py	drop	Cowork Recon Rerun	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/reconciliation/revision.py	income_save	$ROW	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_cowork/pearnly_cowork/work/boards.py	save_members	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清

@@ -304,6 +304,7 @@ class OfflineCompanionRetry(unittest.TestCase):
             calls["keys"].append(key)
             calls.setdefault("fixed", []).append(kwargs.get("fixed"))
             calls.setdefault("route_device", []).append(kwargs.get("route_device"))
+            calls.setdefault("unattended", []).append(kwargs.get("unattended"))
             return {"status": status, "name": "CWP-1", "revision": 1, "has_reported_credential": reported}
 
         # 推 Express 之前的判定（第 3 期 `application.assess`）：这里的票都判成 A 类、照推
@@ -400,6 +401,18 @@ class OfflineCompanionRetry(unittest.TestCase):
         push, rule, entry, calls2 = self._push(reported=False, online=lambda: False)
         self.assertEqual(push.push_one(entry, rule, "H", 36, final=True)["status"], "sent")
         self.assertEqual((len(calls["confirm"]), len(calls2["confirm"]), calls["cancel"]), (1, 1, []))
+
+    def test_a_ticket_a_person_pushed_meanwhile_goes_back_to_them(self):
+        """11-28 ④ A2 #1：开头判「没人动过」之后人在网页推了这张：推送声明无人值守，推送服务锁住票后核出人推过回 human →
+        这张记成 human，不确认、不撤、不记失败。"""
+        push, rule, entry, calls = self._push(status="human")
+        failed = []
+        push.application.submission_failed = lambda *a: failed.append(a)
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=True), {"status": "human"})
+        self.assertEqual((calls["unattended"], calls["confirm"], calls["cancel"], failed), ([True], [], [], []))
+        push, rule, entry, calls = self._push()
+        self.assertEqual(push.push_one(entry, rule, "H", 0, final=True)["status"], "sent")
+        self.assertEqual(calls["unattended"], [True])
 
     def test_rule_defaults_go_with_this_push_only(self):
         # 用户 2026-10-08：规则的「这一类都这样处理」当这张票的选择用，不写进账套记忆（这里也没有可写的入口）

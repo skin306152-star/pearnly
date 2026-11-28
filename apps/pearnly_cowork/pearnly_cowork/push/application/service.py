@@ -101,9 +101,18 @@ def operator_owned(doc) -> bool:
     return bool(row) and row.status not in OPERATOR_DONE and operator_contracts.is_operator(row.payload_json)
 
 
+def _touched(doc) -> bool:
+    """这张票（加锁读出的现值）人改过或推过：改单次数不为 0，或票上已有推送状态 / 推送记录。同定时任务与扫描挑票的口径
+    （`folder_intake.push.push_one`、`push.automation.sweep.candidates`）；推送原因不算（定时任务停下记过原因的票照常重推）。
+    人在网页推送不升 ``record_version``（`push_state.mirror` 只改推送那几栏），只比版本挡不住。"""
+    return bool(int(getattr(doc, "edit_count", 0) or 0) or getattr(doc, "last_push_status", None)
+                or getattr(doc, "last_push_record", None))
+
+
 def prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-            *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None):
+            *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None,
+            unattended=False):
     """``operator``：代录 Express 的批次信息（``{"id", "index", "total", "start_at"}``，共用层 ``express_operator``）：载荷加代录
     标记（载荷 16），交给那台电脑的 CC 桌面版在 Express 界面里录，不直写。
     ``route_device``：定时任务读文件夹的那台电脑，冻结在 Express 推送记录上、只有它写（ADR-021 第 51 条）；
@@ -111,7 +120,11 @@ def prepare(history, connection, request_key, expected_history_version, expected
 
     ``automation``（数字会计员第 3 期第 5 条）：无人值守的自动推（定时任务、网页上传 / LINE 的扫描）给 ``{class, tier,
     trigger, reasons}``，冻结进目标并加领单重核用的指纹（`push.automation.service.current_hash`）；人发起的不给。人推一张有
-    提议的票时，推出去的与提议比的结果冻结成 ``proposal``（第 7 条证据）。"""
+    提议的票时，推出去的与提议比的结果冻结成 ``proposal``（第 7 条证据）。
+
+    ``unattended``：无人值守的推送（文件夹定时任务 `folder_intake.push.push_one`、自动推送扫描 `push.automation.sweep`）给 True。
+    它们判「没人改过、没推过」用的是锁之前的普通读，判完到这里之间人可能刚在网页推了这张：锁住票之后按现值再核一次
+    （`_touched`），人改过、推过就回 ``{"status": "human"}``，不建推送记录（11-28 ④ A2 #1 / #3）。人发起的不给，不受影响。"""
     scope.require("intake")
     doc = storage.read(history)
     loaded = connections.read_for_push(connection, doc.workspace, doc.client, lock=True)
@@ -137,6 +150,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
         # must not leave an idempotency key as an access capability to its ERP ID.
         original_history(doc)
         return _view(previous)
+    if unattended and _touched(doc):
+        # 放在请求号回放之后：自己上一次同号的那条照旧回原记录（幂等）；放在版本比对之前：人改过的票回 human，不记成失败
+        return {"status": "human", "history": doc.name, "connection": connection}
     if int(doc.record_version) != intent["expected_history_version"] or loaded.revision != intent["expected_connection_revision"]:
         storage.conflict()
     adapter = loaded.endpoint.get("adapter")
@@ -1033,12 +1049,14 @@ def confirm_server(name, expected_revision, request_key):
 
 def submit(history, connection, request_key, expected_history_version, expected_connection_revision,
            account_set_key=None, catalog_request_id=None, catalog_revision=None, posting_kind=None,
-           *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None, manual=False):
+           *, confirm_duplicate=False, fixed=None, route_device="", automation=None, operator=None, manual=False,
+           unattended=False):
     """复核页「提交」的一张票：准备 →（MR.ERP）确认发送并排执行任务；Express 的确认由小助手确认入口做。
 
     ``manual``：人在明确的推送入口点的（网页推送 / 待处理再推 `api.submit`、CC 推送工具 `assistant.tools`）：MR.ERP 直写排执行任务前
     清掉这个账号的「被踢」标记（`push.mrerp.runner.release_kick`，11-09 风险 7），这次照常登录；任务提交后才排，清在前面。
     自动推送（定时巡检、自动推档位、文件夹定时）不传，有标记时导入入口快速失败。
+    ``unattended``：同 `prepare`；人改过、推过回 ``{"status": "human"}``，不记失败原因。
 
     失败不抛给页面（用户 2026-09-26：只在列表状态图标上看原因）：整笔回滚后把原因记到这张票上
     （`push_state.record_failure`），回 `{"status": "failed", "reason"}`。推送状态本身仍只由账本投影。
@@ -1046,7 +1064,7 @@ def submit(history, connection, request_key, expected_history_version, expected_
     try:
         result = prepare(history, connection, request_key, expected_history_version, expected_connection_revision,
             account_set_key, catalog_request_id, catalog_revision, posting_kind, confirm_duplicate=confirm_duplicate,
-            fixed=fixed, route_device=route_device, automation=automation, operator=operator)
+            fixed=fixed, route_device=route_device, automation=automation, operator=operator, unattended=unattended)
         if result.get("status") == "disabled":
             return submission_failed(history, _("push.disabled"))
         if result.get("status") == "prepared" and connections.adapter_of(connection) == "mrerp":

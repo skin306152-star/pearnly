@@ -520,6 +520,65 @@ class KnownNumbers(unittest.TestCase):
 # ── 接线：钩子登记、两个入口都经 _fixed、词条 ────────────────────────────────────────
 
 
+class UnattendedRecheck(unittest.TestCase):
+    """11-28 ④ A2 #1 / #3：定时任务、自动推送扫描判「没人改过、没推过」用的是锁之前的普通读；推送准备锁住票之后，无人值守的
+    调用方（``unattended=True``）按现值再核一次：人改过、推过回 human，不建推送记录；请求号回放照旧回原记录；人发起的不受影响。"""
+
+    class Past(Exception):
+        """走过了重核、到了版本比对（之后的准备这里不测）。"""
+
+    def _wired(self, **doc):
+        service, _frappe_module, _calls = _service()
+        values = {"name": "H1", "workspace": "W1", "client": "", "record_version": 4, "edit_count": 0,
+                  "last_push_status": None, "last_push_record": None, **doc}
+        locked = types.SimpleNamespace(**values)
+        reads = []
+        service.scope.require = lambda *a: None
+        service.storage.read = lambda history, for_update=False: reads.append(for_update) or (
+            locked if for_update else types.SimpleNamespace(**{**values, "last_push_record": None, "edit_count": 0}))
+        service.connections.read_for_push = lambda *a, **k: types.SimpleNamespace(
+            doc=types.SimpleNamespace(name="C1"), revision=7, endpoint={"adapter": "express"})
+        service.ledger.lookup_request = lambda context, key: None
+
+        def past():
+            raise self.Past()
+        service.storage.conflict = past
+        service.storage.revision = lambda value: int(value) if value is not None else None
+        return service, reads
+
+    def _prepare(self, service, **kwargs):
+        return service.prepare("H1", "C1", "folder:k", 3, 7, BOOK, **kwargs)
+
+    def test_a_ticket_a_person_pushed_or_edited_is_left_to_them(self):
+        for doc in ({"last_push_record": "CWP-web", "last_push_status": "pending"}, {"last_push_status": "success"},
+                    {"edit_count": 1, "record_version": 5}):
+            service, reads = self._wired(**doc)
+            self.assertEqual(self._prepare(service, unattended=True), {"status": "human", "history": "H1", "connection": "C1"})
+            self.assertEqual(reads, [False, True])  # 判的是锁住之后的那一份
+            service.ledger.reserve.assert_not_called()
+
+    def test_an_untouched_ticket_goes_on_and_people_are_not_affected(self):
+        service, _reads = self._wired()
+        with self.assertRaises(self.Past):  # 没人动过：照常往下（这里版本 3 ≠ 4，到版本比对为止）
+            self._prepare(service, unattended=True)
+        service, _reads = self._wired(last_push_record="CWP-old", last_push_status="manual")
+        with self.assertRaises(self.Past):  # 人在网页 / CC 重推：不看这几栏
+            self._prepare(service)
+
+    def test_a_replay_of_its_own_request_still_returns_the_original_record(self):
+        service, _reads = self._wired(last_push_record="CWP-mine", last_push_status="pending")
+        intent = {"history": "H1", "connection": "C1", "expected_history_version": 3, "expected_connection_revision": 7,
+                  "account_set_key": BOOK, "catalog_request_id": None, "catalog_revision": None, "posting_kind": None}
+        service.ledger.lookup_request = lambda context, key: {"name": "CWP-mine", "frozen_target": {"request_intent": intent}}
+        service.original_history = lambda doc: None
+        service._view = lambda row: {"status": "pending", "name": row["name"]}
+        self.assertEqual(self._prepare(service, unattended=True), {"status": "pending", "name": "CWP-mine"})
+
+    def test_submit_passes_it_through(self):
+        service, _reads = self._wired(last_push_record="CWP-web")
+        self.assertEqual(service.submit("H1", "C1", "folder:k", 3, 7, BOOK, unattended=True)["status"], "human")
+
+
 class Wiring(unittest.TestCase):
     def test_hook_is_declared_and_points_at_a_function(self):
         tree = ast.parse((APP / "hooks.py").read_text())
