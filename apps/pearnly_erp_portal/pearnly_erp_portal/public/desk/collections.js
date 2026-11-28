@@ -216,8 +216,9 @@
 			// 本页支持的筛选条件（官方的字段下拉里只列这三个）
 			filter_fields: [
 				{fieldname: "doc_date", label: __("Collection Date"), fieldtype: "Date"},
-				{fieldname: "status", label: __("Status"), fieldtype: "Select"},
-				{fieldname: "source", label: __("Source"), fieldtype: "Select"},
+				// 下拉与条件标签用格子同一套词（`labels`，list.js）；筛选值仍是原码
+				{fieldname: "status", label: __("Status"), fieldtype: "Select", labels: status_label},
+				{fieldname: "source", label: __("Source"), fieldtype: "Select", labels: source_label},
 			],
 			on_open: row => void settle(open(row.name)),
 			columns: [

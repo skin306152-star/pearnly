@@ -45,8 +45,9 @@
 				// 本页支持的筛选条件（官方的字段下拉里只列这五个）。
 				filter_fields: [
 					{fieldname: "doc_date", label: __("Posting Date"), fieldtype: "Date"},
-					{fieldname: "doc_kind", label: __("Type"), fieldtype: "Select"},
-					{fieldname: "payment_status", label: __("Payment Status"), fieldtype: "Select"},
+					// 下拉与条件标签用格子同一套词（`labels`，list.js）；筛选值仍是原码。状态（void 叫「已作废 / 已取消」）待定，先不动
+					{fieldname: "doc_kind", label: __("Type"), fieldtype: "Select", labels: u.label},
+					{fieldname: "payment_status", label: __("Payment Status"), fieldtype: "Select", labels: u.label},
 					{fieldname: "supplier", label: __("Supplier"), fieldtype: "Link"},
 					{fieldname: "status", label: __("Status"), fieldtype: "Select"},
 				],

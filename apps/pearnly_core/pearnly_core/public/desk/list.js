@@ -10,6 +10,17 @@
 	// 的列表生效**：别的列表、表单里的过滤器、其它 App 一概不动。
 	const NativeFilter = frappe.ui?.Filter;
 	const PRODUCT_CONDITIONS = ["=", "!=", "like", "not like", "in", "not in", "is", ">", "<", ">=", "<=", "Between", "Timespan"];
+	// 筛选下拉与条件标签显示的词与列表格子同一套（11-28：收款「状态」下拉显示 queued / failed 原码，格子是「录入中 / 失败」）：
+	// 页面在 filter_fields 里给 `labels: 原码 → 状态词`（就是格子用的那个函数），这里把元数据字段克隆一份，选项换成官方的
+	// [{value: 原码, label: 状态词}]（同 Frappe 自己的 docstatus / Check 筛选；Select 与「在…之中」的 MultiSelect 都认），
+	// 条件标签也走同一个词（`frappe.format` 先用 df.formatter）。只换显示：筛选值仍是原码，照旧交服务端。
+	const labelled = (df, label) => {
+		if (!df || typeof label !== "function" || df.fieldtype !== "Select") return df;
+		const values = String(df.options || "").split("\n").filter(value => value !== "");
+		return {...df, options: [{value: "", label: ""}, ...values.map(value => ({value, label: label(value) || value}))],
+			formatter: value => p.escape(value === undefined || value === null || value === "" ? "" : label(value) || value)};
+	};
+	p.filter_labelled = labelled;  // 单测用
 	if (NativeFilter && !NativeFilter.pearnly_filter_fields) {
 		class Filter extends NativeFilter {
 			constructor(options) {
@@ -17,8 +28,9 @@
 				// （`field_select.js: add_field_option(df)` 直接读 `df.fieldname`）。传一串字符串
 				// 会加出一堆空选项、下拉里什么都没有（实测踩到）。这里从 DocType 的元数据取。
 				const names = options?.filter_list?.filter_fields;
+				const labels = options?.filter_list?.filter_labels || {};
 				const fields = names?.length
-					? names.map(name => frappe.meta.get_docfield(options.doctype, name)).filter(Boolean)
+					? names.map(name => labelled(frappe.meta.get_docfield(options.doctype, name), labels[name])).filter(Boolean)
 					: null;
 				super(fields ? {...options, filter_fields: fields, pearnly_conditions: true} : options);
 			}
@@ -112,6 +124,9 @@
 			// （初始条件列表），撞上会让筛选区初始化去解析一堆对象而抛错。
 			this.filter_fields = options.filter_fields
 				? options.filter_fields.map(column => column.fieldname) : null;
+			// 带 `labels` 的筛选字段：下拉与条件标签显示状态词（见文件开头 `labelled`）
+			this.filter_labels = Object.fromEntries((options.filter_fields || [])
+				.filter(column => typeof column.labels === "function").map(column => [column.fieldname, column.labels]));
 			this.spec = options.columns;
 			this.columns = options.columns.map((column, i) => {
 				// The framework measures each cell with `$(column_html)`, so a formatter

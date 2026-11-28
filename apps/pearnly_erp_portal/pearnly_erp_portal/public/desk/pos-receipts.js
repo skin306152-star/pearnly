@@ -107,8 +107,8 @@
 			// 本页支持的筛选条件（官方的字段下拉里只列这三个）。
 			filter_fields: [
 				{ fieldname: "sold_at", label: t("trade.date"), fieldtype: "Datetime" },
-				{ fieldname: "sale_type", label: t("trade.kind"), fieldtype: "Select" },
-				{ fieldname: "status", label: t("trade.status"), fieldtype: "Select" },
+				{ fieldname: "sale_type", label: t("trade.kind"), fieldtype: "Select", labels: kind_label },
+				{ fieldname: "status", label: t("trade.status"), fieldtype: "Select", labels: state_label },
 			],
 			on_selection: can_write ? selection : undefined,
 			on_open: row => void open_receipt(row),
