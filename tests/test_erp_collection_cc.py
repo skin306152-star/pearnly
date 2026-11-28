@@ -245,6 +245,17 @@ class OtherEntriesDoNotUseTheCcTools(unittest.TestCase):
             self.assertIn("service", (app / entry).read_text(encoding="utf-8"), entry)
 
 
+def _deadlock_first(times=1):
+    """放行第一把锁（`snapshot.lock_customer`）先撞 ``times`` 次死锁（同一位客户两笔同时放行，实验栈 1213），之后照常。"""
+    left = [times]
+
+    def lock(book_key, customer):
+        if left[0]:
+            left[0] -= 1
+            raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+    return mock.patch.object(T.service.snapshot, "lock_customer", side_effect=lock)
+
+
 class Flow(Base):
     def test_draft_plan_answer_start_release(self):
         made = self.make("600")
@@ -271,6 +282,23 @@ class Flow(Base):
         self.assertEqual(len(self.jobs.rows), 1)
         self.assertEqual(self.call(cc_tools.push, document=made["document"])["status"], "not_saved")  # 不重交
         self.assertEqual(len(self.jobs.rows), 1)
+
+    def test_a_deadlock_on_release_is_retried_whole_and_queues_one_job(self):
+        made = self.make("600")
+        self.agreed(made["document"])
+        with _deadlock_first(), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            pushed = self.call(cc_tools.push, document=made["document"])
+        self.assertEqual(pushed["status"], "queued")
+        self.assertEqual(len(self.jobs.rows), 1)
+
+    def test_conflicts_every_time_say_try_again_later(self):
+        made = self.make("600")
+        self.agreed(made["document"])
+        with _deadlock_first(10), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            pushed = self.call(cc_tools.push, document=made["document"])
+        self.assertEqual(pushed["status"], "not_saved")
+        self.assertIn("Please try again later", json.dumps(pushed, ensure_ascii=False))
+        self.assertEqual((self.record(made["name"]).status, self.jobs.rows), ("draft", {}))
 
     def test_written_and_failed_results(self):
         made = self.make("600")

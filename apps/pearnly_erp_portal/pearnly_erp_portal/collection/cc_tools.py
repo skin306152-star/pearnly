@@ -426,7 +426,7 @@ def push(tool_input) -> str:
     if not allowed:
         return _json(refused[0])
     consent = f"cc:{session_id}:{sessions.user_turn(session_id)}"  # 同意 = 用户回的那一句（本对话的用户消息序号）
-    found = _call(service.release, name, version, consent)
+    found = _call(service.release_retried, name, version, consent)  # 撞冲突整笔重来，用尽回「请稍后重试」
     if "result" not in found:
         return _json({"document": document, **found})
     released = found["result"]

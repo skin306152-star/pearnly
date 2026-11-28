@@ -129,6 +129,17 @@ class Declaration(unittest.TestCase):
                     self.assertTrue(callable(getattr(importlib.import_module(module), attr)), step[key])
 
 
+def _deadlock_first(times=1):
+    """放行第一把锁（`snapshot.lock_customer`）先撞 ``times`` 次死锁（同一位客户两笔同时放行，实验栈 1213），之后照常。"""
+    left = [times]
+
+    def lock(book_key, customer):
+        if left[0]:
+            left[0] -= 1
+            raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+    return mock.patch.object(T.service.snapshot, "lock_customer", side_effect=lock)
+
+
 class Walk(Base):
     def test_company_day_and_book_are_decided_and_the_customer_is_asked_first(self):
         found = run.start(SESSION, "collection")
@@ -182,6 +193,13 @@ class Walk(Base):
         self.assertEqual(len(self.jobs.rows), 1)
         again = run.confirm(name, found["version"])  # 同一确定再来一次：不放第二次
         self.assertEqual((again["status"], len(self.jobs.rows)), ("done", 1))
+
+    def test_a_deadlock_on_release_is_retried_whole_and_queues_one_job(self):
+        name, found = self.to_review()
+        with _deadlock_first(), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            done = run.confirm(name, found["version"])
+        self.assertEqual((done["status"], done["result"]["status"]), ("done", "queued"))
+        self.assertEqual(len(self.jobs.rows), 1)
 
     def test_the_written_result_shows_the_re_number(self):
         name, found = self.to_review()

@@ -586,6 +586,17 @@ class Wording(Base):
         self.assertNotIn("Enter the amount for", self.last_text())
 
 
+def _deadlock_first(times=1):
+    """放行第一把锁（`snapshot.lock_customer`）先撞 ``times`` 次死锁（同一位客户两笔同时放行，实验栈 1213），之后照常。"""
+    left = [times]
+
+    def lock(book_key, customer):
+        if left[0]:
+            left[0] -= 1
+            raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+    return mock.patch.object(T.service.snapshot, "lock_customer", side_effect=lock)
+
+
 class Release(Base):
     def card(self):
         self.to_invoices(("IV1",))
@@ -616,6 +627,26 @@ class Release(Base):
         self.assertEqual(LINE.loading, ["U1"])
         self.assertEqual(LINE.replies[-1][0] != "r-evt-9", True)
         self.assertNotIn("pearnly_erp_portal.integrations.line_collection.await_result", [path for path, _kw in self.enqueued])
+
+    def test_a_deadlock_on_release_is_retried_whole_one_job_one_reply(self):
+        # 11-28 退货减项 × B ②：放行撞冲突整笔重来（`service.release_retried`），不另回一句、不多排写账件
+        name = self.card()
+        replies = len(LINE.replies)
+        with _deadlock_first(), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            self.tap(self.card_button("Save")["data"], event="evt-9")
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
+        self.assertEqual(len(self.jobs.rows), 1)
+        self.assertEqual(LINE.loading, ["U1"])
+        self.assertLessEqual(len(LINE.replies) - replies, 1)
+
+    def test_conflicts_every_time_show_the_card_again_with_try_again_later(self):
+        name = self.card()
+        with _deadlock_first(10), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            self.tap(self.card_button("Save")["data"], event="evt-9")
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.DRAFT)
+        self.assertEqual(self.jobs.rows, {})
+        self.assertIn("Please try again later", json.dumps(LINE.replies[-1], ensure_ascii=False))
+        self.assertIn("Save", [item["label"] for item in self.flex_buttons()])  # 新确认号的卡，可以再点
 
     def test_typed_confirm_words_release_too(self):
         for word in (" OK ", "ยืนยัน", "确认", "確認", "o k"):

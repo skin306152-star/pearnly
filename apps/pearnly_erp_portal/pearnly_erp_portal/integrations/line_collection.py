@@ -1077,8 +1077,13 @@ def _confirm(line_user_id, nonce, name, reply_token, event_id):
 
 
 def _release(line_user_id, name, version, reply_token, event_id):
-    result = _service().release(name, version, "line:" + str(event_id or ""))
+    # 确认号已消费（`_consume` 写了会话）：先提交，放行撞冲突整笔重来时不把它一起回滚（`service.release_retried`）
+    frappe.db.commit()
+    result = _service().release_retried(name, version, "line:" + str(event_id or ""), busy_result=True)
     status = result["status"]
+    if status == _service().BUSY:  # 重来用尽：重出确认卡（新确认号）带「请稍后重试」，只回这一次
+        return _show_card(line_user_id, payload_of(line_user_id), _service().card(name), reply_token,
+                          note=_("Please try again later"))
     if status == "changed":
         found = payload_of(line_user_id)
         return _show_card(line_user_id, found, _service().card(name), reply_token,

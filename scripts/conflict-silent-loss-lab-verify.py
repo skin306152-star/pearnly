@@ -715,6 +715,45 @@ def collection_same_customer_releases(site, rounds, results):
             _collection_cleanup(collector, book_key, customer)
 
 
+def collection_same_customer_via_line(site, rounds, results):
+    """同 :func:`collection_same_customer_releases`，经 LINE【确认】入口（`line_collection._release`：先提交、放行撞冲突整笔重来）。
+    回复只收下不发（替身）。判：两笔都放行，每笔只回一次、只排一件写账件，不漏出 1213 / 417 / 500。"""
+    from pearnly_core.cc_desktop import jobs
+    from pearnly_erp_portal.collection import contracts, service
+    from pearnly_erp_portal.integrations import line_collection
+
+    sent = []
+    saved = line_collection._send, line_collection._text, line_collection.line_receipt.start
+    line_collection._send = lambda token, messages: sent.append(token) or True
+    line_collection._text = lambda token, text: sent.append(token) or True
+    line_collection.line_receipt.start = lambda key, user, token, fallback, **kw: sent.append(token) or True
+    try:
+        for index in range(rounds):
+            co, collector, book_key, customer, (one, two) = _offset_seed([("IV", "3", "1000.00"), ("IV", "3", "1000.00")])
+            try:
+                frappe.set_user(collector)
+                drafts = [service.create_draft(co, customer, [{"docnum": invoice, "amount": "1000"}], cash="1000")
+                          for invoice in (one, two)]
+                frappe.db.commit()
+                sent.clear()
+                box = _threads(site, collector, [
+                    ((draft["name"]), _stale_then(0.3, lambda draft=draft, position=position: line_collection._release(
+                        "U" + "c" * 32, draft["name"], draft["version"], f"r-{TAG}-{index}-{position}", f"{TAG}-lv-{index}-{position}")))
+                    for position, draft in enumerate(drafts)])
+                frappe.db.rollback()
+                statuses = [frappe.db.get_value("ERP Collection", draft["name"], "status") for draft in drafts]
+                queued = frappe.get_all(jobs.JOB, filters={"source_name": ["in", [d["name"] for d in drafts]]}, pluck="name")
+                leaked = {k: v["error"] for k, v in box.items() if "error" in v}
+                good = statuses.count(contracts.QUEUED) == 2 and len(queued) == 2 and sorted(sent) == sorted(set(sent)) \
+                    and len(sent) == 2
+                tally(results, "erp.collection_same_customer_via_line", good and not leaked,
+                      {"statuses": statuses, "jobs": len(queued), "replies": list(sent), "box": box})
+            finally:
+                _collection_cleanup(collector, book_key, customer)
+    finally:
+        line_collection._send, line_collection._text, line_collection.line_receipt.start = saved
+
+
 OFFSET_SHAPES = (  # (名, 快照行, 草稿的 invoices 金额, 现金, 应写进载荷的 invoices / offsets / cash)
     ("partial", [("IV", "3", "1000.00"), ("SR", "5", "300.00")], ["1000", "300"], "700", "700.00"),
     ("net_zero", [("IV", "3", "300.00"), ("SR", "5", "300.00")], ["300", "300"], "0", "0.00"),
@@ -865,6 +904,7 @@ def erp(site, rounds):
     guarded(results, "erp.collection_double_release", collection_double_release, site, rounds, results)
     guarded(results, "erp.collection_double_offset", collection_double_offset, site, rounds, results)
     guarded(results, "erp.collection_same_customer_releases", collection_same_customer_releases, site, rounds, results)
+    guarded(results, "erp.collection_same_customer_via_line", collection_same_customer_via_line, site, rounds, results)
     guarded(results, "erp.collection_offset_shapes", collection_offset_shapes, site, rounds, results)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,

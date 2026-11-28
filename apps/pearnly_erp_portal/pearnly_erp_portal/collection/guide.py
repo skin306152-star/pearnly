@@ -477,7 +477,7 @@ def confirm(ctx, values, draft, consent) -> dict:
             _same_book(name)
         except contracts.CollectionError as error:
             return _returned(error)
-        released = service.release(name, version, consent)
+        released = service.release_retried(name, version, consent)  # 撞冲突整笔重来（此前只读过），用尽回「请稍后重试」
     if released["status"] == "changed":
         return {"outcome": "changed", "draft": f"{name}{DRAFT_SEP}{released['version']}"}
     if released["status"] == "invalid":

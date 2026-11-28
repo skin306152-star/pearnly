@@ -866,6 +866,32 @@ def release(name, version, consent) -> dict:
     return {"status": "released", "card": _view(frappe.get_doc(DOCTYPE, doc.name))}
 
 
+BUSY = "busy"
+
+
+def release_retried(name, version, consent, busy_result=False) -> dict:
+    """LINE【确认】、CC「写入」、CC 对话引导「确定」放行用的 :func:`release`：撞上数据库冲突（1213 / 1020 / 保存前比对，
+    同一位客户两笔同时放行等）整笔回滚、退避重来（`transaction.conflicts.retried`，同网页入口 `api._fresh`）。被回滚的那次什么都
+    没留下（写账件、导入任务、页面刷新通知都排在提交后），重来不重复。调用方保证此前这笔事务里没有没提交的写（重来会一起回滚）。
+    用尽：``busy_result`` 为真回 ``{"status": "busy"}``（LINE 重出确认卡），否则抛「请稍后重试」（`conflicts.attempt` 同一句）。"""
+    from pearnly_core.transaction import conflicts
+
+    def once():
+        frappe.flags.pop("pearnly_collection_live", None)  # 被回滚那次记下的「已通知刷新」不算（`push._live`）
+        return release(name, version, consent)
+
+    try:
+        return conflicts.retried(once)
+    except (conflicts.Exhausted, conflicts.RollbackFailed):
+        try:
+            frappe.db.rollback()
+        except Exception:  # noqa: BLE001 — 回滚失败也只回同一句
+            pass
+        if busy_result:
+            return {"status": BUSY}
+        frappe.throw(_(conflicts.BUSY))
+
+
 def withdraw(name) -> dict:
     """撤回（没被电脑领走前）：草稿、待写入、失败的可以；电脑正在写的回 ``busy``，已写入的不行（由财务在 Express 原生作废）。
     记录不删、凭证保留，标「已撤回」。"""
