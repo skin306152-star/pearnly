@@ -1321,6 +1321,18 @@ class PurchaseSalesVoid(PushModule):
             self.assertEqual(self.cancelled, [("J1", "voided")], doctype)
             self.assertEqual((table["D-1"]["ledger_state"], table["D-1"]["ledger_job"]), (None, None), doctype)
 
+    def test_voiding_a_late_write_keeps_the_ledger_columns(self):
+        # 迟到写成转人工的采购 / 销售单作废：确实写进了 Express，同已写入——账本栏不清（不当成「没写过」），采购 / 销售没有原生作废载荷
+        for doctype in ("Purchase Document", "ERP Sales Document"):
+            self.cancelled.clear()
+            table = self.queued(doctype, status="void")
+            table["D-1"].update(ledger_state="held", ledger_reason=self.push.contracts.MOVED_DURING_WRITE,
+                                ledger_docnum="HP-OLD", ledger_job="J1")
+            self.job_status = "success"
+            self.run_void(doctype)
+            self.assertEqual((table["D-1"]["ledger_state"], table["D-1"]["ledger_docnum"], table["D-1"]["ledger_job"]),
+                             ("held", "HP-OLD", "J1"), doctype)
+
     def test_a_job_already_taken_is_left_and_its_receipt_is_not_a_clean_write(self):
         from unittest import mock
         table = self.queued("Purchase Document", status="void", job_status="leased")
@@ -1444,6 +1456,21 @@ class StockVoid(PushModule):
                                    "job": "J1", "request_key": "erp:stock:SE-1@x", "docnum": "OU691025-002"})
         self.assertEqual(calls, ["SE-1"])
         self.assertEqual(self.docs["SE-1"]["ledger_docnum"], "OU691025-002")
+
+    def test_a_late_write_held_for_a_person_is_voided_as_written(self):
+        """迟到写成转人工（停下、单号在单据上，确实写进了 Express）的出入库单作废：照已写入排作废原单，账本栏不清（11-28 ④）。"""
+        from unittest import mock
+        from pearnly_erp_portal.express import stock_entry
+        self.written(ledger_state="held", ledger_reason=self.push.contracts.MOVED_DURING_WRITE)
+        with mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(stock_entry, "void_payload",
+                                  lambda name, company: {"payload": {"payload_version": 8, "action": "void"}, "book": {"key": "BK"}}), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: self.enqueued.append(kw) or {"job": "J9"}):
+            self.push.void("ERP Stock Entry", "SE-1")
+        self.assertEqual(len(self.enqueued), 1)
+        self.assertEqual((self.docs["SE-1"]["ledger_state"], self.docs["SE-1"]["ledger_docnum"], self.docs["SE-1"]["ledger_void_state"]),
+                         ("held", "OU691025-001", "queued"))
 
     def test_an_entry_never_written_is_only_voided_in_erp(self):
         from unittest import mock

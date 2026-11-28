@@ -639,7 +639,7 @@ def void(doctype, name):
     准备不了（账套不在了）记在作废栏上，人看到后处理。"""
     if doctype not in (STOCK, PURCHASE, SALES):
         return
-    fields = ["name", "creation", "owner", "ledger_state", "ledger_docnum", "ledger_job"]
+    fields = ["name", "creation", "owner", "ledger_state", "ledger_docnum", "ledger_job", "ledger_reason"]
     # 加锁读（作废事务已锁着这张单）：普通读是事务开头的旧值，看不到另一路刚排上的写账件，撤不掉它，作废了的单照样写进 Express
     # （关快照隔离后，11-28 B ③）
     row = frappe.db.get_value(doctype, name, fields + (["ledger_void_job"] if doctype == STOCK else []), as_dict=True,
@@ -650,7 +650,10 @@ def void(doctype, name):
     # 不只认单据上记的 ``ledger_job``：作废前用旧副本保存过的路径（「修改」作废原单、别的事务里调作废）会把它盖回空。
     # 「照 Express 原生作废原单」那一件不在此列。电脑正在写的撤不了，写完回执到了再按作废处理（`job_changed`）。
     unwritten = _cancel_unwritten(doctype, name)
-    if row.ledger_state in contracts.OPEN_STATES:
+    # 迟到写成转人工（停下，但确实写进了 Express、单号在单据上，11-28 ④）按已写入作废：不清账本栏（清了就成了「没写过」，
+    # Express 里那张没人管；「修改」作废原单后再写新单也不会被当成第一张），出入库照样排作废原单
+    late = row.ledger_state == contracts.HELD and row.ledger_reason == contracts.MOVED_DURING_WRITE and bool(row.ledger_docnum)
+    if row.ledger_state in contracts.OPEN_STATES and not late:
         # 还没写进去：排队中的写账撤掉（电脑正在写的撤不了，写完回执到了再作废，见 `job_changed`；验收 10-25）
         job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
         if job and job["job"] not in unwritten and job["status"] in ("queued", "manual"):
@@ -658,7 +661,7 @@ def void(doctype, name):
         if not job or job["job"] in unwritten or job["status"] in ("queued", "manual", "cancelled"):
             _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
-    if doctype != STOCK or row.ledger_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.ledger_docnum:
+    if doctype != STOCK or not (late or row.ledger_state in (contracts.WRITTEN, contracts.MISMATCH)) or not row.ledger_docnum:
         return
     company = company_of(doctype, name)
     result = stock_entry.void_payload(name, _company(company)) if company else {"hold": contracts.NO_BOOK}
