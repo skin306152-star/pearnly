@@ -1132,6 +1132,183 @@ def line_intake_save_conflict(site, rounds, results, chat=False):
             setattr(module, name, value)
 
 
+def _mrerp_doubles(co, calls):
+    """MR.ERP 导入直写（`mrerp.push.run`）在实验站上跑：实验站没有 MR.ERP 公司与连接，也不连真 MR.ERP。账本判定、准备、凭据、
+    账号占用、主档整读换替身；导入（共用层 `mrerp.push.execute.execute`）换 ``calls["execute"]``。回 ``[(模块, 名字, 原值)]``。"""
+    import pearnly_core.mrerp.push.execute as core_execute
+    import pearnly_core.session_lock as session_lock
+    from pearnly_erp_portal.mrerp import connection as connections, masters as mrerp_masters, push
+
+    book = {"key": f"{TAG}:1", "connection": f"{TAG}-MRC"}
+    saved = [(module, key, getattr(module, key)) for module, key in (
+        (push, "handles"), (push, "prepare"), (connections, "lease"), (session_lock, "operator_holds"),
+        (core_execute, "execute"), (mrerp_masters, "after_write"))]
+    push.handles = lambda company: True
+    push.prepare = lambda doctype, name, document: {"payload": {"histories": []}, "company": frappe._dict(name=co),
+                                                    "direction": "purchase", "book": dict(book)}
+    connections.lease = lambda name: {"username": "u", "password": "p", "system_url": "https://mrerp.invalid"}
+    session_lock.operator_holds = lambda key: False
+    core_execute.execute = lambda *args, **kwargs: calls["execute"](*args)
+    mrerp_masters.after_write = lambda company: True
+    return saved
+
+
+def mrerp_conclusion_conflict(site, rounds, results):
+    """④ A2 #16：MR.ERP 导入直写记结论撞冲突。导入替身返回「已写入 + 单号」，导入期间另一路改这张单（备注）并提交；记结论那笔事务
+    写下单据行之后，另一路（先改了几张别的单、再锁着公司行）来改这张单，本连接接着锁公司行（代替同一笔事务里的后续写：待处理通知、
+    代录回执）→ 真 1213，InnoDB 回滚较轻的本连接。判：单据记成已写入、单号在，导入只发 1 次。修前：1213 抛出任务、单据停在
+    「正在导入」（15 分钟后被巡检转成结果不明，已写进 MR.ERP 的要人工核）。死锁时被回滚的是另一路的那几轮不算（竞争不真实）。"""
+    import threading
+    import time
+
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.mrerp import push
+    from pearnly_erp_portal.purchasing import suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    ballast = [_purchase(co, supplier, "MCB") for _ in range(8)]  # 另一路先改这几张：比本连接重，死锁时回滚本连接
+    calls, state = {}, {}
+
+    def execute(*args):
+        calls["count"] += 1
+        elsewhere(site, user, lambda: frappe.db.set_value(push.PURCHASE, state["name"], "notes", f"{TAG} {secrets.token_hex(3)}",
+                                                          update_modified=False))
+        return {"status": "success", "docnum": state["docnum"], "menus": {}, "masters": None}
+
+    def other(locked, name):
+        try:
+            frappe.init(site=site, sites_path=SITES)
+            frappe.connect()
+            for row in ballast:
+                frappe.db.sql("update `tabPurchase Document` set notes=%s where name=%s", (secrets.token_hex(4), row))
+            frappe.db.sql("select name from `tabERP Company` where name=%s for update", (co,))
+            locked.set()
+            frappe.db.sql("update `tabPurchase Document` set notes=%s where name=%s", (f"{TAG} other", name))
+            frappe.db.commit()
+            state["other"] = "committed"
+        except Exception as error:  # noqa: BLE001
+            state["other"] = type(error).__name__
+            frappe.db.rollback()
+        finally:
+            frappe.destroy()
+
+    db = frappe.local.db
+    real_set = db.set_value
+
+    def hooked(doctype, name, field, *args, **kwargs):
+        out = real_set(doctype, name, field, *args, **kwargs)
+        if state.get("armed") and doctype == push.PURCHASE and name == state["name"] and isinstance(field, dict) \
+                and field.get("ledger_state") == "written":
+            state["armed"] = False
+            locked = threading.Event()
+            state["thread"] = threading.Thread(target=other, args=(locked, name))
+            state["thread"].start()
+            locked.wait(20)
+            time.sleep(0.5)  # 另一路已在等这张单的行锁
+            try:
+                frappe.db.sql("select name from `tabERP Company` where name=%s for update", (co,))
+                state["victim"] = "other"
+            except Exception as error:  # noqa: BLE001
+                state["victim"] = "main" if isinstance(error, frappe.QueryDeadlockError) else type(error).__name__
+                raise
+        return out
+
+    saved = _mrerp_doubles(co, calls)
+    calls["execute"] = execute
+    db.set_value = hooked
+    made, tried = [], 0
+    try:
+        while results.get("erp.mrerp_conclusion_conflict", {}).get("ok", 0) + \
+                results.get("erp.mrerp_conclusion_conflict", {}).get("bad", 0) < rounds and tried < rounds * 3:
+            tried += 1
+            name = _purchase(co, supplier, "MC")
+            made.append(name)
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_reason": "", "ledger_target": "mrerp",
+                                                      "ledger_job": None, "ledger_docnum": None}, update_modified=False)
+            frappe.db.commit()
+            calls["count"] = 0
+            state.clear()
+            state.update(name=name, docnum=f"{TAG}-PG{secrets.token_hex(3)}", armed=True)
+            error = None
+            try:
+                push.run(push.PURCHASE, name, None)
+            except Exception as exc:  # noqa: BLE001
+                error = "".join(traceback.format_exception_only(type(exc), exc)).strip()[:200]
+            frappe.db.rollback()
+            if state.get("thread"):
+                state["thread"].join(60)
+            row = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_docnum", "notes"], as_dict=True)
+            if state.get("victim") != "main":
+                cell = results.setdefault("erp.mrerp_conclusion_conflict", {"ok": 0, "bad": 0})
+                cell["not_real"] = cell.get("not_real", 0) + 1  # 死锁回滚的是另一路（或没撞上）：这一轮不算
+                continue
+            tally(results, "erp.mrerp_conclusion_conflict",
+                  row.ledger_state == "written" and row.ledger_docnum == state["docnum"] and calls["count"] == 1 and not error,
+                  {"error": error, "row": dict(row), "imports": calls["count"], "other": state.get("other")})
+    finally:
+        db.set_value = real_set
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.db.rollback()
+        for name in made + ballast:
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": None, "ledger_reason": "", "ledger_target": None,
+                                                      "ledger_docnum": None, "ledger_sent_at": None}, update_modified=False)
+        frappe.db.commit()
+
+
+def mrerp_poll_stale(site, rounds, results):
+    """④ 巡检（`mrerp.push.poll`）：每分钟巡检普通读列出「排队中、正在导入且超过 15 分钟」的单，此间导入刚把它记成已写入并提交；
+    巡检接着按列出时的旧值改 → 修前盖成「结果不明」（已写进 MR.ERP、单号在，却要人工核）；修后加锁按现值复核、不动。
+    本连接先建读视图（巡检这一轮开头列单），另一路写成已写入并提交，再跑巡检；巡检只看采购单（`DIRECTIONS` 换成只有采购）。"""
+    from datetime import timedelta
+
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.mrerp import contracts, push
+    from pearnly_erp_portal.purchasing import suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    saved = [(push, "DIRECTIONS", push.DIRECTIONS), (push, "dispatch", push.dispatch)]
+    push.DIRECTIONS = {push.PURCHASE: "purchase"}
+    push.dispatch = lambda doctype, name: None
+    made = []
+    try:
+        for _ in range(rounds):
+            name = _purchase(co, supplier, "MP")
+            made.append(name)
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_reason": contracts.IMPORTING,
+                                                      "ledger_target": "mrerp", "ledger_job": None, "ledger_docnum": None,
+                                                      "ledger_sent_at": frappe.utils.now_datetime() - timedelta(minutes=20)},
+                                update_modified=False)
+            frappe.db.commit()
+            docnum = f"{TAG}-PG{secrets.token_hex(3)}"
+            read_view(push.PURCHASE)  # 巡检这一轮开头：读视图从这里起
+            elsewhere(site, user, lambda: push._set(push.PURCHASE, name, {"ledger_state": "written", "ledger_reason": "",
+                                                                          "ledger_docnum": docnum, "ledger_needed": None}))
+            push.poll()
+            frappe.db.rollback()
+            row = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_docnum"], as_dict=True)
+            tally(results, "erp.mrerp_poll_stale", row.ledger_state == "written" and row.ledger_docnum == docnum
+                  and not row.ledger_reason, {"row": dict(row)})
+    finally:
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.db.rollback()
+        for name in made:
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": None, "ledger_reason": "", "ledger_target": None,
+                                                      "ledger_docnum": None, "ledger_sent_at": None}, update_modified=False)
+        frappe.db.commit()
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
@@ -1155,6 +1332,8 @@ def erp(site, rounds):
     guarded(results, "erp.collection_offset_shapes", collection_offset_shapes, site, rounds, results)
     guarded(results, "erp.snapshot_double_land", snapshot_double_land, site, rounds, results)
     guarded(results, "erp.snapshot_balances_stale", snapshot_balances_stale, site, rounds, results)
+    guarded(results, "erp.mrerp_conclusion_conflict", mrerp_conclusion_conflict, site, rounds, results)
+    guarded(results, "erp.mrerp_poll_stale", mrerp_poll_stale, site, rounds, results)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
@@ -1315,6 +1494,7 @@ def cowork(site, rounds):
         guarded(results, "cowork.withdrawn_keeps_new_push", push_state_withdrawn, site, rounds, results, history)
         guarded(results, "cowork.delete_drops_new_records", removal_drops_new_records, site, rounds, results, history)
         guarded(results, "cowork.folder_push_vs_human", folder_push_vs_human, site, rounds, results, workspace)
+        guarded(results, "cowork.mrerp_ack_conflict", mrerp_ack_conflict, site, rounds, results, workspace)
     finally:
         frappe.db.sql("delete from `tabCowork Company Automation` where company = %s", (company,))
         frappe.db.sql("delete from `tabCowork Push Record` where history = %s", (history,))
@@ -1439,6 +1619,175 @@ def folder_push_vs_human(site, rounds, results, workspace):
         for history in made:
             frappe.db.sql("delete from `tabCowork Push Record` where history = %s", (history,))
             frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (history,))
+        frappe.db.sql("delete from `tabCowork ERP Connection` where name = %s", (connection,))
+        frappe.db.commit()
+
+
+def mrerp_ack_conflict(site, rounds, results, workspace):
+    """④ B6：Cowork MR.ERP 直写（`push.mrerp.runner.run`）导入之后记回执撞冲突。导入替身回「已写入 + 单号」；导入期间另一路（先改
+    几张别的票、再锁着这条推送记录）等着来锁这张票，回执那笔事务已锁住连接与这张票、接着锁推送记录 → 真 1213，InnoDB 回滚较轻的
+    回执那笔。判：记录记成已写入、单号在，写者锁放开，导入只发 1 次，接着排了同连接下一条；同一次尝试（同 token / fence）再收同样的
+    回执回原记录（replayed，不报 stale）。修前：1213 抛出任务，记录停在「已领」、写者锁不放（等租约过期按结果不明转人工）。
+    实验站没有 MR.ERP 连接与凭据：连接读取、凭据、账号占用、导入换替身；领取换替身（照 `ledger.lease` 落行：尝试、写者锁、记录改已领），
+    回执走真的 `ledger.ack`。死锁时被回滚的是另一路的那几轮不算（竞争不真实）。"""
+    import hashlib
+    import threading
+    import time
+    from datetime import timedelta
+
+    from pearnly_core.express_rules.push import common
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+    from pearnly_cowork.connections import service as connections
+    from pearnly_cowork.history import push_state
+    from pearnly_cowork.push.mrerp import runner
+    from pearnly_cowork.push.native import service as ledger
+    from pearnly_cowork.push.native.documents import persist
+
+    user = frappe.db.get_value("User", {"name": ["like", "acc.cowork@%"], "enabled": 1}, "name") or "Administrator"
+    connection = f"{TAG}-MRC-{secrets.token_hex(3)}"
+    raw_row("Cowork ERP Connection", connection, {"workspace": workspace, "adapter": "mrerp", "enabled": 1,
+                                                    "record_revision": 1})
+    ballast = [f"{TAG}-HB-{secrets.token_hex(4)}" for _ in range(8)]  # 另一路先改这几张：比回执那笔重，死锁时回滚回执那笔
+    for name in ballast:
+        raw_row("Cowork OCR History", name, {"workspace": workspace, "client": "", "record_version": 1, "source": "manual"})
+    frappe.db.commit()
+    account = normalize_express_account_key("12:1")
+    target = {"adapter": "mrerp", "account_set": "12:1"}
+    state, made, lock_names = {}, [], set()
+    loaded = frappe._dict(doc=frappe._dict(name=connection), revision=1, endpoint={"adapter": "mrerp",
+                                                                                  "config": {"system_url": "https://mrerp.invalid"}})
+
+    def lease(name, *, context, adapter, now=None, redeliver=False, writer=""):
+        with ledger.atomic():
+            locks = ledger._locks(context, target)
+            row = ledger._record(name, context)
+            timestamp = ledger.now_utc()
+            token, fence = secrets.token_urlsafe(32), int(row.fence or 0) + 1
+            attempt = ledger._new(ledger.ATTEMPT, f"CWPA-{TAG}-{secrets.token_hex(8)}", push_record=row.name,
+                                  workspace=row.workspace, client="", connection=row.connection, fence=fence,
+                                  owner_id=adapter.owner, token_digest=hashlib.sha256(token.encode()).hexdigest(),
+                                  binding_generation=row.binding_generation, started_at=timestamp,
+                                  lease_expires_at=timestamp + timedelta(seconds=ledger.LEASE_SECONDS), status="leased")
+            persist(attempt)
+            for lock in locks:
+                lock.holder, lock.holder_fence, lock.lease_expires_at = row.name, fence, attempt.lease_expires_at
+                persist(lock)
+            row.status, row.fence, row.active_attempt = "leased", fence, attempt.name
+            row.lease_owner, row.lease_expires_at = adapter.owner, attempt.lease_expires_at
+            ledger._save_record(row, timestamp)
+        state.update(fence=fence, token=token, context=context, adapter=adapter)
+        lock_names.update(lock.name for lock in locks)
+        return {"leased": True, "fence": fence, "attempt_token": token, "payload": {"histories": []}}
+
+    def other(locked, record, history):
+        try:
+            frappe.init(site=site, sites_path=SITES)
+            frappe.connect()
+            for name in ballast:
+                frappe.db.sql("update `tabCowork OCR History` set last_push_reason=%s where name=%s", (secrets.token_hex(4), name))
+            frappe.db.sql("select name from `tabCowork Push Record` where name=%s for update", (record,))
+            locked.set()
+            time.sleep(1.0)  # 回执那笔这时已锁住连接与这张票、在等这条推送记录
+            frappe.db.sql("select name from `tabCowork OCR History` where name=%s for update", (history,))
+            frappe.db.commit()
+            state["other"] = "committed"
+        except Exception as error:  # noqa: BLE001
+            state["other"] = type(error).__name__
+            frappe.db.rollback()
+        finally:
+            frappe.destroy()
+
+    def execute(payload, frozen, secrets_, system_url, today):
+        state["imports"] += 1
+        locked = threading.Event()
+        state["thread"] = threading.Thread(target=other, args=(locked, state["record"], state["history"]))
+        state["thread"].start()
+        locked.wait(20)
+        return {"status": "success", "docnum": state["docnum"], "meta": {}}
+
+    real_ack = ledger.ack
+
+    def ack(*args, **kwargs):
+        state["acks"] += 1
+        return real_ack(*args, **kwargs)
+
+    saved = [(module, key, getattr(module, key)) for module, key in (
+        (connections, "read_for_push"), (connections, "credentials_for_use"), (runner, "operator_holds"),
+        (runner, "execute"), (ledger, "lease"), (ledger, "ack"), (runner, "dispatch_next"),
+        (push_state, "_changed"), (push_state, "_announce"))]
+    connections.read_for_push = lambda *args, **kwargs: loaded
+    connections.credentials_for_use = lambda value: {"username": "u", "password": "p"}
+    runner.operator_holds = lambda key: False
+    runner.execute, ledger.lease, ledger.ack = execute, lease, ack
+    runner.dispatch_next = lambda name: state["next"].append(name)
+    push_state._changed = push_state._announce = lambda *args, **kwargs: None
+    tried = 0
+    try:
+        while results.get("cowork.mrerp_ack_conflict", {}).get("ok", 0) + \
+                results.get("cowork.mrerp_ack_conflict", {}).get("bad", 0) < rounds and tried < rounds * 3:
+            tried += 1
+            history, record = f"{TAG}-H-{secrets.token_hex(4)}", f"{TAG}-PR-{secrets.token_hex(4)}"
+            made.append((history, record))
+            raw_row("Cowork OCR History", history, {"workspace": workspace, "client": "", "record_version": 1, "source": "manual"})
+            raw_row("Cowork Push Record", record, {
+                "record_id": record, "status": "pending", "workspace": workspace, "client": "", "actor": user, "history": history,
+                "history_version": 1, "connection": connection, "account_key": account, "branch": "legacy",
+                "binding_generation": 0, "connection_revision": 1, "target_json": json.dumps(target),
+                "payload_json": json.dumps({"histories": []}), "fence": 0, "wire_attempt": 0, "failure_count": 0,
+                "result_unknown": 0, "revision": 0, "document_key": f"{TAG}-dk-{secrets.token_hex(6)}",
+                "request_digest": secrets.token_hex(16), "request_fingerprint": secrets.token_hex(16), "checks_json": "[]",
+                "created_at": frappe.utils.now_datetime(), "updated_at": frappe.utils.now_datetime()})
+            frappe.db.commit()
+            state.clear()
+            state.update(history=history, record=record, docnum=f"{TAG}-PG{secrets.token_hex(3)}", imports=0, acks=0, next=[])
+            error = None
+            try:
+                runner.run(record)
+            except Exception as exc:  # noqa: BLE001
+                error = exc
+            frappe.db.rollback()
+            frappe.set_user("Administrator")
+            if state.get("thread"):
+                state["thread"].join(60)
+            conflicted = isinstance(error, frappe.QueryDeadlockError) or state["acks"] >= 2
+            if not conflicted:
+                cell = results.setdefault("cowork.mrerp_ack_conflict", {"ok": 0, "bad": 0})
+                cell["not_real"] = cell.get("not_real", 0) + 1  # 死锁回滚的是另一路（或没撞上）：这一轮不算
+                cell.setdefault("not_real_detail", {"other": state.get("other"), "acks": state["acks"],
+                                                    "error": repr(error)[:160] if error else None})
+                continue
+            row = frappe.db.get_value("Cowork Push Record", record, ["status", "external_docnum", "result_unknown"], as_dict=True)
+            held = frappe.db.count("Cowork Push Writer Lock", {"holder": record})
+            replay = None
+            if row.status == "success":
+                frappe.set_user(user)
+                try:
+                    replay = real_ack(record, context=state["context"], adapter=state["adapter"], fence=state["fence"],
+                                      attempt_token=state["token"], success=True, outcome=common.STAGE_SUCCESS,
+                                      express_docnum=state["docnum"], error=None, meta={}).get("replayed")
+                except Exception as exc:  # noqa: BLE001
+                    replay = type(exc).__name__ + ": " + str(exc)[:80]
+                frappe.db.rollback()
+                frappe.set_user("Administrator")
+            tally(results, "cowork.mrerp_ack_conflict",
+                  row.status == "success" and row.external_docnum == state["docnum"] and not held and state["imports"] == 1
+                  and state["next"] == [connection] and replay is True,
+                  {"error": repr(error)[:160] if error else None, "row": dict(row), "held_locks": held,
+                   "imports": state["imports"], "acks": state["acks"], "next": state["next"], "replay": replay,
+                   "other": state.get("other")})
+    finally:
+        for module, key, value in saved:
+            setattr(module, key, value)
+        frappe.set_user("Administrator")
+        frappe.db.rollback()
+        for history, record in made:
+            frappe.db.sql("delete from `tabCowork Push Attempt` where push_record = %s", (record,))
+            frappe.db.sql("delete from `tabCowork Push Record` where name = %s", (record,))
+            frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (history,))
+        for name in lock_names:  # 这条测试连接的写者锁（领取替身经 `ledger._locks` 建的）
+            frappe.db.sql("delete from `tabCowork Push Writer Lock` where name = %s", (name,))
+        for name in ballast:
+            frappe.db.sql("delete from `tabCowork OCR History` where name = %s", (name,))
         frappe.db.sql("delete from `tabCowork ERP Connection` where name = %s", (connection,))
         frappe.db.commit()
 
