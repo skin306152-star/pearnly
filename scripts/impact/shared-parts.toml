@@ -471,7 +471,7 @@ name = "识别队列与后台执行（execution）"
 paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
-entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies", "erp.line.collection"]
+entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies", "erp.line.collection", "erp.collection.server"]
 not_entries = { "apps/pearnly_core/pearnly_core/line_ui/receipt.py" = "等结果的回执（共用件 line-receipt）只用不淘汰的 Redis 记「待回」与后台任务里设语言，不进识别队列；入口见 line-receipt 的 entries", "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列", "apps/pearnly_core/pearnly_core/express_operator/uploads.py" = "只取 Deferred 异常类：对话输入框里交任务识别时原件存放处一时连不上回可重试的话，不调执行队列", "apps/pearnly_dms/pearnly_dms/i18n.py" = "只调 execution.language 定后台任务的回复语言（11-14），不调执行队列；DMS LINE 回复的入口是 dms.execution，由 pearnly_core.execution.test_job_language 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py" = "只调 execution.language 定网页识别任务的语言（11-14），不调执行队列；入口是 erp.execution，由 pearnly_core.execution.test_job_language 守住" }
 
 [[part]]
@@ -502,7 +502,7 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # CC 侧栏标题写回撞上快照冲突整笔重来（11-09 部署后 e2e 两条 1020，`assistant.titles._finish`）
 # ERP 采购凭证挂附件撞上死锁整笔重来（11-08 两张单同时出凭证 QueryDeadlockError，`purchasing.output.voucher`）
 # 各处自己接冲突的写法统一经共用层（B ①，11-26：入口层 conflicts.attempt、保存点与后台 conflicts.is_conflict，检查 check-conflict-catch.py）
-entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher", "shared.conflict-catch"]
+entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher", "shared.conflict-catch", "erp.collection.server"]
 # 结束读快照前核对调用方没有没提交的写（`transaction.snapshot`，11-19 回滚审计）：作废允许卡、抢占、挂着等的结论、判卡片「只是看」都先经它
 not_entries = { "apps/pearnly_core/pearnly_core/assistant/toolrun.py" = "CC 工具调用里产品校验 / 准备 / 引导结果 / 允许卡读取碰到快照冲突（1020）或死锁时整段重做（conflicts.retried，都是只读或幂等）；执行、抢占、作废允许卡开头结束读快照经 snapshot.fresh。用户看到的入口是 cc.assistant 对话页的工具卡，由 test_assistant 的冲突用例与 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/relay.py" = "推送线程每步结束读快照经 snapshot.fresh（线程里每步都已提交）；入口是 cc.assistant 对话页，由 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/waits.py" = "挂着等后台结论的调用交回、作废、巡检开头结束读快照经 snapshot.fresh；入口是 cc.assistant 对话页（识别挂着时发话），由 test_assistant 与 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/files.py" = "对话附件上传开头结束读快照经 snapshot.fresh；入口是 cc.assistant 对话页的附件，由 test_snapshot_reset 守住", "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py" = "Cowork 写账前置判定「只是看」的回滚之前经 snapshot.require_clean 核对调用方；入口是 Cowork CC 开始前卡片与直写计划，由流程 cowork.cc.remembered-group-direct 与 test_snapshot_reset 守住" }
 

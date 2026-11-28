@@ -59,6 +59,8 @@ class Store:
         self.hashes = {}
         self.seq = 0
         self.locked = []
+        self.after_commit, self.after_rollback = [], []
+        self.serial = []  # 拿过的账套串行锁（`snapshot._hold`）：[(键, 动作)]
 
     def table(self, doctype):
         return self.tables.setdefault(doctype, {})
@@ -248,11 +250,25 @@ class DBApi:
     def escape(self, value):
         return "'" + str(value).replace("'", "\\'") + "'"
 
-    def commit(self):
+    # 提交 / 回滚后的回调（`snapshot` 的串行锁、发起记录在提交后清，`requests.take` 提交后删文件）：同 Frappe，提交跑 after_commit、
+    # 清掉 after_rollback；回滚反过来
+    after_commit = types.SimpleNamespace(add=lambda function: S.after_commit.append(function))
+    after_rollback = types.SimpleNamespace(add=lambda function: S.after_rollback.append(function))
+
+    def savepoint(self, point):
         pass
 
-    def rollback(self):
-        pass
+    def commit(self):
+        S.after_rollback.clear()
+        while S.after_commit:
+            S.after_commit.pop(0)()
+
+    def rollback(self, save_point=None):
+        if save_point:
+            return
+        S.after_commit.clear()
+        while S.after_rollback:
+            S.after_rollback.pop(0)()
 
 
 class Cache:
@@ -678,6 +694,15 @@ class FakeRequests:
     def result(self, name):
         return self.results.pop(name, b"{}"), {}
 
+    def take(self, name):
+        """同真的 `requests.take`：读好了才取走（取走即删行；没读好、已被取走回 None）。"""
+        row = next((row for row in self.made.values() if row["request"] == name), None)
+        if row is None or row["status"] != "done":
+            return None
+        content = self.result(name)
+        self.drop(name)
+        return content
+
     def drop(self, name):
         for key, row in list(self.made.items()):
             if row["request"] == name:
@@ -689,6 +714,22 @@ class FakeRequests:
         if looked_up is not None and "docnums" in self.made[key]["params"]:  # 电脑只在请求带单号时报
             data["looked_up"] = looked_up
         self.results["R-" + key] = json.dumps(data).encode()
+
+
+class FakeLock:
+    """账套串行锁（`snapshot._hold` 用不淘汰的 Redis）的替身：记下拿、放。"""
+    def __init__(self, key):
+        self.key = key
+
+    def acquire(self):
+        S.serial.append((self.key, "acquire"))
+        return True
+
+    def release(self):
+        S.serial.append((self.key, "release"))
+
+
+FAKE_STATE = types.SimpleNamespace(make_key=lambda key: key, lock=lambda key, **kw: FakeLock(key))
 
 
 class FakeJobs:
@@ -768,6 +809,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         global S
         S.__init__()
+        frappe.local.__dict__.pop("erp_ar_serial", None)  # 本事务拿着的账套串行锁（真站点每个请求一份新的 frappe.local）
         self.requests, self.jobs = FakeRequests(), FakeJobs()
         frappe.session.user = "a@x"
         S.table("ERP Company").update({
@@ -791,6 +833,7 @@ class Base(unittest.TestCase):
             mock.patch("pearnly_erp_portal.express.facts.load", side_effect=lambda key: FACTS),
             mock.patch("pearnly_core.cc_desktop.books.for_company", side_effect=lambda tax, branch: [BOOK]),
             mock.patch.object(snapshot, "requests", self.requests),
+            mock.patch.object(snapshot, "_state", return_value=FAKE_STATE),
             mock.patch.object(push, "jobs", self.jobs),
             mock.patch.object(records, "display_name", side_effect=lambda user: user.split("@")[0].upper()),
             mock.patch("pearnly_erp_portal.masters.link_search.rows", side_effect=_ledger_rows),
@@ -1501,6 +1544,157 @@ class Snapshot(Base):
     def test_an_unknown_request_kind_reads_as_cc_update_needed(self):
         with mock.patch.object(self.requests, "create", side_effect=frappe.ValidationError("cc_desktop.request_invalid")):
             self.assertEqual(snapshot.request("CO-1", BOOK, "2100900"), snapshot.OUTDATED)
+
+
+
+class SnapshotConcurrency(Base):
+    """11-28 并发冲突 ④ C1 / A2 #7：一本账套一张发票只有一行、同一件读回只落一次、写后回执按加锁读的 net 算。"""
+
+    def rows_of(self, docnum):
+        return [row for row in S.table(snapshot.DOCTYPE).values() if row["docnum"] == docnum]
+
+    def test_the_same_finished_read_lands_once_when_two_paths_take_it(self):
+        # 网页 / LINE / CC 当场落（request）与每分钟落（advance）同时拿到同一件「读好了」：排他取走，后到的那路什么都不落
+        key = snapshot.request_key(BOOK["key"], "2100900")
+        self.assertEqual(snapshot.request("CO-1", BOOK, "2100900"), snapshot.READING)
+        self.requests.finish(key, [{"docnum": "IV7", "customer": "2100900", "net": "70", "received": "0",
+                                    "remaining": "70"}], "2026-11-11T06:00:00+00:00")
+        made = self.requests.find(snapshot.KIND, key)
+        self.assertEqual(snapshot.land("CO-1", BOOK["key"], made, "2100900", key), 1)
+        self.assertIsNone(snapshot.land("CO-1", BOOK["key"], made, "2100900", key))  # 另一路已取走
+        self.assertEqual(len(self.rows_of("IV7")), 1)
+
+    def test_a_request_whose_read_another_path_just_took_says_reading_not_ready(self):
+        # 另一路落的行这笔事务的普通读看不到：不说「读好了」（会列成没有未收发票），说「正在读取」
+        key = snapshot.request_key(BOOK["key"], "2100900")
+        snapshot.request("CO-1", BOOK, "2100900")
+        self.requests.finish(key, [], "2026-11-11T06:00:00+00:00")
+        with mock.patch.object(self.requests, "take", return_value=None):
+            self.assertEqual(snapshot.request("CO-1", BOOK, "2100900"), snapshot.READING)
+
+    def test_the_pending_mark_is_cleared_only_after_commit(self):
+        key = snapshot.request_key(BOOK["key"], "2100900")
+        snapshot.request("CO-1", BOOK, "2100900")
+        self.requests.finish(key, [], "2026-11-11T06:00:00+00:00")
+        snapshot.land("CO-1", BOOK["key"], self.requests.find(snapshot.KIND, key), "2100900", key)
+        self.assertIn(key, S.hashes[snapshot.PENDING])
+        frappe.db.rollback()  # 回滚：请求行与文件都还在（`requests.take`），每分钟照样再取
+        self.assertIn(key, S.hashes[snapshot.PENDING])
+        snapshot.request("CO-1", BOOK, "2100900")
+        self.requests.finish(key, [], "2026-11-11T06:01:00+00:00")
+        snapshot.land("CO-1", BOOK["key"], self.requests.find(snapshot.KIND, key), "2100900", key)
+        frappe.db.commit()
+        self.assertNotIn(key, S.hashes[snapshot.PENDING])
+
+    def test_landing_holds_the_book_lock_until_commit_or_rollback_and_takes_it_once_per_transaction(self):
+        frappe.db.commit()
+        S.serial.clear()
+        lock_key = snapshot.SERIAL + BOOK["key"]
+        snapshot.replace("CO-1", BOOK["key"], [], "2026-11-11T06:00:00+00:00", customer="2100900")
+        snapshot.apply_balances(BOOK["key"], {"IV1": Decimal("100")})
+        self.assertEqual(S.serial, [(lock_key, "acquire")])  # 同一笔事务第二次不再拿
+        frappe.db.commit()
+        self.assertEqual(S.serial, [(lock_key, "acquire"), (lock_key, "release")])
+        S.serial.clear()
+        snapshot.apply_balances(BOOK["key"], {"IV1": Decimal("90")})
+        frappe.db.rollback()
+        self.assertEqual(S.serial, [(lock_key, "acquire"), (lock_key, "release")])
+
+    def test_an_invoice_under_another_customer_is_updated_not_inserted_again(self):
+        # Express 里这张改了客户（或两位客户只差空白）：按客户读到它时改那一行，一本账套一张发票只有一行
+        snapshot.replace("CO-1", BOOK["key"], [{"docnum": "IV3", "customer": "2100883", "net": "50", "received": "0",
+                                                "remaining": "40"}], "2026-11-11T06:00:00+00:00", customer="2100883")
+        rows = self.rows_of("IV3")
+        self.assertEqual([(row["customer"], row["remaining"]) for row in rows], [("2100883", Decimal("40.00"))])
+
+    def test_an_insert_that_hits_the_unique_index_becomes_an_update(self):
+        """另一路刚插了同一张（这一路的加锁读之后）：撞唯一索引退回保存点，按单号加锁读出那一行、旧的不盖新的。"""
+        unique = type("UniqueValidationError", (ValidationError,), {})
+        original = Doc.insert
+
+        def racing(competitor_read_at):
+            def insert(doc, ignore_permissions=False, set_name=None):
+                if doc.doctype == snapshot.DOCTYPE and doc.get("docnum") == "IV8":
+                    S.table(snapshot.DOCTYPE)["RACE"] = {"name": "RACE", "company": "CO-1", "book_key": BOOK["key"],
+                                                          "docnum": "IV8", "customer": "2100900", "net": Decimal("80"),
+                                                          "received": Decimal("0"), "remaining": Decimal("80"),
+                                                          "read_at": datetime.fromisoformat(competitor_read_at)}
+                    frappe.local.message_log = ["IV8 must be unique"]
+                    raise unique("ERP Receivable Snapshot", "x", "Duplicate entry")
+                return original(doc, ignore_permissions, set_name)
+            return insert
+
+        item = [{"docnum": "IV8", "customer": "2100900", "net": "80", "received": "30", "remaining": "50"}]
+        with mock.patch.object(frappe, "UniqueValidationError", unique, create=True), \
+                mock.patch.object(Doc, "insert", racing("2026-11-11 14:00:00")):
+            frappe.local.message_log = []
+            self.assertEqual(snapshot.replace("CO-1", BOOK["key"], item, "2026-11-11T06:00:00+00:00"), 0)
+        self.assertEqual([row["remaining"] for row in self.rows_of("IV8")], [Decimal("80")])  # 那一路的读取（14:00）比这次（06:00 UTC = 13:00）新：不盖
+        self.assertEqual(frappe.local.message_log, [])  # 「必须唯一」不带给用户
+        del S.table(snapshot.DOCTYPE)["RACE"]
+        with mock.patch.object(frappe, "UniqueValidationError", unique, create=True), \
+                mock.patch.object(Doc, "insert", racing("2026-11-11 10:00:00")):
+            self.assertEqual(snapshot.replace("CO-1", BOOK["key"], item, "2026-11-11T06:00:00+00:00"), 1)
+        self.assertEqual([row["remaining"] for row in self.rows_of("IV8")], [Decimal("50.00")])
+
+    def test_balances_after_a_write_use_the_locked_net(self):
+        # 写后回执在 CC 的事务里、读视图早就建了：net 按加锁读取（另一路刚把 net 从 1000 改成 1200 并提交）
+        S.table(snapshot.DOCTYPE)[self.rows_of("IV1")[0]["name"]]["net"] = Decimal("1200.00")
+        S.locked.clear()
+        with mock.patch.object(frappe.db, "get_value", side_effect=AssertionError("plain read")):
+            snapshot.apply_balances(BOOK["key"], {"IV1": Decimal("700"), "IV2": Decimal("0")}, "2026-11-11T06:00:00+00:00")
+        self.assertEqual(S.locked, [snapshot.DOCTYPE])
+        row = self.rows_of("IV1")[0]
+        self.assertEqual((row["remaining"], row["received"]), (Decimal("700"), Decimal("500.00")))
+        self.assertEqual(self.rows_of("IV2"), [])
+
+
+class SnapshotUniquePatch(unittest.TestCase):
+    """补丁 `v1_35_receivable_snapshot_unique`：建唯一索引前每组重复留读取时刻最新的一行，删其余并记日志；可重复执行。"""
+
+    def test_duplicates_keep_the_latest_read_and_a_second_run_changes_nothing(self):
+        import importlib
+
+        patch = importlib.import_module("pearnly_erp_portal.patches.v1_35_receivable_snapshot_unique")
+        rows = {"A": ("BK", "IV1", "2026-11-11 03:00:00"), "B": ("BK", "IV1", "2026-11-11 05:00:00"),
+                "C": ("BK", "IV1", None), "D": ("BK", "IV2", "2026-11-11 05:00:00"), "E": ("BK2", "IV1", "2026-11-11 01:00:00")}
+
+        def sql(query, values=()):
+            groups = {}
+            for book_key, docnum, _at in rows.values():
+                groups[(book_key, docnum)] = groups.get((book_key, docnum), 0) + 1
+            return [key for key, count in groups.items() if count > 1]
+
+        def sql_list(query, values=()):
+            # 同补丁的排序：读取时刻空的排最后，其余新的在前
+            found = [(name, at) for name, (book_key, docnum, at) in rows.items() if (book_key, docnum) == tuple(values)]
+            dated = sorted((pair for pair in found if pair[1]), key=lambda pair: pair[1], reverse=True)
+            return [name for name, _ in dated] + [name for name, at in found if not at]
+
+        def delete(doctype, filters):
+            for name in filters["name"][1]:
+                rows.pop(name)
+
+        logged, unique = [], []
+        module = sys.modules[
+            "pearnly_erp_portal.pearnly_erp_portal.doctype.erp_receivable_snapshot.erp_receivable_snapshot"] = types.ModuleType("x")
+        module.on_doctype_update = lambda: unique.append(1)
+        try:
+            with mock.patch.object(frappe.db, "sql", side_effect=sql), \
+                    mock.patch.object(frappe.db, "sql_list", side_effect=sql_list, create=True), \
+                    mock.patch.object(frappe.db, "table_exists", return_value=True, create=True), \
+                    mock.patch.object(frappe.db, "delete", side_effect=delete), \
+                    mock.patch.object(frappe, "log_error", side_effect=lambda **kw: logged.append(kw)):
+                patch.execute()
+                self.assertEqual(sorted(rows), ["B", "D", "E"])
+                self.assertEqual(len(logged), 1)
+                self.assertIn("2", logged[0]["message"])
+                patch.execute()
+                self.assertEqual(sorted(rows), ["B", "D", "E"])
+                self.assertEqual(len(logged), 1)
+                self.assertEqual(len(unique), 2)
+        finally:
+            sys.modules.pop("pearnly_erp_portal.pearnly_erp_portal.doctype.erp_receivable_snapshot.erp_receivable_snapshot", None)
 
 
 class WebPage(Base):

@@ -775,6 +775,35 @@ class Requests(Base):
         self.assertEqual(done["status"], "done")
         self.assertEqual(requests.result(item["id"])[0], content)
 
+    def test_a_finished_read_is_taken_once_and_its_file_is_removed_only_after_commit(self):
+        # 11-28 并发冲突 ④ C1：两路同时取同一件，只有一路拿到；回滚时文件还在（下一轮照样能取），提交后才删
+        from pearnly_core.cc_desktop import store
+
+        made = self.register("staff@x", KEY_A)
+        office = self.context(made["device"], "staff@x")
+        key = contracts.book_key(contracts.book_identity(PATH, "vsn:1234/5"))
+        self.report(office)
+        frappe.db.set_value(documents.DEVICE, office.device, "companion_version", "1.11.0")
+        created = requests.create("express_masters", "erp_masters:" + key, {"account_set": "X", "account_root": ""},
+                                  book_key=key, actor="Administrator")
+        self.assertIsNone(requests.take(created["request"]))  # 还没读好
+        item = requests.lease_next(office, {"version": "1.11.0", "kinds": ["express_masters"], "device": "PC"})["request"]
+        content = b"ar open"
+        requests.complete(office, {"request": item["id"], "handle": item["handle"], "ok": True, "offset": 0,
+                                   "content": base64.b64encode(content).decode(), "final": True, "size": len(content),
+                                   "sha256": hashlib.sha256(content).hexdigest(), "meta": {"rows": 1}})
+        self.assertEqual(requests.take(item["id"]), (content, {"rows": 1}))
+        self.assertIsNone(requests.take(item["id"]))  # 另一路：行已删
+        self.assertEqual(store.read(item["id"]), content)  # 还没提交：文件在
+        frappe.db.rollback()
+        self.assertEqual(store.read(item["id"]), content)  # 回滚：不删
+        # 替身的回滚不还原行（真库里行也回来了）：补回这一行再取
+        documents.new(documents.REQUEST, item["id"], {"request_key": "erp_masters:" + key, "kind": "express_masters",
+                                                       "book_key": key, "status": "done", "received_bytes": len(content)})
+        self.assertEqual(requests.take(item["id"])[0], content)
+        frappe.db.commit()
+        self.assertIsNone(store.read(item["id"]))
+
 
     def test_a_request_with_a_later_parameter_goes_only_to_a_version_that_knows_it(self):
         # express_ar_open 带 docnums（按单号查发票状态，1.12.22）：旧版不认多出来的参数会回 params_invalid

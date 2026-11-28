@@ -11,7 +11,6 @@ apps/pearnly_core/pearnly_core/exports/service.py	run	Pearnly Export	导出任�
 apps/pearnly_cowork/pearnly_cowork/push/mrerp/runner.py	run	Cowork Push Record	写的是 MR.ERP 回的单号；领取有 fence，同一条只一个执行者
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/vat.py	refresh	ERP Sale Line	按小票行现算的税额整值重写，重算幂等
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/vat.py	refresh	ERP Sale	按小票行现算的税额合计整值重写，重算幂等
-apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	apply_balances	ERP Receivable Snapshot	余额来自 Express 读回；net 是发票金额，不随并发改
 apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py	settle_payment	$DOCTYPE	选择在写之前加锁重读（11-23）；方向与票面识别结果建单后不变
 apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py	document	ERP POS Day Summary	按所含小票现算的合计整值重写，重算幂等
 apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py	vat_registered	ERP Company	只在公司还没记登记状态时补记税务局查到的结果，幂等

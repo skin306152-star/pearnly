@@ -125,8 +125,6 @@ apps/pearnly_erp_portal/pearnly_erp_portal/access/setup.py	migrate_members	User	
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py	create_sale	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py	attach_main	ERP POS Terminal	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py	ensure_default	ERP POS Terminal	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	apply_balances	ERP Receivable Snapshot	判断	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：应收快照按普通读出的 net 写回，与 snapshot.replace 同一处改（按账套加锁），带外部读回
-apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	replace	ERP Receivable Snapshot	判断	④	真	存量（B ③ 11-28 全仓扫描）：应收快照：普通读出现有行再按 read_at 比新旧插入 / 更新 / 删除，两次读回并发时旧结果可能盖新结果；随 ④（带外部读的入口）按账套加锁
 apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	answer	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	remember_party_account	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	retry	$doctype	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清

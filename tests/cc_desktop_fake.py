@@ -53,6 +53,7 @@ class DB:
         self.tables = {}
         self.points = []
         self.clock = 0
+        self.after = []  # 提交后的回调（`requests.take` 提交后删结果文件）；回滚清掉
 
     def table(self, doctype):
         return self.tables.setdefault(doctype, {})
@@ -220,7 +221,14 @@ def new_doc(doctype):
     return Doc(doctype)
 
 
+class _AfterCommit:
+    def add(self, function):
+        STATE.db.after.append(function)
+
+
 class _DBApi:
+    after_commit = _AfterCommit()
+
     def get_value(self, doctype, name, fields="name", as_dict=False, for_update=False):
         if isinstance(name, dict):
             rows = get_all(doctype, filters=name, fields=["name"])
@@ -256,9 +264,11 @@ class _DBApi:
                     STATE.db.tables = STATE.db.points[index][1]
                     del STATE.db.points[index:]
                     return
+        STATE.db.after.clear()
 
     def commit(self):
-        pass
+        while STATE.db.after:
+            STATE.db.after.pop(0)()
 
     def sql(self, query, values=(), as_dict=False):
         text = " ".join(query.split())

@@ -4,7 +4,7 @@
 线上形状与 Cowork 的按需请求完全相同（共用的 `wire.request_contracts`）：电脑领一件（带一次性 handle）、分块交回、最后一块带
 大小与 sha256；结果存站点私有目录（`store`），产品取走即删。读账套的请求带账套键：共享种类（账套的公共资料）够得到它的电脑
 谁先来谁读；其余只由发起人登录过 CC 的、够得到它的电脑读。产品的固定顺序：:func:`find` 同一请求号还没了结的那件 → 没有就
-:func:`waiting` 看有没有电脑能做 → :func:`create`；之后 :func:`status` / :func:`result` / :func:`drop`。
+:func:`waiting` 看有没有电脑能做 → :func:`create`；之后 :func:`status` / :func:`result` / :func:`drop`，或排他取走 :func:`take`。
 """
 import json
 import secrets
@@ -124,6 +124,26 @@ def result(name):
 def drop(name):
     store.drop(name)
     documents.remove(REQUEST, name)
+
+
+def take(name):
+    """产品取走读好的一件（排他，11-28 并发冲突 ④）：加锁读这一行，仍是读好了才归本路，回 ``(字节, meta)``；行在本事务里删，
+    结果文件等提交之后再删。没读好、或别的一路刚取走（行已删）回 None。
+
+    为什么不用 :func:`result` + :func:`drop`：两路（网页 / LINE / CC 当场落库与每分钟的定时落库）同时取同一件时都读到「读好了」、
+    各落一遍；``drop`` 当场删文件，取走的那笔事务之后被回滚时行回来了、文件已没有，下一轮读到空内容。这里后到的那路在这一行的锁上
+    等前一路提交、再读到行已删；回滚时行和文件都还在，下一轮照样能取。"""
+    row = frappe.db.get_value(REQUEST, name, ["name", "status", "meta_json"], as_dict=True, for_update=True)
+    if not row or row.status != "done":
+        return None
+    try:
+        meta = json.loads(row.meta_json or "{}")
+    except ValueError:
+        meta = {}
+    content = store.read(name)
+    documents.remove(REQUEST, name)
+    frappe.db.after_commit.add(lambda: store.drop(name))
+    return content, meta
 
 
 # ── 电脑领请求、交结果 ─────────────────────────────────────────────────────────
