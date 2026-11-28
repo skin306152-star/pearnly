@@ -280,7 +280,8 @@ def mark_handled(doctype, name, reason=None):
     job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     if not _pos_stuck(doctype, row, job):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
-    if job and job["status"] not in ("done",):
+    # 还挂着的撤掉；写成的（迟到写成转人工的，`push.job_changed`）、已撤的没有要撤的（共用通道撤不了、会拒）；电脑正在写的照旧拒
+    if job and job["status"] not in ("success", "cancelled"):
         jobs.cancel(job["job"], "replaced")
     frappe.db.set_value(doctype, name, {"ledger_state": contracts.HANDLED, "ledger_reason": "", "ledger_needed": None,
                                         "ledger_job": None}, update_modified=False)

@@ -729,24 +729,71 @@ def still_wanted(view) -> bool:
     if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
         return True
     # 加锁读：领单那笔事务前面已有普通读（排头），关快照隔离后普通读看不到读视图之后才提交的作废（11-28 B ③，最后一道闸）
-    return frappe.db.get_value(doctype, name, "status", for_update=True) != "void"
+    row = frappe.db.get_value(doctype, name, ["status", "ledger_job"], as_dict=True, for_update=True)
+    if not row:
+        return True
+    # 单据上记的已不是这件（被换掉的旧件；迟到写成转人工后还排着的那件，`job_changed`）：不交电脑写，Express 里不会多一张
+    # （11-28 ④）。还没记上件的照旧要（换件都先撤旧件、再交新件，见 `_send`）
+    return row.status != "void" and (not row.ledger_job or row.ledger_job == view.get("job"))
+
+
+def _awaited(row, view) -> bool:
+    """现在那件写成了，单据还在等它的结果：排队中 / 写入中；这件自己转了人工（结果不明 ``LOST``、代录半截单号）之后补报写成
+    （共用通道只收这几种迟到的成功，`jobs.acknowledge`；单据有件时别的路径不会把它改成停下——`_send` 见有件就退出、答题与再写一次
+    都先撤件）；同一份回执重放。别的（失败、已断开、已手工处理、已清空、已记着另一张单号、已转人工的迟到写成）都是被改过了。"""
+    if row.ledger_state == contracts.QUEUED:
+        return True
+    if row.ledger_state == contracts.HELD:
+        return row.ledger_reason != contracts.MOVED_DURING_WRITE
+    return row.ledger_state in (contracts.WRITTEN, contracts.MISMATCH) and (row.ledger_docnum or "") == (view.get("docnum") or "")
+
+
+def _hold_written(doctype, name, row, view):
+    """写成了、单据却已不在等这件（主会话 11-28 定，同 MR.ERP 记结论遇到意外状态的第三种，`mrerp.push._conclude`）：Express 里有了
+    这张，不记成干净的「已写入」，也不盖现在那件——转人工、停在结果不明（`MOVED_DURING_WRITE`），这件的单号记在单据上、
+    ``ledger_job`` 指着它，另记一条错误日志带原状态、原来那件与单号。单据作废了的照「写进去后作废」。
+
+    之后不再自动写：单据记着件，`_send` / 巡检 / 代录再录都不再排件，「再写一次」只认转人工的件；还排着的别的件（现在那件
+    没被领走的、收回的）领单前由 `still_wanted` 撤掉。若被领走的那件之后也写成，回执照这里再记一次：两张单号在写账件表里各在各件
+    那一行（``docnum``），单据记最后写成的那件，错误日志两张都带。"""
+    frappe.log_error(title="ERP Express write landed after the document moved on",
+                     message=f"{doctype} {name}: {row.ledger_state} {row.ledger_reason} job {row.ledger_job} "
+                             f"Express {row.ledger_docnum or '-'}; job {view.get('job')} wrote Express {view.get('docnum') or '-'}")
+    _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_job": view.get("job"), "ledger_docnum": view.get("docnum") or "",
+                         "ledger_reason": contracts.VOIDED_AFTER_WRITE if row.status == "void" else contracts.MOVED_DURING_WRITE,
+                         "ledger_needed": None})
 
 
 def job_changed(view):
-    """共用写账队列里这张单有了新状态（同一事务里叫）：记回单据；第一次写进去后排一次主档同步（库存按 Express 对齐）。"""
+    """共用写账队列里这张单有了新状态（同一事务里叫）：记回单据；第一次写进去后排一次主档同步（库存按 Express 对齐）。
+
+    只认单据上现在那件（``ledger_job``；还没记上件的，如刚交进队列的那一次，也算）。加锁读单据：回执在电脑回报那笔事务里，
+    关快照隔离后普通读可能是旧值（11-28 ④）。不是现在那件、或单据已因迟到写成转了人工的：没写成的不盖（现在那件为准），写成了的
+    转人工（:func:`_hold_written`）；现在那件写成了、单据却已不在等它（:func:`_awaited`）同样转人工。作废照原规则。"""
     doctype, name = view.get("source_doctype"), view.get("source_name")
     if doctype not in DIRECTIONS or not name or not frappe.db.exists(doctype, name):
         return
     if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
         _void_changed(view)  # 作废那一件：记在作废栏上，写入时的单号与状态不动
         return
-    if view.get("status") == "cancelled" and frappe.db.get_value(doctype, name, "status") == "void":
+    row = frappe.db.get_value(doctype, name, ["status", "ledger_state", "ledger_job", "ledger_docnum", "ledger_reason"],
+                              as_dict=True, for_update=True)
+    if view.get("status") == "cancelled" and row.status == "void":
         # 单据作废后撤掉的那件（作废时撤、或领单前兜底 `still_wanted`）：清账本栏，不记成「失败」（11-13）；已写进 Express 的单
         # 撤的是多出来的件（作废时按来源单据全撤，11-28 B ③），写入状态与单号照旧留着（出入库单另排原生作废那一件）
-        if frappe.db.get_value(doctype, name, "ledger_state", for_update=True) not in (contracts.WRITTEN, contracts.MISMATCH):
+        if row.ledger_state not in (contracts.WRITTEN, contracts.MISMATCH):
             _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
-    before = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_docnum"], as_dict=True)
+    landed = view.get("status") == "success"
+    held = row.ledger_state == contracts.HELD and row.ledger_reason == contracts.MOVED_DURING_WRITE
+    if held or (row.ledger_job and row.ledger_job != view.get("job")):
+        if landed:
+            _hold_written(doctype, name, row, view)
+        return
+    if landed and row.status != "void" and not _awaited(row, view):
+        _hold_written(doctype, name, row, view)
+        return
+    before = row
     before.company = company_of(doctype, name)
     state = _state(view)
     values = {"ledger_state": state, "ledger_job": view.get("job"), "ledger_docnum": view.get("docnum") or "",

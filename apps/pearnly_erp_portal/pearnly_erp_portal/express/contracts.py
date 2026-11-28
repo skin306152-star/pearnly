@@ -86,6 +86,10 @@ REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人�
 DISCONNECTED = "express.disconnected"  # 断开 Express 时还没写进去（`push.detach`）
 # 采购单 / 销售单在 ERP 作废时电脑已在写，写完才回来：Express 里有这张、ERP 已作废——转人工，人去 Express 里处理（11-13）
 VOIDED_AFTER_WRITE = "express.voided_after_write"
+# 写成了、单据却已不在等这件的结果（被换掉的旧件迟到写成、现在那件写成时单据已被改成别的状态）：转人工、单号留着，同一张单不再
+# 自动写（`push.job_changed`，11-28 ④；同 MR.ERP 记结论遇到意外状态的 `mrerp.contracts.MOVED_DURING_IMPORT`）。以共用通道的
+# 「结果不明」码（`cc_desktop.jobs.LOST`）开头、后缀只有小写码：页面 / 待处理只写状态（不新造文案，不原样露码）
+MOVED_DURING_WRITE = "cc_desktop.result_unknown:moved_during_write"
 CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试，判定 / 计划报「等电脑」；
 # 要人选的、单据本身不对的不自动重试
