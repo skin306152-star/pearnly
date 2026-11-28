@@ -38,13 +38,19 @@ class PermissionError_(Exception):
 class Db:
     def __init__(self):
         self.tables, self.commits, self.rollbacks, self.touched = {}, 0, 0, 0
+        # 读视图替身（④ 11-28）：``stale[(doctype, name)]`` 是本事务普通读看到的旧行（关快照隔离后普通读停在读视图里），
+        # 加锁读（``for_update``）照旧读到最新；``locked`` 记下每次加锁读了哪张表的哪一行
+        self.stale, self.locked = {}, []
 
     def table(self, doctype):
         return self.tables.setdefault(doctype, {})
 
     def get_value(self, doctype, name, fields, as_dict=False, for_update=False):
         self.touched += 1
-        row = self.table(doctype).get(name)
+        if for_update:
+            self.locked.append((doctype, name))
+        row = self.table(doctype).get(name) if for_update else \
+            self.stale.get((doctype, name), self.table(doctype).get(name))
         if row is None:
             return None
         if isinstance(fields, str):
@@ -79,6 +85,8 @@ frappe._ = lambda text, *a, **k: text
 frappe.PermissionError = PermissionError_
 frappe.ValidationError = ValueError
 frappe.DuplicateEntryError = type("DuplicateEntryError", (Exception,), {})
+frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})  # 1213（共用重试 `conflicts.retried` 认它）
+frappe.TimestampMismatchError = type("TimestampMismatchError", (Exception,), {})
 frappe.clear_messages = lambda: None
 frappe.session = types.SimpleNamespace(user="boss@x")
 frappe.local = types.SimpleNamespace(site="erp.test")
@@ -91,7 +99,8 @@ def _throw(message, exc=ValueError):
 
 
 def _get_all(doctype, filters=None, fields=None, order_by=None, limit_page_length=None):
-    rows = [Row(row) for row in DB.table(doctype).values()
+    rows = [Row(DB.stale.get((doctype, key), row)) for key, row in DB.table(doctype).items()]
+    rows = [row for row in rows
             if all(row.get(k) == v for k, v in (filters or {}).items() if not isinstance(v, list))]
     return rows[:limit_page_length] if limit_page_length else rows
 
@@ -181,6 +190,8 @@ def document(doctype, name):
 
 def reset(enabled=True):
     DB.tables.clear()
+    DB.stale.clear()
+    DB.locked.clear()
     ENQUEUED.clear()
     CALLS.clear()
     BOOKS.clear()
@@ -558,6 +569,123 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual(connection.login_scope("clerk@x", "C1"), "")
         self.assertEqual(connection.view("C1").get("credential", {}).get("username"), "u1")
         self.assertNotIn("secret", json.dumps(connection.view("C1")))
+
+
+@patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)
+class ConclusionConflict(unittest.TestCase):
+    """④ A2 #16 / #17 与巡检（11-28）：导入发出之后的几段写回加锁按现值再判，记结论撞冲突只重来记结论那一段、不再导入。"""
+
+    def setUp(self):
+        reset()
+        self.sleep = patch("pearnly_core.transaction.conflicts.time.sleep")
+        self.sleep.start()
+
+    def tearDown(self):
+        self.sleep.stop()
+
+    def test_a_conflict_on_the_conclusion_retries_only_the_conclusion(self):
+        """记结论那一步撞一次 1213：修前任务失败、单据停在「正在导入」（15 分钟后被巡检转成结果不明）；修后整笔重来只重来记结论，
+        记成已写入、单号在，导入只发 1 次，结论前加锁读了这张。"""
+        doc(ledger_state="queued", ledger_target="mrerp")
+        real, hits = push._set, []
+
+        def flaky(doctype, name, values):
+            if values.get("ledger_state") == "written" and not hits:
+                hits.append(name)
+                raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+            return real(doctype, name, values)
+
+        with _Module({"status": "success", "docnum": "PG691128-000001", "menus": {}, "masters": {}}), \
+                patch.object(push, "_set", flaky):
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_docnum"], saved["ledger_reason"]),
+                         ("written", "PG691128-000001", ""))
+        self.assertEqual((len(CALLS), hits), (1, ["PUR-1"]))
+        self.assertIn((PURCHASE, "PUR-1"), DB.locked[1:])  # 领取那次之后，记结论前又加锁读了一次
+        self.assertEqual(AFTER_WRITE, ["CO-1"])
+
+    def test_the_conclusion_judges_the_void_on_the_locked_row(self):
+        """导入期间作废（`express.push.void` 清了账本栏、状态改作废）而本事务普通读还停在作废前：按加锁读的现值转人工、单号留着。"""
+        from pearnly_erp_portal.express import contracts as E
+
+        doc(ledger_state="queued", ledger_target="mrerp")
+
+        def voided_meanwhile(*args):
+            DB.stale[(PURCHASE, "PUR-1")] = dict(DB.table(PURCHASE)["PUR-1"])  # 普通读看到的是作废前那一份
+            DB.table(PURCHASE)["PUR-1"].update(status="void", ledger_state=None, ledger_reason="")
+            return {"status": "success", "docnum": "PG691128-000002", "menus": {}, "masters": {}}
+
+        with _Module({}):
+            sys.modules["pearnly_core.mrerp.push.execute"].execute = voided_meanwhile
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved["ledger_docnum"]),
+                         ("held", E.VOIDED_AFTER_WRITE, "PG691128-000002"))
+
+    def test_a_conclusion_taken_by_someone_else_is_not_overwritten_unless_it_was_written(self):
+        """导入期间这张已不是本次领取（巡检转成了结果不明）：没写进 MR.ERP 的不盖；写进了的照实记已写入与单号。"""
+        for outcome, expected in (({"status": "failed", "reason": "ERR_NO_SUPPLIER"},
+                                   ("held", f"{contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED", None)),
+                                  ({"status": "success", "docnum": "PG691128-000003"}, ("written", "", "PG691128-000003"))):
+            reset()
+            doc(ledger_state="queued", ledger_target="mrerp")
+
+            def taken(*args, outcome=outcome):
+                DB.table(PURCHASE)["PUR-1"].update(ledger_state="held",
+                                                   ledger_reason=f"{contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED")
+                return {**outcome, "menus": {}, "masters": {}}
+
+            with _Module({}):
+                sys.modules["pearnly_core.mrerp.push.execute"].execute = taken
+                push.run(PURCHASE, "PUR-1", document)
+            saved = DB.table(PURCHASE)["PUR-1"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected, outcome)
+
+    def test_the_poll_rechecks_under_the_lock_before_turning_an_import_unknown(self):
+        """巡检普通读列出一张超时的「正在导入」，此间导入刚记成已写入：修前按列出时的旧值盖成结果不明；修后加锁按现值再核、不动。
+        仍是超时那次领取的照旧转结果不明。"""
+        doc(ledger_state="queued", ledger_target="mrerp", ledger_reason=contracts.IMPORTING,
+            ledger_sent_at=NOW - datetime.timedelta(minutes=16))
+        DB.stale[(PURCHASE, "PUR-1")] = dict(DB.table(PURCHASE)["PUR-1"])
+        DB.table(PURCHASE)["PUR-1"].update(ledger_state="written", ledger_reason="", ledger_docnum="PG691128-000004")
+        doc(name="PUR-2", ledger_state="queued", ledger_target="mrerp", ledger_reason=contracts.IMPORTING,
+            ledger_sent_at=NOW - datetime.timedelta(minutes=16))
+        push.poll()
+        first, second = DB.table(PURCHASE)["PUR-1"], DB.table(PURCHASE)["PUR-2"]
+        self.assertEqual((first["ledger_state"], first["ledger_reason"], first["ledger_docnum"]),
+                         ("written", "", "PG691128-000004"))
+        self.assertEqual((second["ledger_state"], second["ledger_reason"]),
+                         ("held", f"{contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED"))
+        self.assertIn((PURCHASE, "PUR-1"), DB.locked)
+
+    def test_the_poll_leaves_an_import_claimed_again_meanwhile(self):
+        """列出时是超时的那次，拿到锁时已是新的一次领取（新的发出时刻）：不改。"""
+        doc(ledger_state="queued", ledger_target="mrerp", ledger_reason=contracts.IMPORTING,
+            ledger_sent_at=NOW - datetime.timedelta(minutes=16))
+        DB.stale[(PURCHASE, "PUR-1")] = dict(DB.table(PURCHASE)["PUR-1"])
+        DB.table(PURCHASE)["PUR-1"]["ledger_sent_at"] = NOW
+        push.poll()
+        self.assertEqual(DB.table(PURCHASE)["PUR-1"]["ledger_reason"], contracts.IMPORTING)
+
+    def test_observed_options_merge_into_the_latest_whole_record(self):
+        """④ A2 #17：同一条连接两本账套同时导入，存回选项时整份写回——加锁读到另一本刚存的那格，只并本账套那一格。"""
+        from pearnly_erp_portal.mrerp import choices
+
+        connection_row = DB.table("ERP MRERP Connection")["C1"]
+        connection_row["menu_options"] = None
+        DB.stale[("ERP MRERP Connection", "C1")] = dict(connection_row)  # 本事务读视图里还没有别的账套
+        connection_row["menu_options"] = json.dumps({"14:1": {"pages": {"impaptran": [{"idmenu": "55", "label": "x",
+                                                                                     "linked": True}]},
+                                                               "observed_at": "2026-11-28T09:00:00"}})
+        choices.observe("C1", "15:1", {"impaptran": [{"idmenu": "68", "label": "ซื้อ", "linked": True}]}, None)
+        saved = json.loads(connection_row["menu_options"])
+        self.assertEqual(sorted(saved), ["14:1", "15:1"])
+        self.assertEqual(saved["14:1"]["pages"]["impaptran"][0]["idmenu"], "55")
+        self.assertIn(("ERP MRERP Connection", "C1"), DB.locked)
+        locked = len(DB.locked)
+        choices.observe("C1", "15:1", None, None)  # 什么都没读到：不写、不锁
+        self.assertEqual(len(DB.locked), locked)
 
 
 class _Redis:

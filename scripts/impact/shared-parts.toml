@@ -503,7 +503,8 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # ERP 采购凭证挂附件撞上死锁整笔重来（11-08 两张单同时出凭证 QueryDeadlockError，`purchasing.output.voucher`）
 # 各处自己接冲突的写法统一经共用层（B ①，11-26：入口层 conflicts.attempt、保存点与后台 conflicts.is_conflict，检查 check-conflict-catch.py）
 # ERP LINE 收单识别任务记原件、记结果撞冲突只重来库内那一段（④ #12，11-28：`integrations.intake._keep_source / _keep_result`）
-entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher", "shared.conflict-catch", "erp.collection.server", "erp.execution"]
+# MR.ERP 导入直写记结论撞冲突只重来记结论那一段、不再导入（④ A2 #16 / B6，11-28：ERP `mrerp.push._conclude`、Cowork `push.mrerp.runner._conclude`）
+entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher", "shared.conflict-catch", "erp.collection.server", "erp.execution", "erp.mrerp.direct", "cowork.mrerp.push"]
 # 结束读快照前核对调用方没有没提交的写（`transaction.snapshot`，11-19 回滚审计）：作废允许卡、抢占、挂着等的结论、判卡片「只是看」都先经它
 not_entries = { "apps/pearnly_core/pearnly_core/assistant/toolrun.py" = "CC 工具调用里产品校验 / 准备 / 引导结果 / 允许卡读取碰到快照冲突（1020）或死锁时整段重做（conflicts.retried，都是只读或幂等）；执行、抢占、作废允许卡开头结束读快照经 snapshot.fresh。用户看到的入口是 cc.assistant 对话页的工具卡，由 test_assistant 的冲突用例与 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/relay.py" = "推送线程每步结束读快照经 snapshot.fresh（线程里每步都已提交）；入口是 cc.assistant 对话页，由 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/waits.py" = "挂着等后台结论的调用交回、作废、巡检开头结束读快照经 snapshot.fresh；入口是 cc.assistant 对话页（识别挂着时发话），由 test_assistant 与 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/files.py" = "对话附件上传开头结束读快照经 snapshot.fresh；入口是 cc.assistant 对话页的附件，由 test_snapshot_reset 守住", "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py" = "Cowork 写账前置判定「只是看」的回滚之前经 snapshot.require_clean 核对调用方；入口是 Cowork CC 开始前卡片与直写计划，由流程 cowork.cc.remembered-group-direct 与 test_snapshot_reset 守住" }
 

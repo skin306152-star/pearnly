@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 import frappe
 from frappe.utils import now_datetime
 
+from pearnly_core.transaction import conflicts
 
 from pearnly_erp_portal import mrerp
 from pearnly_erp_portal.express import contracts as express_contracts, pending, printed
@@ -278,14 +279,41 @@ def run(doctype, name, document):
     else:
         outcome = execute(prepared["payload"], {"account_set": book["key"]}, secrets, lease["system_url"], today)
     try:
-        choices.observe(book["connection"], book["key"], outcome.get("menus"),
-                        outcome.get("masters") or None)
-        frappe.db.commit()
+        # 只是给选择用的缓存：撞冲突整笔重来（只重来存选项这一段，不再导入），用尽 / 存不了都不影响导入结论
+        conflicts.retried(_observe, book["connection"], book["key"], outcome.get("menus"), outcome.get("masters") or None)
     except Exception:  # noqa: BLE001 — 只是给选择用的缓存，存不了不影响导入结论
         frappe.db.rollback()
-    values = contracts.settle(outcome)
+    # 记结论（④ A2 #16，11-28）：导入已经发出、结果在手里，这一段撞冲突（1213 / 保存前比对）只整笔重来这一段，不再导入。
+    # 原来不在 `retried` 里：撞一次任务就失败，单据停在「正在导入」，15 分钟后被 :func:`poll` 转成结果不明，已写进 MR.ERP 的也要人工核。
+    # 用尽照旧抛出（同修前：停在「正在导入」，由巡检转结果不明）。
+    values = conflicts.retried(_conclude, doctype, name, contracts.settle(outcome), prepared, book, company.name)
+    if values and values.get("ledger_state") in (express_contracts.WRITTEN, express_contracts.MISMATCH):
+        # 写进了 MR.ERP（含写入核不上）：排一次主档整读（公司接入 `mrerp.masters.after_write`：去重、只排队、出错只记日志不抛）
+        from pearnly_erp_portal.mrerp import masters  # 主档整读那一侧在写账之后才用到（同上，用到时导入）
+
+        masters.after_write(company.name)
+
+
+def _observe(connection, account_set, menus, masters):
+    choices.observe(connection, account_set, menus, masters)
+    frappe.db.commit()
+
+
+def _conclude(doctype, name, values, prepared, book, company):
+    """把导入结论记回单据并提交，回写下的值（没写回 None）。由 :func:`run` 经 `conflicts.retried` 调：重来只重来这一段。
+
+    先加锁读这张的状态与账本栏（导入那几十秒本事务提交过，普通读的读视图可能比别人刚提交的旧）：
+    - 导入期间在 ERP 作废了（11-13）：导入成的不记成干净的「已写入」，转人工、单号如实留着（同 Express 已领走的）；没导入成的清账本栏；
+      结果不明的照旧交人核。作废会清掉账本栏（`express.push.void`），所以先于「还是不是本次领取」判。
+    - 仍是本次领取（排队中 + 正在导入）：按导入结果写。
+    - 已被别的路径改过（巡检把超时的转成结果不明……）：导入写进了 MR.ERP 的照实记已写入与单号（导入结果是事实，「结果不明」只是
+      猜测）；没写进的不盖别人的结论。"""
+    row = _row(doctype, name, ["status", "ledger_state", "ledger_reason"], for_update=True)
+    if not row:
+        return None
+    values = dict(values)
     if values["ledger_reason"] == contracts.CHOICE:
-        fresh = choices.company_row(company.name)
+        fresh = choices.company_row(company)
         if prepared.get("stock") or prepared.get("form"):
             from pearnly_erp_portal.mrerp import stock  # 同 :func:`_row`
 
@@ -296,21 +324,19 @@ def run(doctype, name, document):
         values["ledger_needed"] = json.dumps(needed, ensure_ascii=False)
     else:
         values["ledger_needed"] = None
-    if frappe.db.get_value(doctype, name, "status") == "void":
-        # 导入那几十秒里单据在 ERP 作废了（11-13）：导入成的不记成干净的「已写入」，转人工、单号如实留着（同 Express 已领走的）；
-        # 没导入成的清账本栏；结果不明的照旧交人核
+    written = values["ledger_state"] in (express_contracts.WRITTEN, express_contracts.MISMATCH)
+    if row.status == "void":
         if values["ledger_state"] == express_contracts.WRITTEN:
             values.update(ledger_state=express_contracts.HELD, ledger_reason=express_contracts.VOIDED_AFTER_WRITE,
                           ledger_needed=None)
         elif not values["ledger_reason"].startswith(contracts.UNKNOWN):
             values = {"ledger_state": None, "ledger_reason": "", "ledger_needed": None}
+    elif not (row.ledger_state == express_contracts.QUEUED and row.ledger_reason == contracts.IMPORTING) and not written:
+        frappe.db.commit()  # 不是本次领取了、也没写进 MR.ERP：别人的结论为准；这笔只加锁读过、没写，提交只是放掉行锁
+        return None
     _set(doctype, name, values)
     frappe.db.commit()
-    if values.get("ledger_state") in (express_contracts.WRITTEN, express_contracts.MISMATCH):
-        # 写进了 MR.ERP（含写入核不上）：排一次主档整读（公司接入 `mrerp.masters.after_write`：去重、只排队、出错只记日志不抛）
-        from pearnly_erp_portal.mrerp import masters  # 主档整读那一侧在写账之后才用到（同上，用到时导入）
-
-        masters.after_write(company.name)
+    return values
 
 
 def resolve_unknown(doctype, name, entered, docnum=None) -> bool:
@@ -385,11 +411,24 @@ def poll():
         for row in rows:
             if row.ledger_reason == contracts.IMPORTING:
                 if row.ledger_sent_at and frappe.utils.get_datetime(row.ledger_sent_at) < stale:
-                    _set(doctype, row.name, {"ledger_state": express_contracts.HELD,
-                                             "ledger_reason": f"{contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED"})
+                    _interrupted(doctype, row.name, stale)
             else:
+                # 列出时的旧值只决定排不排：任务领取时在行锁里按现值再核一次（:func:`_claim`：仍排队中、不在导入、已提交），
+                # 列出之后被转走的这一件领不到、什么都不改
                 dispatch(doctype, row.name)
         frappe.db.commit()
+
+
+def _interrupted(doctype, name, stale):
+    """巡检把进程死掉的「正在导入」转成结果不明：加锁按现值再核一次仍是超时的那次领取才改（④，11-28）。普通读列出之后导入刚
+    记成「已写入」、或这张已被重新领走的，按旧值改会把真结论盖成「结果不明」。"""
+    row = _row(doctype, name, ["status", "ledger_target", "ledger_state", "ledger_reason", "ledger_sent_at"], for_update=True)
+    if not row or row.status != "submitted" or row.ledger_target != contracts.LEDGER_MRERP \
+            or row.ledger_state != express_contracts.QUEUED or row.ledger_reason != contracts.IMPORTING \
+            or not row.ledger_sent_at or frappe.utils.get_datetime(row.ledger_sent_at) >= stale:
+        return False
+    _set(doctype, name, {"ledger_state": express_contracts.HELD, "ledger_reason": f"{contracts.UNKNOWN}: ERR_IMPORT_INTERRUPTED"})
+    return True
 
 
 __all__ = ["DIRECTIONS", "INVOICES", "STOCK", "answer", "dispatch", "handles", "picked", "picked_for", "poll", "prepare", "queue", "release_kick", "run", "send"]

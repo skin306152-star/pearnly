@@ -173,11 +173,7 @@ apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py	_attach_logo	File	
 apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py	ensure_default	ERP Company	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py	run	ERP MRERP Connection	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py	choose	ERP Company	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py	observe	ERP MRERP Connection	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py	run_read	ERP MRERP Connection	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py	run	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py	run	$doctype	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：MR.ERP 导入直写：领取加锁、导入前已提交，结论按导入结果写；作废核对在新事务里读；外部 IO 后的写回随 ④ 核
-apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py	run	ERP MRERP Connection	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：MR.ERP 导入直写：领取加锁、导入前已提交，结论按导入结果写；作废核对在新事务里读；外部 IO 后的写回随 ④ 核
 apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py	_attach_image	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py	save_members	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py	update	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清

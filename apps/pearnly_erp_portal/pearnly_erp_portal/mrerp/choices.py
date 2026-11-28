@@ -32,9 +32,9 @@ def company_row(company):
                                as_dict=True) if company else None
 
 
-def _options(connection):
-    row = frappe.db.get_value(connections.CONNECTION, connection, ["menu_options", "master_options"], as_dict=True) \
-        if connection else None
+def _options(connection, lock=False):
+    row = frappe.db.get_value(connections.CONNECTION, connection, ["menu_options", "master_options"], as_dict=True,
+                              for_update=lock) if connection else None
     return (row.menu_options, row.master_options) if row else (None, None)
 
 
@@ -104,10 +104,16 @@ def run_read(connection, account_set, manual=False):
 
 
 def observe(connection, account_set, pages, fields, error=None, master_error=None):
-    """存下这次读到的导入页选项与主档可用值（读取任务与导入共用）；调用方提交。"""
+    """存下这次读到的导入页选项与主档可用值（读取任务与导入共用）；调用方提交。
+
+    两栏是按账套键分的整份记录、整份写回：先加锁读（④ A2 #17，11-28）。同一条连接上两本账套同时导入 / 读取时，普通读拿到的是
+    本事务读视图里的旧整份，后写的那路会把先写的那本刚存的选项盖掉；加锁读到最新的整份，只并本账套那一格（共用层 `observe`
+    只改 ``account_set`` 那一项）。"""
     if not account_set or not connection:
         return
-    menu_options, master_options = _options(connection)
+    if not (pages or error) and not (fields is not None or error or master_error):
+        return  # 这次什么都没读到：不写，也不锁连接行
+    menu_options, master_options = _options(connection, lock=True)
     at = now_datetime().isoformat()
     values = {}
     if pages or error:
