@@ -1,0 +1,9 @@
+# check-unlocked-overwrite.py --extended 三类新写法里确认是误报的（11-28 B ③）。每行：文件<TAB>函数<TAB>表<TAB>类别<TAB>原因。只许删不许无理由加。
+apps/pearnly_control/pearnly_control/billing.py	charge	Pearnly Wallet	跨函数	误报：钱包来自 wallet_of(tenant)（create=True 分支是 get_doc(..., for_update=True) 加锁读），只有 create=False 的只读分支是普通读，扣费不走它（11-28 B ③ 管钱路径逐处判）
+apps/pearnly_core/pearnly_core/assistant/ledger.py	of_session	$SESSION	跨函数	误报：current(row, store=False) 只读不写（11-28 B ③）
+apps/pearnly_core/pearnly_core/assistant/ledger.py	of_task	$SESSION	跨函数	误报：current(row, store=False) 只读不写（11-28 B ③）
+apps/pearnly_cowork/pearnly_cowork/companies/automation.py	day_scope	Cowork Company	跨函数	误报：name 是主档编号（主键），tasks.books_of 只拿它查账套
+apps/pearnly_cowork/pearnly_cowork/companies/automation.py	on_readback	Cowork Company	跨函数	误报：传给 documents / tasks 的 company 是主档编号（主键），只拿它查票与账套，不写回读出的值；档位行本身已改加锁读（11-28 B ③）
+apps/pearnly_dms/pearnly_dms/intake/customer_attempt.py	_settle	Pearnly Push Log	判断	误报：在 Redis 锁里先 commit 结束读视图再读状态，读到的是最新值（11-28 B ③）
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py	choose_book	ERP Express Choice	跨函数	误报：记的是用户这次选的账套（从现查的选项里取），按公司 + 主题键覆盖写，后选的为准是本意（11-28 B ③）
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	void	$doctype	跨函数	误报：单据行在作废事务里已锁、账本栏改为加锁读（11-28 B ③ 已修）；写回的是已写入的出入库单的作废载荷与件号，单据内容写入后不变

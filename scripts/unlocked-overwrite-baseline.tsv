@@ -1,0 +1,199 @@
+# check-unlocked-overwrite.py --extended 三类新写法的存量基线（11-28 B ③ 全仓扫描）：只拦新增，基线只许减少；修好一处同一提交删一行。
+# 每行：文件<TAB>函数<TAB>表<TAB>类别<TAB>归属（② / ④ / 随各自改动）<TAB>初判（真 / 未判；误报不进这里）<TAB>原因。
+apps/pearnly_control/pearnly_control/account/member_service.py	link_line	Pearnly LINE Login Link	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/account/repool.py	move	Pearnly Issue	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/account/repool.py	move	Pearnly Issue	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/account/repool.py	move	Pearnly Provisioning Request	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/features.py	sync_features	Pearnly Feature	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/issues.py	_activate_locked	Pearnly Tenant	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/line_admin.py	upsert_channel	Pearnly LINE Channel	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/provisioning.py	queue_assistant_config	Pearnly Provisioning Request	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/provisioning.py	queue_ocr_engine	Pearnly Provisioning Request	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/teardown.py	api_plan_teardown	Pearnly Provisioning Request	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/teardown.py	purge_records	Pearnly Issue	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_control/pearnly_control/teardown.py	purge_records	Pearnly Provisioning Request	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/account/line_login.py	reconcile	Pearnly LINE Binding	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/account/line_login.py	revoke_stale_line_sessions	Pearnly Session	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/account/line_login.py	sync_user	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/files.py	upload	$SESSION	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/ledger.py	choose	$SESSION	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/notices.py	post	$SESSION	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/push.py	send	Pearnly Assistant Push Subscription	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/push.py	send	Pearnly Assistant Push Subscription	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/push.py	subscribe	Pearnly Assistant Push Subscription	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/sessions.py	confirm	Pearnly Assistant Tool Run	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/sessions.py	file_chosen	$SESSION	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/sessions.py	move	$SESSION	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/sessions.py	send	$SESSION	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/sessions.py	send	$SESSION	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/sessions.py	send	$SESSION	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/stopped.py	record	Pearnly Assistant Stopped Reply	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/toolrun.py	decide	Pearnly Assistant Tool Run	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/assistant/toolrun.py	decide	Pearnly Assistant Tool Run	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/cc_desktop/devices.py	touch	$DEVICE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/execution/work.py	run	Pearnly OCR Work	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/exports/service.py	run	Pearnly Export	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/express_operator/api.py	start	Pearnly Express Operator Task	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：代录任务：经 tasks._own（锁行名、普通 get_doc）读出再写；随 ② 改根函数
+apps/pearnly_core/pearnly_core/identity.py	_callback	Pearnly Identity	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/line_binding.py	bind	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/line_binding.py	unbind	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/line_session.py	clear_session	Pearnly LINE Session	判断	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_core/pearnly_core/line_session.py	consume_nonce	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_core/pearnly_core/line_session.py	record_booking_attempt	Pearnly LINE Session	借函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_core/pearnly_core/line_session.py	release_rejected_booking_attempt	Pearnly LINE Session	判断	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_core/pearnly_core/line_session.py	update_booking_attempt	Pearnly LINE Session	借函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_core/pearnly_core/provisioning.py	_grant	Custom DocPerm	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/provisioning.py	ensure_feature_roles	User	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/sessions.py	register_session	Pearnly Session	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/workspace.py	apply_to_new_user	User	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/workspace.py	apply_to_site_users	User	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_core/pearnly_core/workspace.py	clear_dangling_default_workspace	User	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	choice_remove	Cowork Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	choice_save	Cowork Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	default_scope	Cowork Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	preview_choice_remove	Cowork Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	preview_choice_save	Cowork Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py	profile	Cowork Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/into_document.py	merge	Cowork Source File	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/into_document.py	run	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py	_continue_group	Cowork OCR History	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/companies/choices.py	set_value	Cowork Company Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/companies/service.py	create	Cowork Company	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/companion/credentials.py	full_report_due	$DOCTYPE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/companion/credentials.py	request_full_report	$DOCTYPE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/folder_intake/company_folders.py	bind	Cowork Company Folder	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/folder_intake/company_folders.py	unbind	Cowork Company Folder	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py	_push	Cowork OCR History	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：同 push_one
+apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py	_push_step	Cowork Folder Intake File	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：同 push_one
+apps/pearnly_cowork/pearnly_cowork/folder_intake/push.py	push_one	Cowork OCR History	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：文件夹自动推送：普通读票上的推送状态 / 改单次数判「人推过没有」，再交推送服务；推送服务自己的幂等是否兜住待核；带外部推送，随 ④
+apps/pearnly_cowork/pearnly_cowork/folder_intake/rules.py	delete	Cowork Folder Intake File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/history/removal.py	delete	$DOCTYPE	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/line/ask.py	arrive	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/ask.py	step	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/ask.py	text	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/ask.py	touch	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/flow.py	_clear	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/flow.py	_save	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/flow.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/line/flow.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_cowork/pearnly_cowork/ocr/execution/service.py	submit	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py	_persist	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py	run	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/pos_import/service.py	admit	Cowork Source File	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/push/automation/sweep.py	run	Cowork OCR History	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：自动推送扫描：按普通读出的候选逐张判推，判与推的幂等待核；随 ④
+apps/pearnly_cowork/pearnly_cowork/recon_center/rerun.py	drop	Cowork Recon Rerun	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/reconciliation/revision.py	income_save	$ROW	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/work/boards.py	save_members	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/work/boards.py	update	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/work/service.py	detach	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/work/service.py	move	$CARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/work/service.py	save_fields	$FIELD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_cowork/pearnly_cowork/work/service.py	save_rules	$RULE	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/adapter/admin_pool.py	note_status	DMS System Account	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/adapter/snapshot_sync.py	refresh	DMS Read Snapshot	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/booking/booking_ledger.py	log_booking	Pearnly Push Log	判断	④	真	存量（B ③ 11-28 全仓扫描）：订车写入日志：先普通查有没有再更新 / 插入（原有问题，与隔离开关无关），并发补登可能多一行；随 ④
+apps/pearnly_dms/pearnly_dms/booking/claim_recovery.py	recover	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/claim_recovery.py	schedule_due	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py	_execute_owned_booking	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py	handle_postback	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	_handle_postback	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	_qa	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	_to_preview	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	handle_image	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py	handle_text	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/delivery.py	deliver	DMS Booking Delivery	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/booking/delivery.py	retain	DMS Booking Delivery	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/booking/recovery.py	reconcile	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/booking/recovery.py	reconcile_record	DMS Booking Delivery	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/connections/api.py	_save_write_accounts	DMS System Account	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/connections/api.py	_set_read_account	Pearnly ERP Endpoint	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/connections/api.py	save_connection	Pearnly ERP Endpoint	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/editor/booking_edit.py	load	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/editor/booking_edit.py	save	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/editor/customer_edit.py	save	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/customer_attempt.py	finish	Pearnly Push Log	判断	④	未判	存量（B ③ 11-28 全仓扫描）：DMS 客户写入日志收尾：外部写入后按结果写日志；随 ④ 核
+apps/pearnly_dms/pearnly_dms/intake/flow.py	_dms_failed	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/flow.py	_offer_check	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/flow.py	_recognize_image	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/flow.py	execute	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/flow.py	handle_postback	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/flow.py	merge_session	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/flow.py	run_dedup	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/intake/id_card.py	match_customer	DMS Customer Link	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_dms/pearnly_dms/line/text_router.py	route	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_dms/pearnly_dms/menu/menu_flow.py	after_customer_saved	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/access/setup.py	migrate_members	User	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py	create_sale	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py	attach_main	ERP POS Terminal	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/cashier/terminals.py	ensure_default	ERP POS Terminal	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py	send	ERP Collection	跨函数	②	真	存量（B ③ 11-28 全仓扫描）：收款写账件：放行时普通读收款记录排件、写回件号；随 ② E11（collection._own 先加锁后读）改
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	apply_balances	ERP Receivable Snapshot	判断	②	未判	存量（B ③ 11-28 全仓扫描）：ERP 收款：经 collection._own（先 exists 再锁）读出再写；随 ② E11 改
+apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	replace	ERP Receivable Snapshot	判断	④	真	存量（B ③ 11-28 全仓扫描）：应收快照：普通读出现有行再按 read_at 比新旧插入 / 更新 / 删除，两次读回并发时旧结果可能盖新结果；随 ④（带外部读的入口）按账套加锁
+apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	answer	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	remember_party_account	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py	retry	$doctype	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py	forget	ERP Express Choice	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	_parties	$doctype	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	_products	$doctype	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	_sync_once	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	_upsert	$doctype	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	_upsert	$doctype	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	advance	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	kick	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	land	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	start	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py	sync	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py	_submit_intake	$DOCTYPE	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py	document	ERP POS Day Summary	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py	save_answers	ERP Express Choice	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py	save_mrerp	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/printed.py	set_total	$doctype	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	_send	$doctype	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：管钱路径（写账件）：开头 operator_owned 普通读建了读视图，jobs.of_source 普通读出的件与件数用于判「有没有没撤销的件」与请求号编号；单据行锁与 _ledger_seen 加锁复核挡住了双排，残余风险是撤旧件重交时读到旧状态停住（低）；后台准备途中有提交与外部读，随 ④ 改
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	link_party	$party_doctype	判断	④	真	存量（B ③ 11-28 全仓扫描）：写账回执后挂对方码：普通读判「已挂没有」，并发两张回执可能各挂一次（同码，低）；随 ④ 回执路径改
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	link_products	ERP Product	判断	④	真	存量（B ③ 11-28 全仓扫描）：同 link_party（物料码）
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	poll	$doctype	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：写账件：每分钟巡检按普通读出的行写 ledger_reason，与回执并发时会把已写入单的原因改回排队说明（低，只是显示）；随 ④ 后台巡检改
+apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	queue	$doctype	判断	②	真	存量（B ③ 11-28 全仓扫描）：写账件：提交事务里普通读 ledger_state 判要不要排；同一张单的提交由 Redis 锁串行，残余风险低；随 ② E7/E9（post 拿锁后的读视图）一起改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	_receive_document	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	_drop	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	run	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit	ERP LINE Intake	借函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	submit_chat	ERP LINE Intake	借函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	_cancel_step	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	store_voucher	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	text	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	cancel	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py	start	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py	search	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	_drive	ERP LINE Intake	跨函数	②	未判	存量（B ③ 11-28 全仓扫描）：ERP LINE 卡片：经 intake._owned（先 exists 再锁、普通 get_doc）读出再写；随 ② E10 改
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	begin	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py	text	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	_import_unit	ERP Stock Count Item	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	_reactivate	ERP Product	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	add_entry	ERP Stock Count Item	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	adjustment_draft	ERP Stock Count	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	adjustment_released	ERP Stock Count	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	apply_import	ERP Stock Count Item	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py	close_count	ERP Stock Count	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py	_attach_logo	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py	ensure_default	ERP Company	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py	run	ERP MRERP Connection	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py	choose	ERP Company	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py	observe	ERP MRERP Connection	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py	run_read	ERP MRERP Connection	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py	run	ERP Company	跨函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py	run	$doctype	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：MR.ERP 导入直写：领取加锁、导入前已提交，结论按导入结果写；作废核对在新事务里读；外部 IO 后的写回随 ④ 核
+apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py	run	ERP MRERP Connection	跨函数	④	未判	存量（B ③ 11-28 全仓扫描）：MR.ERP 导入直写：领取加锁、导入前已提交，结论按导入结果写；作废核对在新事务里读；外部 IO 后的写回随 ④ 核
+apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py	_attach_image	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py	save_members	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/work/boards.py	update	$BOARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py	detach	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py	move	$CARD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py	save_fields	$FIELD	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
+apps/pearnly_erp_portal/pearnly_erp_portal/work/service.py	save_rules	$RULE	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
