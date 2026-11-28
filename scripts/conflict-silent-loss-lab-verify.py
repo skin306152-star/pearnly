@@ -540,8 +540,15 @@ def line_card_submit_vs_cancel(site, rounds, results):
         frappe.db.commit()
 
 
+_FACTS_BEFORE = {}  # 收款格改账套资料之前的原值（按账套键）：收尾照 `scripts/flows/collection_lib.restore` 还原
+
+
 def _collection_seed():
-    """收款格的数据（同 `scripts/flows/collection_lib.seed` 的做法）：收款员、账套收款类型、一位本格专用客户与一张未收清发票。"""
+    """收款格的数据（同 `scripts/flows/collection_lib.seed` 的做法）：收款员、账套收款类型、一位本格专用客户与一张未收清发票。
+    改账套资料前记下原值（`_FACTS_BEFORE`），`_collection_cleanup` 还原：不留一份只有收款类型的资料给同一栈上别的流程
+    （如 erp_express_void_while_sending 看到「已有资料」就不铺科目）。"""
+    import copy
+
     from pearnly_erp_portal.collection import service, snapshot
     from pearnly_erp_portal.express import facts
     from pearnly_erp_portal.masters import company as companies
@@ -552,6 +559,8 @@ def _collection_seed():
     collector = erp_user()  # 实验栈的会计账号带「收款员」岗位
     row = frappe.db.get_value("ERP Company", co, ["name", "company_name", "tax_id", "branch"], as_dict=True)
     book = service.book_for(row, frappe.utils.nowdate())
+    if book["key"] not in _FACTS_BEFORE:
+        _FACTS_BEFORE[book["key"]] = copy.deepcopy(facts.load(book["key"]))
     data = dict(facts.load(book["key"]) or {})
     data.update(receipt_types=[{"code": "02", "prefix": "CH", "name": "รับเงินสด", "name_en": "", "bank": "", "account": "1111-00",
                                 "account_issue": ""}], cash_account="1111-00",
@@ -584,6 +593,18 @@ def _collection_cleanup(collector, book_key, customer):
     frappe.set_user("Administrator")
     frappe.db.delete("ERP Receivable Snapshot", {"book_key": book_key, "customer": customer})
     frappe.db.commit()
+    if book_key in _FACTS_BEFORE:
+        from pearnly_erp_portal.express import facts
+
+        before = _FACTS_BEFORE.pop(book_key)
+        if before is not None:
+            facts.save(book_key, before)
+        else:
+            # 账套原来没读回过资料：还原成「没有」（同 collection_lib.restore）
+            try:
+                os.remove(facts._path(book_key))
+            except FileNotFoundError:
+                pass
 
 
 def collection_edit_vs_release(site, rounds, results):
