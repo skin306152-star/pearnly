@@ -142,7 +142,15 @@ try {
       for (const el of document.querySelectorAll("body *")) {
         if (el.clientHeight < innerHeight / 2 || el.scrollWidth <= el.clientWidth + 1) continue;
         if (!/auto|scroll/.test(getComputedStyle(el).overflowX) || el.closest(".aui-md, pre")) continue;  // 回复里的表格、代码块本就横滚
-        out.push((el.getAttribute("data-slot") || el.tagName.toLowerCase() + "." + String(el.className).split(" ")[0]) + " " + el.scrollWidth + " > " + el.clientWidth);
+        // 说出伸出去最远的那个元素（查根因用；svg 内部的形状不算）
+        const edge = el.getBoundingClientRect().right; let far = null, farRight = edge + 1;
+        for (const kid of el.querySelectorAll("*")) {
+          if (kid instanceof SVGElement && !(kid instanceof SVGSVGElement)) continue;
+          const right = kid.getBoundingClientRect().right;
+          if (right > farRight) { far = kid; farRight = right; }
+        }
+        const label = (e) => e.getAttribute("data-slot") || e.tagName.toLowerCase() + "." + String(e.className?.baseVal ?? e.className).split(" ")[0];
+        out.push(label(el) + " " + el.scrollWidth + " > " + el.clientWidth + (far ? " (" + label(far) + " right " + Math.round(farRight - edge) + "px)" : ""));
       }
       return out; })()`, returnByValue: true }, sessionId).catch(() => ({})) : null;
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
