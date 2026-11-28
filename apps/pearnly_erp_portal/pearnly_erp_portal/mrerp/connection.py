@@ -93,14 +93,17 @@ def main_name():
 def _when(value) -> str:
     """授权时刻（站点时区的裸时间）→ RFC3339 UTC，页面按设备时区显示到时分（同 Cowork `mrerp_login._when`）；空的回空。
     原先给 ``str()`` 原样，CC 设置 → 连接显示成「2026-11-28 11:08:35.095638」（11-28）。"""
-    from pearnly_core.assistant import contracts as shared
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
 
     if not value:
         return ""
     try:
-        return shared.utc_iso(value, frappe.utils.get_system_timezone())
+        moment = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).strip())
+        moment = moment.replace(tzinfo=ZoneInfo(frappe.utils.get_system_timezone())).astimezone(timezone.utc)
     except (TypeError, ValueError):
         return ""
+    return moment.isoformat().replace("+00:00", "Z")
 
 
 def record(name, main=None) -> dict:
