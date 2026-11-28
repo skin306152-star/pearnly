@@ -1376,6 +1376,7 @@ No computer can write this account set	没有能写此账套的电脑	ไม่�
 Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 会計データを読み取り中	express.reason.reading
 Computer offline	电脑离线	เครื่องออฟไลน์	パソコンがオフライン	express.reason.offline
 Written to Express after it was voided	作废后已写进 Express	บันทึกเข้า Express หลังยกเลิก	取消後に Express に書き込まれました	express.reason.voidedAfterWrite
+Written to Express, needs manual handling	已写进 Express，需人工处理	บันทึกเข้า Express แล้ว ต้องดำเนินการด้วยตนเอง	Express に書き込み済み、手動処理が必要です	express.reason.writtenNeedsHandling
 Check mismatch	核对不一致	ตรวจสอบไม่ตรงกัน	照合不一致	express.reason.mismatch
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	express.reason.periodLocked
 Date outside the account set period	日期不在账套期间内	วันที่อยู่นอกงวดของชุดบัญชี	日付が会計データの期間外です	express.reason.periodOutside
@@ -1733,6 +1734,9 @@ The warehouse has no matching Express warehouse	仓库在 Express 里没有对�
 This document is in an Express operator entry	单据在代录中	เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express	この書類は Express の代行入力中です	express.reason.operatorOwned
 The original day summary was handled manually in Express	原日汇总已在 Express 手工处理	สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว	元の日次集計は Express で手動処理済みです	express.reason.refundOriginalManual
 Handled manually in Express	已在 Express 手工处理	จัดการด้วยมือใน Express แล้ว	Express で手動処理済み	express.state.handled
+Written to Express by an earlier entry: {0}	之前的写入已写进 Express：{0}	รายการก่อนหน้าบันทึกเข้า Express แล้ว: {0}	以前の書き込みが Express に記録されました：{0}	express.comment.writtenEarlier
+Written to Express after the document changed: {0}	单据变更后写进了 Express：{0}	บันทึกเข้า Express หลังเอกสารเปลี่ยนแปลง: {0}	書類の変更後に Express に書き込まれました：{0}	express.comment.writtenAfterChange
+Written to Express twice: earlier {0}, current {1}	两次写进了 Express：之前 {0}，当前 {1}	บันทึกเข้า Express สองครั้ง: ก่อนหน้า {0} ปัจจุบัน {1}	Express に2回書き込まれました：以前 {0}、現在 {1}	express.comment.writtenTwice
 Mark as handled in Express	标记为已在 Express 手工处理	ทำเครื่องหมายว่าจัดการใน Express แล้ว	Express で処理済みにする	express.action.markHandled
 Refund to write	待写退货	รอบันทึกการคืน	返品書き込み待ち	express.state.refundPending
 Refunds to write	待写退货	การคืนที่รอบันทึก	書き込み待ちの返品	express.pendingRefunds

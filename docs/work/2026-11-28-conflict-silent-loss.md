@@ -407,8 +407,8 @@
   - 回执开头加锁读单据（`status`、`ledger_state`、`ledger_job`、`ledger_docnum`、`ledger_reason`）。单据还没记上件的（刚交进队列那一次，`_send` 先 `enqueue` 后记件）照旧算现在那件。
   - 不是现在那件、或单据已因迟到写成转了人工的：没写成的回报不盖（现在那件为准）；写成的转人工（`_hold_written`）。
   - 现在那件写成、而单据已不在等它（`_awaited` 为假）：同样转人工。在等 = 排队中 / 写入中；停下且不是本条的原因（这件自己转人工后补报写成：结果不明 `LOST`、代录半截单号——共用通道只收这几种迟到的成功；单据有件时别的路径不会把它改成停下，`_send` 见有件就退出、答题与再写一次都先撤件）；已写入且单号相同（回执重放）。
-  - 转人工沿用 MR.ERP 第三种（de4204022）的处理：`held` + 结果不明码，件名与单号记在单据上，记一条错误日志（`ERP Express write landed after the document moved on`，带原状态、原来那件、两边单号）。码是共用通道「结果不明」（`cc_desktop.jobs.LOST`）开头、小写后缀：`contracts.MOVED_DURING_WRITE = "cc_desktop.result_unknown:moved_during_write"`。不用 MR.ERP 那个 `mrerp.result_unknown: ERR_…`：它的文案写「去 MR.ERP 核对」，而大写带空格的码在 Express 单据页 / 待处理会原样露出；小写码按现有规则只显示状态（「失败」）与 Express 单号，不新造文案、不新造状态。作废了的单照「写进去后作废」（`VOIDED_AFTER_WRITE`）；现在那件写成 × 作废照原路径不变（出入库单排原生作废、采购 / 销售转人工）。转人工时不挂对方档码、不排主档同步（写进去的是旧载荷，交人核）。没给 CC 对话补一句「到点结论」（只有「录进 / 没录进」两种说法，都不对），记为已知。
-  - **两张单号**：不加字段。写账件表（`Pearnly CC Job`）里每件自己记着 `docnum`、`status`、来源单据；单据的 `ledger_job` 指着最后写成的那件、`ledger_docnum` 是它的单号；被领走的现在那件之后也写成时，回执照同一处再记一次（单据改指它与它的单号），旧件那张仍在旧件那一行与第一条错误日志里，第二条错误日志两张都带。单据页只显示一张（显示两张要新文案，没做）；写账件表只有系统管理员能看。
+  - 转人工沿用 MR.ERP 第三种（de4204022）的处理：`held` + 结果不明码，件名与单号记在单据上，记一条错误日志（`ERP Express write landed after the document moved on`，带原状态、原来那件、两边单号）。码是共用通道「结果不明」（`cc_desktop.jobs.LOST`）开头、小写后缀：`contracts.MOVED_DURING_WRITE = "cc_desktop.result_unknown:moved_during_write"`。不用 MR.ERP 那个 `mrerp.result_unknown: ERR_…`：它的文案写「去 MR.ERP 核对」，而大写带空格的码在 Express 单据页 / 待处理会原样露出；小写码不原样露出；原因怎么说、单据时间线记什么见下面「第二轮补充」，不新造状态。作废了的单照「写进去后作废」（`VOIDED_AFTER_WRITE`）；现在那件写成 × 作废照原路径不变（出入库单排原生作废、采购 / 销售转人工）。转人工时不挂对方档码、不排主档同步（写进去的是旧载荷，交人核）。没给 CC 对话补一句「到点结论」（只有「录进 / 没录进」两种说法，都不对），记为已知。
+  - **两张单号**：不加字段。写账件表（`Pearnly CC Job`）里每件自己记着 `docnum`、`status`、来源单据；单据的 `ledger_job` 指着最后写成的那件、`ledger_docnum` 是它的单号；被领走的现在那件之后也写成时，回执照同一处再记一次（单据改指它与它的单号），旧件那张仍在旧件那一行与第一条错误日志里，第二条错误日志两张都带。单据页 Express 弹窗只显示一张；两张都记在单据时间线的原生评论里（第二轮补充）；写账件表只有系统管理员能看。
   - **领单兜底**（`still_wanted`）：加锁读多读 `ledger_job`，单据记着别的件时这件不交电脑（共用层照现有一支撤成 `voided`）。还没记上件的照旧要。
   - **已手工处理**（`api.mark_handled`，收银日汇总的出口）：原来对「不是 done 的件」一律撤，`done` 不是状态名，记着写成 / 已撤的件时撤件会被共用通道拒（`cc_desktop.job_busy`），按钮点了报错；改成只跳过 `success` / `cancelled`，电脑正在写的照旧拒。
 - **核实：旧件被换掉时不会再被电脑领走写账**（依据都在修前代码里，本条另加 `still_wanted` 一道）：换件的路径都先撤旧件——再写一次 `api.py:429`、选对方档 `api.py:358`、已手工处理 `api.py:279`、代录再录 `push.py:385`、断开 `push.py:611`、作废 `push.py:648` 与 `_cancel_unwritten`（`push.py:666`，加锁按来源单据撤全部排队中 / 转人工的）；`jobs.cancel` 只撤排队中 / 转人工（`jobs.py:178`），领走的撤不了、换件那笔整笔失败；结果不明的「再写一次」是同一件重排（`api.py:426`，`jobs.retry`），不是换件。`_send` 锁里见到没撤销的件就接回它、不再排（`push.py:535–540`）。撤掉的件不会再被领：排头只取排队中，领单时加锁重读、不是排队中就跳过（`jobs.py:403`）；也收不进回执（`jobs.py:548–550`：只认本机领着的、本机钉着的结果不明、本机代录半截补报）。领单前 `still_wanted`（`push.py:714`）加锁读：作废的、单据记着别的件的都不交（`jobs.py:418` 撤成 `voided`）。所以按现有路径造不出「旧件被换掉后还写成」：迟到的回执只可能来自没被撤、仍被领着或钉着的件，本条是兜底，实验格靠直接改库造出这种状态。按 MR.ERP 账本改道时（`_send` 走 `mrerp_push.send`，不动 `ledger_job`）若 Express 那件正被领着，写成后现在落在「单据已不在等它」那支转人工——没在实验栈造过。
@@ -421,6 +421,44 @@
 | `erp.stale_job_receipt`（每轮一张采购单、两件真写账件。A：旧件 J1 被领着，本连接是电脑回报 J1 写成那笔事务、读视图先建好，另一路把单据换成新件 J2 排上并提交，本连接记 J1 写成；B：J2 被领着，另一路把单据改成失败并提交，本连接记 J2 写成） | 0/10（A 记成已写入 + J1、J2 照样交电脑（兜底说要）；B 照记已写入） | 10/10（A 转人工、J1 单号留着、J2 仍排着但领单兜底不要、再交不排第三件；B 转人工、J2 单号记上；两张单号各在写账件表自己那一行） |
 
 实验格换的替身：主档同步（`masters.queue / forget`）、挂对方档 / 存货码（只修前会走到）；回执直接调 `push.job_changed`（写账件行先改成 success + 单号，同 `jobs.acknowledge` 记成功后交回产品那一份），没走电脑的 `acknowledge` 网络入口；建单时把公司临时设成不接 Express（不让后台自动排件），跑完复原。巡检、再写一次、选一次只在离线验。跑完测试单据作废、写账件与错误日志清掉（核过为 0），ERP 栈挂在本工作树。
+
+#### 第二轮补充（主会话 11-28）：时间线评论与「结果不明」落档（70aa79a2f）
+
+- **时间线评论**：照「已在 Express 手工处理」那条（`api.mark_handled`：`frappe.get_doc(...).add_comment("Comment", _(键))`，谁、何时由 Frappe 原生时间线带出，四语按记的那一刻的用户语言走术语表）。转人工（`MOVED_DURING_WRITE`）时 `_hold_written` 记一条；作废的（写进去后作废）不另记。旧 / 现在按写账件建的先后（`Pearnly CC Job.creation`，单据上记着的那件 vs 这次写成的这件）：只有旧件写成 →「之前的写入已写进 Express：{旧单号}」；只有现在那件写成（单据被改过）→「单据变更后写进了 Express：{单号}」；单据上已记着另一张 →「两次写进了 Express：之前 {旧}，当前 {现}」。新增三条词条（`express.comment.writtenEarlier / writtenAfterChange / writtenTwice`，ERP 术语表四语，`i18n-build.py` 重新生成翻译包）。`check-copy.py --base 1fca58025 --report`：新增 3、改动 0、拦截 0、标黄 0（清单见本节末）。
+- **「结果不明」一家落档**（口径：结果不明不得显示成失败；一家 = 共用通道收回后转人工 `cc_desktop.result_unknown`（`LOST`）与 `…:moved_during_write`，判断 `contracts.result_unknown`；词用共用层现成的 `guide.reason.last_write_result_unknown`「结果不明 / ไม่ทราบผล / 結果不明 / Result unknown」）：
+
+| 入口 | 改前 | 改后 | 依据 |
+|---|---|---|---|
+| 单据页 Express 弹窗·原因栏 | 不显示（小写码一律隐去） | 结果不明 | `transactions.js:242` |
+| 单据页 Express 弹窗·状态栏 | 失败 | 失败（未改，见下） | `p.ledger_word` |
+| 列表 Express 列（采购 / 销售 / 出入库 / 收银小票） | 失败（写成的显示 Express 单号）；无原因悬浮 | 同左（未改，见下） | `purchase.js:69` 等 |
+| 列表筛选 | 按 `ledger_state` 分档，`held` 一档叫「失败」 | 同左（未改，见下） | `purchase-fields.js:8` |
+| 待处理（网页 / CC 右栏）原因 | 待处理 / 失败（`_BARE_CODE`） | 结果不明 | `pending.py:145` |
+| 待处理 `reason_code` | manual（不是 failed） | 同左 | `pending.py:118` |
+| LINE 回执 | 失败 · 待处理 | 失败 · 结果不明 | `line_cards.py:368` 经 `pending.reason_label` |
+| CC 推送结果 / 推送工具（`_outcome`、`push_documents`） | 迟到写成的：failed；收回的：unconfirmed | 两种都 unconfirmed（不再推，带单号） | `cc_tools.py:176/261/336` |
+| CC 列单 `result_unknown` | 只认收回的 | 两种都带 | `cc_tools.py` 列单 |
+| CC 引导结果卡 | 迟到写成的：失败 | 留下 + 结果不明（unconfirmed → held） | `guide_documents.py:392` |
+| 写账前判定（CC 引导 / 计划） | 迟到写成的：写不了·已在写账件里 | 结果不明那一档（同 MR.ERP 结果不明） | `precheck.py:382` |
+| CC 核对工具 `erp_resolve_push_result` | 只收收回的（交原电脑核对） | 同左：迟到写成的回「没有要核对的」（单号已在单据上，交人在 Express 里处理） | `cc_tools.py` 核对 |
+
+- **没改、要主会话 / 用户定**：单据页状态栏、列表 Express 列、列表筛选、LINE 回执开头的**状态词**仍是「失败」。状态词是用户 11-22 统一定的四个（录入中 / 成功 / 失败 / 已取消，网页列表、详情、Express 弹窗、LINE 回执同一张表，`contracts.LEDGER_WORDS` 与 `transactions.js` 契约测试比对），「结果不明」不在里面；MR.ERP 的结果不明今天也是状态「失败」+ 原因一句。要在这几处把状态词改成「结果不明」，是给全产品加第五个状态词、筛选加一档（新文案），超出本条授权，没做。收款（`collection.push`）的收回转人工没在本条核。
+- **改了钉旧行为的断言**：test_erp_cc_companies `test_reason_labels_are_the_document_page_table` 原来断言 `cc_desktop.result_unknown` 说「失败 / 待处理」，按新口径改成「结果不明」（同时补 `…:moved_during_write`），其余小写码照旧。
+- **离线**：test_erp_express_direct `StaleJobReceipt` 改 3 条、新增 1 条（时间线评论：旧件写成一条带旧单号；现在那件再写成第二条两张都带；被改过的单写成一条（单据原记另一张时两张都带）；作废的不记；「结果不明」一家的原因、写账前判定档、单据页映射与共用层四语词条在）；test_erp_cc_chat_push 新增 1 条（迟到写成的推送结论 unconfirmed、带单号、不再推、列单带 result_unknown）。在 1fca58025 上：评论 2 条、档位 1 条、推送 1 条红（另 1 条因没有 `result_unknown` 报错）。修后 test_erp_express_direct 231、test_erp_cc_chat_push 41、test_erp_cc_companies 46、test_erp_collection 93、test_erp_mrerp_direct 58、test_erp_mrerp_collection 43、test_erp_pending_guide 13、test_erp_guide_documents 9、test_erp_write_precheck 34、test_line_receipt 21、test_stop_exits 11、test_check_copy 77、test_cc_desktop_channel 60、test_companion_contract 142 等过；check-architecture、check-unbounded-queries、check-unlocked-overwrite --extended（新增 0）、check-conflict-catch、check-stop-exits、i18n-build --check 过；`node --check transactions.js` 过。
+- **共用件**：`check-impact.py --base 1fca58025` 命中 `erp-transactions`（改了 `transactions.js` 单据页 Express 弹窗原因那一行）24 个入口：没在浏览器里逐个实测（只改了弹窗原因栏取词的一个分支，其余入口不经过它）——**没测到**，合入前要按闸门补。
+- **实验格**：`erp.stale_job_receipt` 加断言「A 后时间线一条只带旧单号、B 后第二条两张都带」。
+
+| 格 | 修前（1fca58025） | 修后（70aa79a2f） |
+|---|---|---|
+| `erp.stale_job_receipt`（同上；加时间线评论断言） | 0/10（转人工、单号、件表都对，单据时间线没有评论：两张单号只在写账件表与错误日志里） | 10/10（两段转人工、单号、件表同上；时间线两条评论，第二条两张单号都在）；测试单据、写账件、错误日志、评论清理后为 0 |
+
+`check-copy.py --base 1fca58025 --report` 新增文案清单：
+
+| 键 | 中文 | English | ไทย | 日本語 |
+|---|---|---|---|---|
+| express.comment.writtenEarlier | 之前的写入已写进 Express：{0} | Written to Express by an earlier entry: {0} | รายการก่อนหน้าบันทึกเข้า Express แล้ว: {0} | 以前の書き込みが Express に記録されました：{0} |
+| express.comment.writtenAfterChange | 单据变更后写进了 Express：{0} | Written to Express after the document changed: {0} | บันทึกเข้า Express หลังเอกสารเปลี่ยนแปลง: {0} | 書類の変更後に Express に書き込まれました：{0} |
+| express.comment.writtenTwice | 两次写进了 Express：之前 {0}，当前 {1} | Written to Express twice: earlier {0}, current {1} | บันทึกเข้า Express สองครั้ง: ก่อนหน้า {0} ปัจจุบัน {1} | Express に2回書き込まれました：以前 {0}、現在 {1} |
 
 ### ④ code-review（medium，24e3f1e3f...64b991eae）六条处理
 

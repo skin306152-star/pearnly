@@ -362,10 +362,11 @@ def _state(result):
 def _head(doctype, name) -> dict:
     kind = {push.PURCHASE: ("system_no", "supplier_name"), push.SALES: ("system_no", "buyer_name"),
             push.POS_DAY: ("name", ""), push.STOCK: ("doc_no", ""), push.COUNT: ("title", "")}[doctype]
-    fields = ["name", "ledger_state", "ledger_job", kind[0]] + ([kind[1]] if kind[1] else [])
+    fields = ["name", "ledger_state", "ledger_job", "ledger_reason", kind[0]] + ([kind[1]] if kind[1] else [])
     row = frappe.db.get_value(doctype, name, fields, as_dict=True) or {}
     return {"ref": str(row.get(kind[0]) or name), "party": str(row.get(kind[1]) or "") if kind[1] else "",
-            "ledger_state": row.get("ledger_state") or "", "ledger_job": row.get("ledger_job") or ""}
+            "ledger_state": row.get("ledger_state") or "", "ledger_job": row.get("ledger_job") or "",
+            "ledger_reason": row.get("ledger_reason") or ""}
 
 
 def document_view(doc_id, doctype, name, found=None) -> dict:
@@ -377,6 +378,9 @@ def document_view(doc_id, doctype, name, found=None) -> dict:
     if head["ledger_state"] in (contracts.WRITTEN, contracts.HANDLED):
         return {**view, "state": card.NOT_WRITABLE, "reason": WRITTEN}
     job = jobs.find_by_name(head["ledger_job"]) if head["ledger_job"] else None
+    if head["ledger_state"] == contracts.HELD and head.get("ledger_reason") == contracts.MOVED_DURING_WRITE:
+        # 迟到写成转人工：已写进 Express（单号在单据上），交人在 Express 里处理；不进「核对已入账 / 没入账」那一档（那个出口对它走不通）
+        return {**view, "state": card.NOT_WRITABLE, "reason": WRITTEN}
     if job and job.get("status") == "manual" and job.get("reason") == jobs.LOST:
         return {**view, "state": card.UNKNOWN, "reason": jobs.LOST}
     if job and job.get("status") not in ("manual", "cancelled"):

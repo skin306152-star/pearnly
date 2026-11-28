@@ -767,6 +767,28 @@ class PushTests(unittest.TestCase):
             self.assertEqual(tools._outcome(tools.KINDS["sales"], "SD-5"),
                              {"status": "entered", "docnum": "HS6910-001"})
 
+    def test_a_write_landed_after_the_document_moved_on_is_said_written_and_needs_a_person(self):
+        # 迟到写成转人工（`express.push.job_changed`，11-28 ④）：确实写进了 Express、单号在单据上。推送结论说已写进 + 单号 +
+        # 需人工处理（needs_person），不再推，也不引向「核对后记下」（erp_resolve_push_result 对它走不通）；列单在「要人处理」那档、
+        # 带单号与 needs_person，不带 result_unknown；引导结果按 entered 给单号与这句原因
+        doc(PURCHASE, "PUR-8", reason=E.MOVED_DURING_WRITE, ledger_job="J8", ledger_docnum="HP-OLD")
+        JOBS["J8"] = {"job": "J8", "status": "success", "request_key": "erp:purchase:PUR-8", "reason": "", "docnum": "HP-OLD"}
+        with translated():
+            out = call(tools.push_documents, documents=["P:PUR-8"])
+            outcome = tools._outcome(tools.KINDS["purchase"], "PUR-8")
+        self.assertEqual(out["results"][0]["status"], "entered")
+        self.assertEqual((outcome["status"], outcome["docnum"], outcome["needs_person"], outcome["reason_code"]),
+                         ("entered", "HP-OLD", True, E.MOVED_DURING_WRITE))
+        self.assertEqual(outcome["reason"], pending.reason_label(E.HELD, E.MOVED_DURING_WRITE))
+        self.assertEqual(CALLS, [])  # 不再推
+        row = next(row for row in call(tools.list_documents)["documents"] if row["name"] == "P:PUR-8")
+        self.assertEqual((row["last_push_status"], row["needs_person"], row["written"]), ("manual", True, {"docnum": "HP-OLD"}))
+        self.assertNotIn("result_unknown", row)
+        resolved = call(tools.resolve_push_result, document="P:PUR-8", entered=False)
+        self.assertEqual(resolved["status"], "not_saved")  # 核对出口对它不开（推送结论也不引向它）
+        pushed = next(t for t in tools.TOOLS if t["name"] == "erp_push_documents")["description"]
+        self.assertIn("with needs_person it was written after the document changed", pushed)
+
     def test_a_queued_job_waiting_for_a_computer_that_is_off_names_that_computer(self):
         # 11-25 两台电脑实测：钉在关着的原电脑上时页面只写「录入中」。CC 对话里的推送结论照单据页同一句说出在等哪台
         doc(SALES, "SD-7", state="queued", ledger_job="J7")

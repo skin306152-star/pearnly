@@ -1971,6 +1971,10 @@ Writing,写入中
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written,已写入
 Written to Express after it was voided,作废后已写进 Express
+Written to Express after the document changed: {0},单据变更后写进了 Express：{0}
+Written to Express by an earlier entry: {0},之前的写入已写进 Express：{0}
+"Written to Express twice: earlier {0}, current {1}",两次写进了 Express：之前 {0}，当前 {1}
+"Written to Express, needs manual handling",已写进 Express，需人工处理
 Written to Express: {0},已写入 Express：{0}
 Written to MR.ERP: {0}. Void it in MR.ERP under {1},已写进 MR.ERP：{0}，请在 MR.ERP「{1}」里作废
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
@@ -2474,6 +2478,9 @@ express.code.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 express.code.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 express.code.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+express.comment.writtenAfterChange,单据变更后写进了 Express：{0}
+express.comment.writtenEarlier,之前的写入已写进 Express：{0}
+express.comment.writtenTwice,两次写进了 Express：之前 {0}，当前 {1}
 express.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动写入
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,此科目码已是 Express 库存品的编码
 express.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
@@ -2598,6 +2605,7 @@ express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
 express.reason.voidedAfterWrite,作废后已写进 Express
 express.reason.warehouseUnmapped,仓库在 Express 里没有对应的仓库
+express.reason.writtenNeedsHandling,已写进 Express，需人工处理
 express.state.detached,未写入 Express（已断开）
 express.state.handled,已在 Express 手工处理
 express.state.refundPending,待写退货

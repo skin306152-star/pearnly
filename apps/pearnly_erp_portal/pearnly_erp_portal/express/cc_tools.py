@@ -173,6 +173,17 @@ def _unknown(job) -> bool:
     return bool(job) and job.get("status") == "manual" and job.get("reason") == jobs.LOST
 
 
+def _unconfirmed(row, job) -> bool:
+    """推送结论算「结果不明」：电脑那件收回后转人工（可能写进去了；核对后记下，`resolve_push_result`）。不再推。"""
+    return _unknown(job) or (row.get("ledger_state") == contracts.HELD and row.get("ledger_reason") == contracts.LOST)
+
+
+def _written_held(row) -> bool:
+    """迟到写成转人工（`push.job_changed`）：确实写进了 Express、单号在单据上，交人在 Express 里处理。说已写进 + 单号 + 需人工
+    处理，不再推、也没有「核对后记下」那一步（主会话 11-28）。"""
+    return row.get("ledger_state") == contracts.HELD and row.get("ledger_reason") == contracts.MOVED_DURING_WRITE
+
+
 CHOICE_WORDS = "express.reason.choiceNeeded"
 
 
@@ -248,11 +259,14 @@ def _outcome(kind, name) -> dict:
             return {"status": direct_push.NEEDS_CHOICE, **_reason(state, reason)}
         return {"status": direct_push.FAILED, **_reason(state, reason),
                 **({"push_again": True} if push_again(row.company, state, reason) else {})}
+    if _written_held(row):
+        return {"status": direct_push.ENTERED, "docnum": row.ledger_docnum or "", "needs_person": True,
+                **_reason(state, reason)}
     job = _job(row)
     if state == contracts.HELD:
         if push.operator_owned(kind.doctype, name):
             return {"status": WITH_OPERATOR, **_reason(state, contracts.OPERATOR_OWNED)}
-        if _unknown(job):
+        if _unconfirmed(row, job):
             return {"status": direct_push.UNCONFIRMED, **_reason(state, reason)}
         if api._view(kind.doctype, row).get("needed"):
             return {"status": direct_push.NEEDS_CHOICE, **_reason(state, reason)}
@@ -326,8 +340,9 @@ def _push_one(document, tool_input) -> dict:
         return {"document": document, "status": direct_push.FAILED, **_reason(contracts.HELD, contracts.DISCONNECTED)}
     if push.operator_owned(kind.doctype, name):
         return {"document": document, "status": WITH_OPERATOR, **_reason(contracts.HELD, contracts.OPERATOR_OWNED)}
-    if _unknown(_job(row)):
-        return {"document": document, **_outcome(kind, name)}  # 结果不明：不再推，核对后记下（erp_resolve_push_result）
+    if _unconfirmed(row, _job(row)) or _written_held(row):
+        # 结果不明：不再推，核对后记下（erp_resolve_push_result）；迟到写成转人工：已写进，不再推
+        return {"document": document, **_outcome(kind, name)}
     try:
         sent = _route(kind, name, row)
     except (frappe.ValidationError, frappe.PermissionError) as error:
@@ -401,14 +416,20 @@ def _list_row(kind, row, waiting=None) -> dict:
            "invoice_date": str(date)[:10] if date else "",
            "total_amount": contracts.money(row.get(kind.amount)) if kind.amount and row.get(kind.amount) not in (None, "")
            else "",
-           "last_push_status": LAST_STATUS.get(state, ""), "last_pushed_at": row.get("ledger_sent_at")}
+           "last_push_status": LAST_STATUS.get(state, ""),
+           "last_pushed_at": row.get("ledger_sent_at")}
     if kind.party:
         out["seller_name" if kind.code == "purchase" else "buyer_name"] = row.get(kind.party) or ""
     out.update(_reason(state, row.ledger_reason) if state else {})
     if state == contracts.QUEUED and row.ledger_job and row.ledger_job in (waiting or {}):
         out["waiting"] = waiting[row.ledger_job]
-    if state == contracts.HELD and row.ledger_job and _unknown(jobs.find_by_name(row.ledger_job)):
+    # 结果不明（同网页状态词的判据 `contracts.result_unknown`：Express 收回后转人工、MR.ERP 导入结果不明；迟到写成不算），
+    # 或单据上的原因还没跟上、电脑那件已收回转人工
+    if contracts.result_unknown(state, row.ledger_reason) or (
+            state == contracts.HELD and row.ledger_job and _unknown(jobs.find_by_name(row.ledger_job))):
         out["result_unknown"] = True
+    if _written_held(row):
+        out.update(needs_person=True, written=direct_push.filled({"docnum": row.ledger_docnum or ""}))
     if push_again(row.get("company"), state, row.ledger_reason):
         out["push_again"] = True
     if LAST_STATUS.get(state) == "success":
@@ -818,7 +839,8 @@ ROW_NOTE = ("name is the document id for the other tools (P purchase, S sales, M
             "summary, C stock count); invoice_no is its number in ERP. last_push_status is pending (on its way to "
             "Express), success (entered: written.docnum is its number in Express; mismatch means the computer's check "
             "after writing did not match; handled means a person handled it in Express), manual (stopped: reason says "
-            "why; result_unknown means Express may or may not have it) or failed. A document of a company whose books "
+            "why; result_unknown means Express may or may not have it; needs_person means it is in Express as "
+            "written.docnum and a person handles it there, do not push it again) or failed. A document of a company whose books "
             "are kept in Express is sent to Express by itself when it is submitted in ERP: one listed as pending needs "
             "nothing from the user. push_again means the stop clears when the document is pushed again (for "
             "example the MR.ERP sign-in was set up afterwards): when the user wants it entered, make the plan and push "
@@ -877,7 +899,8 @@ TOOLS = [
                     f"Up to {PUSH_MAX} at a time. After sending it waits up to about "
                     f"{direct_push.PUSH_WAIT_SECONDS} seconds for the result from Express, so do not wait or check "
                     "again yourself. Each result says entered (written into Express; docnum is its document number "
-                    "there, tell it to the user), queued (no result yet, or CC Desktop is offline: it is entered "
+                    "there, tell it to the user; with needs_person it was written after the document changed and a "
+                    "person handles it in Express: say so with the reason, do not push it again), queued (no result yet, or CC Desktop is offline: it is entered "
                     "later; check with erp_push_results when the user asks; " + EXPRESS_WAIT_NOTE + "), failed with a reason, "
                     + direct_push.unconfirmed_rule(PROGRAM, "erp_resolve_push_result")
                     + ", needs_choice (call pearnly_precheck for those documents, ask the user with ask_user and "

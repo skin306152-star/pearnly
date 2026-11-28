@@ -1624,7 +1624,7 @@ def stale_job_receipt(site, rounds, results):
        本连接接着记 J1 写成 → 修前盖成「已写入 + J1」（现在那件 J2 照样会被电脑领走、Express 里写第二张）；修后转人工（结果不明码）、
        J1 的单号留在单据上，J2 不动、领单前兜底不要它，再交不排第三件。
     B. 现在那件 J2 被领走，另一路把单据改成失败并提交；本连接记 J2 写成 → 修前照记已写入，修后转人工、J2 的单号记上；
-       两张单号各在写账件表自己那一行。主档同步、挂对方档码换成空函数（只修前会走到）。"""
+       两张单号各在写账件表自己那一行；单据时间线 A 记一条旧件单号、B 记一条两张单号。主档同步、挂对方档码换成空函数（只修前会走到）。"""
     from pearnly_core.cc_desktop import jobs
     from pearnly_erp_portal.express import contracts as E, masters, push
     from pearnly_erp_portal.masters import company as companies
@@ -1696,8 +1696,8 @@ def stale_job_receipt(site, rounds, results):
                 and (again or {}).get("status") != "sent" and count == 2
             # B：现在那件写成时单据已被改成别的状态
             frappe.db.set_value(jobs.JOB, second, {"status": "leased", "lease_device": f"{TAG}-pc"}, update_modified=False)
-            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_job": second, "ledger_reason": "",
-                                                      "ledger_docnum": None}, update_modified=False)
+            frappe.db.set_value(push.PURCHASE, name, {"ledger_state": "queued", "ledger_job": second, "ledger_reason": ""},
+                                update_modified=False)  # 旧件那张单号留在单据上（A 记下的）
             frappe.db.commit()
             read_view(push.PURCHASE)
             frappe.db.get_value(push.PURCHASE, name, "ledger_state")
@@ -1708,11 +1708,16 @@ def stale_job_receipt(site, rounds, results):
             row_b = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_docnum", "ledger_job"],
                                         as_dict=True)
             numbers = {job["job"]: job["docnum"] for job in jobs.of_source(push.PURCHASE, name)}
+            # 单据时间线（原生评论）：A 记旧件那张，B 两张都记
+            notes = frappe.get_all("Comment", filters={"reference_doctype": push.PURCHASE, "reference_name": name,
+                                                       "comment_type": "Comment"}, pluck="content", order_by="creation asc")
+            good_notes = len(notes) == 2 and old_no in notes[0] and new_no not in notes[0] and old_no in notes[1] \
+                and new_no in notes[1]
             good_b = (row_b.ledger_state, row_b.ledger_reason, row_b.ledger_docnum, row_b.ledger_job) == (
                 E.HELD, moved, new_no, second) and numbers == {first: old_no, second: new_no}
-            tally(results, "erp.stale_job_receipt", good_a and good_b,
+            tally(results, "erp.stale_job_receipt", good_a and good_b and good_notes,
                   {"a": dict(row), "second": second_view["status"], "still_wanted": wanted, "send": again, "jobs": count,
-                   "b": dict(row_b), "numbers": numbers})
+                   "b": dict(row_b), "numbers": numbers, "notes": notes})
     finally:
         for module, key, value in saved:
             setattr(module, key, value)
@@ -1723,6 +1728,8 @@ def stale_job_receipt(site, rounds, results):
                                 update_modified=False)
         if made_jobs:
             frappe.db.delete(jobs.JOB, {"name": ["in", made_jobs]})
+        if made:
+            frappe.db.delete("Comment", {"reference_doctype": push.PURCHASE, "reference_name": ["in", made]})
         frappe.db.sql("delete from `tabError Log` where error like %s", (f"%{TAG}-HP%",))
         frappe.db.set_value("ERP Company", co, "express_enabled", enabled)
         frappe.db.commit()

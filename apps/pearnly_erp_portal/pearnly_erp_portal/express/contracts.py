@@ -88,8 +88,17 @@ DISCONNECTED = "express.disconnected"  # 断开 Express 时还没写进去（`pu
 VOIDED_AFTER_WRITE = "express.voided_after_write"
 # 写成了、单据却已不在等这件的结果（被换掉的旧件迟到写成、现在那件写成时单据已被改成别的状态）：转人工、单号留着，同一张单不再
 # 自动写（`push.job_changed`，11-28 ④；同 MR.ERP 记结论遇到意外状态的 `mrerp.contracts.MOVED_DURING_IMPORT`）。以共用通道的
-# 「结果不明」码（`cc_desktop.jobs.LOST`）开头、后缀只有小写码：页面 / 待处理只写状态（不新造文案，不原样露码）
+# 「结果不明」码（:data:`LOST`）开头、后缀只有小写码（不原样露码），但不算结果不明（:func:`result_unknown` 排除它）。单号在单据上、确实写进去了：原因说「已写进
+# Express，需人工处理」（`pending.REASONS`），CC 说已写进 + 单号 + 需人工处理，不引向「核对后记下」那个出口（主会话 11-28）
 MOVED_DURING_WRITE = "cc_desktop.result_unknown:moved_during_write"
+# 共用通道收回后转人工的原因码（``cc_desktop.jobs.LOST``，可能写进去了）：状态词「结果不明」（:func:`result_unknown`）
+LOST = "cc_desktop.result_unknown"
+# 转人工时单据时间线里记的一条（原生评论，同「已在 Express 手工处理」）：只有一张单号时按它是旧件 / 现在那件写的；两张都在
+COMMENT_EARLIER = "express.comment.writtenEarlier"
+COMMENT_CHANGED = "express.comment.writtenAfterChange"
+COMMENT_TWICE = "express.comment.writtenTwice"
+
+
 CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试，判定 / 计划报「等电脑」；
 # 要人选的、单据本身不对的不自动重试
@@ -135,8 +144,11 @@ AUTO_RETRY_REASONS = POLL_REASONS
 
 
 def result_unknown(state, reason="") -> bool:
-    """停下的原因是结果不明（:data:`UNKNOWN_REASONS`，MR.ERP 的带 ``: <码>`` 后缀）。"""
-    return state == HELD and str(reason or "").startswith(UNKNOWN_REASONS)
+    """停下的原因是结果不明（:data:`UNKNOWN_REASONS`，MR.ERP 的带 ``: <码>`` 后缀；纯判断）。网页列表 / 详情 / Express 弹窗、
+    筛选、LINE 回执、待处理、导出、CC 列单与推送结果都从这里判（用户 11-28：「结果不明」单列成状态）。迟到写成
+    （:data:`MOVED_DURING_WRITE`：单号在单据上、确实写进去了）不算：它是「已写进 Express，需人工处理」，状态词照停下的「失败」。"""
+    reason = str(reason or "")
+    return state == HELD and reason.startswith(UNKNOWN_REASONS) and reason != MOVED_DURING_WRITE
 
 
 def ledger_word(state, reason="") -> str:
@@ -455,7 +467,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "ledger_settled", "ledger_word", "result_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
+__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "LOST", "MOVED_DURING_WRITE", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "ledger_settled", "ledger_word", "result_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "OFFLINE", "WAITING_COMPUTER", "waiting_computer", "waiting_computer_of", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

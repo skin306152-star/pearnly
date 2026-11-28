@@ -115,9 +115,12 @@
 	const LEDGER_WORDS = {queued: "Entering", written: "Succeeded", handled: "Succeeded", held: "Failed", failed: "Failed",
 		mismatch: "Failed", detached: "Failed"};
 	const AUTO_RETRY = ["express.account_set_missing", "express.no_writer", "express.masters_reading", "express.pos_refund_waiting"];
-	// 结果不明（写没写进去不知道）单列，不并进失败（主会话 11-25，同服务端 `RESULT_UNKNOWN` / `UNKNOWN_REASONS`）
+	// 结果不明（写没写进去不知道）单列，不并进失败（用户 11-28；同服务端 `express.contracts.result_unknown` / `UNKNOWN_REASONS`，
+	// 契约测试比对）。迟到写成（`MOVED_DURING_WRITE`：已写进 Express、需人工处理）不算，照停下的「失败」
 	const UNKNOWN_REASONS = ["cc_desktop.result_unknown", "mrerp.result_unknown"];
-	p.result_unknown = (state, reason) => state === "held" && UNKNOWN_REASONS.some(code => String(reason || "").startsWith(code));
+	const MOVED_DURING_WRITE = "cc_desktop.result_unknown:moved_during_write";
+	p.result_unknown = (state, reason) => state === "held" && reason !== MOVED_DURING_WRITE
+		&& UNKNOWN_REASONS.some(code => String(reason || "").startsWith(code));
 	p.ledger_word = (state, reason) => (!state ? "" : state === "held" && AUTO_RETRY.includes(reason || "") ? __("Entering")
 		: p.result_unknown(state, reason) ? __("Result unknown") : __(LEDGER_WORDS[state] || state));
 	const EXPRESS_REASONS = {
@@ -135,6 +138,7 @@
 		"express.printed_total_missing": "express.reason.printedTotalMissing",
 		"express.printed_total_mismatch": "express.reason.printedTotalMismatch",
 		"express.cc_desktop_not_connected": "No computer connected", "express.cc_desktop_offline": "express.reason.offline", "express.voided_after_write": "express.reason.voidedAfterWrite",
+		"cc_desktop.result_unknown:moved_during_write": "express.reason.writtenNeedsHandling",
 		"mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
 		"mrerp.account_busy": "mrerp.reason.accountBusy",
 		"mrerp.importing": "mrerp.reason.importing",

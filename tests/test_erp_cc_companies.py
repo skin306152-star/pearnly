@@ -1110,6 +1110,9 @@ class PendingTests(unittest.TestCase):
         for code in ("payload_version_outdated", "some_new_code"):
             self.assertEqual(pending.reason_label(E.FAILED, code), "Failed", code)
             self.assertEqual(pending.reason_label(E.HELD, code), "Pending", code)
+        # 迟到写成转人工：已写进 Express（单号在单据上），说「已写进 Express，需人工处理」
+        self.assertEqual(pending.reason_label(E.HELD, "cc_desktop.result_unknown:moved_during_write"),
+                         "express.reason.writtenNeedsHandling")
         self.assertIn("/^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason)", page)  # 单据页同一规则
         # 11-20 线上「需要处理」露出 low_confidence:vendor_missing：「码:细节」没有译文也不原样给人看
         self.assertEqual(pending.reason_label(E.HELD, "some_new_code:detail_a,detail_b"), "Pending")

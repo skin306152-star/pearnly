@@ -1971,6 +1971,10 @@ Writing,書き込み中
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written,書き込み済み
 Written to Express after it was voided,取消後に Express に書き込まれました
+Written to Express after the document changed: {0},書類の変更後に Express に書き込まれました：{0}
+Written to Express by an earlier entry: {0},以前の書き込みが Express に記録されました：{0}
+"Written to Express twice: earlier {0}, current {1}",Express に2回書き込まれました：以前 {0}、現在 {1}
+"Written to Express, needs manual handling",Express に書き込み済み、手動処理が必要です
 Written to Express: {0},Express に書き込みました：{0}
 Written to MR.ERP: {0}. Void it in MR.ERP under {1},MR.ERP に書き込み済み：{0}。MR.ERP の「{1}」で取り消してください
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
@@ -2474,6 +2478,9 @@ express.code.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 express.code.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
+express.comment.writtenAfterChange,書類の変更後に Express に書き込まれました：{0}
+express.comment.writtenEarlier,以前の書き込みが Express に記録されました：{0}
+express.comment.writtenTwice,Express に2回書き込まれました：以前 {0}、現在 {1}
 express.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
 express.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
@@ -2598,6 +2605,7 @@ express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
 express.reason.voidedAfterWrite,取消後に Express に書き込まれました
 express.reason.warehouseUnmapped,この倉庫に対応する Express の倉庫がありません
+express.reason.writtenNeedsHandling,Express に書き込み済み、手動処理が必要です
 express.state.detached,Express 未書き込み（接続解除済み）
 express.state.handled,Express で手動処理済み
 express.state.refundPending,返品書き込み待ち

@@ -762,6 +762,21 @@ def _hold_written(doctype, name, row, view):
     _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_job": view.get("job"), "ledger_docnum": view.get("docnum") or "",
                          "ledger_reason": contracts.VOIDED_AFTER_WRITE if row.status == "void" else contracts.MOVED_DURING_WRITE,
                          "ledger_needed": None})
+    if row.status != "void":
+        frappe.get_doc(doctype, name).add_comment("Comment", _written_note(row, view))
+
+
+def _written_note(row, view) -> str:
+    """转人工时记在单据时间线上的一句（原生评论：谁、什么时候由时间线带出，同「已在 Express 手工处理」那条）：旧件 / 现在那件
+    各写进 Express 的单号。旧 / 现在按写账件建的先后（单据记着的那件与这次写成的这件）；单据上原来记着另一张单号的，两张都写。"""
+    landed, other = view.get("docnum") or "", row.ledger_docnum or ""
+    current = not row.ledger_job or row.ledger_job == view.get("job") or str(
+        frappe.db.get_value(jobs.JOB, view.get("job"), "creation") or "") >= str(
+        frappe.db.get_value(jobs.JOB, row.ledger_job, "creation") or "")
+    if other and other != landed:
+        earlier, now = (other, landed) if current else (landed, other)
+        return _(contracts.COMMENT_TWICE).format(earlier, now)
+    return _(contracts.COMMENT_CHANGED if current else contracts.COMMENT_EARLIER).format(landed)
 
 
 def job_changed(view):
