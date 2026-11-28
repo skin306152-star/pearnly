@@ -327,6 +327,128 @@ def stale_save_keeps_ledger(site, rounds, results):
         frappe.db.commit()
 
 
+def _purchase(co, supplier, tag):
+    from pearnly_erp_portal.purchasing import entry
+
+    name = entry.post({"company": co, "supplier": supplier, "doc_date": frappe.utils.nowdate(), "currency": "THB", "fx_rate": 1,
+                       "has_vat": 1, "price_mode": "exclusive", "doc_kind": "purchase_invoice", "is_paid": 0,
+                       "update_stock": 0, "doc_no": f"{TAG}-{tag}-{secrets.token_hex(3)}",
+                       "lines": [{"item_type": "service", "description": f"{TAG} {tag}", "qty": 1, "unit": "งาน",
+                                  "unit_price": 1000, "vat_rate": 7}]}, request_id=f"{TAG}-{tag}-{secrets.token_hex(6)}")["name"]
+    frappe.db.commit()
+    return name
+
+
+def _threads(site, user, calls):
+    """同时跑几路（各自一条连接、各自提交），回 ``{label: {"ok": 结果} | {"error": 一行}}``。"""
+    box, threads = {}, []
+    for label, function in calls:
+        def run(label=label, function=function):
+            try:
+                frappe.init(site=site, sites_path=SITES)
+                frappe.connect()
+                _like_a_request()
+                frappe.set_user(user)
+                box[label] = {"ok": function()}
+                frappe.db.commit()
+            except Exception as error:  # noqa: BLE001
+                box[label] = {"error": "".join(traceback.format_exception_only(type(error), error)).strip()[:240]}
+                frappe.db.rollback()
+            finally:
+                frappe.destroy()
+        threads.append(threading.Thread(target=run))
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(120)
+    return box
+
+
+def same_doc_writes(site, rounds, results):
+    """B ② E1 / E4：同一张采购单同时到 3 笔付款 + 挂附件 + 补开凭证（页面同一组白名单入口），几张单一起。修前付款一路漏出 1213 /
+    保存前比对（500 / 417）；修后全部成功，每张已付 = 3 笔之和、付款行 3 行。"""
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import api as purchase_api, suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    for _ in range(rounds):
+        names = [_purchase(co, supplier, "SD") for _ in range(4)]
+        calls = []
+        for name in names:
+            for index in range(3):
+                calls.append(((name, f"pay{index}"), lambda name=name, index=index: purchase_api.api_purchase_payment(
+                    name, json.dumps({"amount": 100, "method": "cash", "request_id": f"{TAG}-sdp-{name}-{index}"}))))
+            calls.append(((name, "voucher"), lambda name=name: purchase_api.api_purchase_voucher(name, "substitute_receipt")))
+        box = _threads(site, user, calls)
+        frappe.db.rollback()
+        errors = {f"{k[0]} {k[1]}": v["error"] for k, v in box.items() if "error" in v}
+        paid = {name: (float(frappe.db.get_value("Purchase Document", name, "paid_amount") or 0),
+                       frappe.db.count("ERP Purchase Payment", {"parent": name, "is_reversal": 0}))
+                for name in names}
+        tally(results, "erp.same_doc_writes", not errors and all(value == (300.0, 3) for value in paid.values()),
+              {"errors": errors, "paid": paid})
+
+
+def amend_vs_payment(site, rounds, results, web):
+    """B ② E7（管钱）：「修改」作废原单与一笔付款同时到。``web``：页面入口 `api_post_purchase(amended_from=…)`（修后拿 post 锁后 commit，
+    按最新付款冲回）；否则内部调用 `entry.post(amended_from=…)`、本连接读视图更早（LINE / CC 那一类在别的事务里调的样子）。
+    判（不变式）：原单作废时冲回的金额恒等于它实付的合计（不悄悄少冲）；内部调用撞上并发付款只许报错（整笔回滚、不留半截）。"""
+    from pearnly_erp_portal.masters import company as companies
+    from pearnly_erp_portal.purchasing import api as purchase_api, entry, suppliers
+
+    user = erp_user()
+    frappe.set_user(user)
+    co = companies.active_company()
+    supplier = frappe.db.get_value("ERP Supplier", {"supplier_name": f"{TAG} supplier"}) or \
+        suppliers.create_supplier(supplier_name=f"{TAG} supplier")["name"]
+    frappe.db.commit()
+    label = "erp.amend_vs_payment_web" if web else "erp.amend_vs_payment_internal"
+    for _ in range(rounds):
+        name = _purchase(co, supplier, "AM")
+        purchase_api.api_purchase_payment(name, json.dumps({"amount": 100, "method": "cash", "request_id": f"{TAG}-am0-{name}"}))
+        frappe.db.commit()
+        doc = frappe.get_doc("Purchase Document", name)
+        payload = {"company": doc.company, "supplier": doc.supplier, "doc_date": str(doc.doc_date), "currency": "THB", "fx_rate": 1,
+                   "has_vat": 1, "price_mode": "exclusive", "doc_kind": doc.doc_kind, "is_paid": 0, "update_stock": 0,
+                   "doc_no": doc.doc_no + "-A", "lines": [{"item_type": "service", "description": f"{TAG} amended", "qty": 1,
+                                                          "unit": "งาน", "unit_price": 1000, "vat_rate": 7}]}
+        if web:
+            box = _threads(site, user, [
+                ("pay", lambda: purchase_api.api_purchase_payment(name, json.dumps(
+                    {"amount": 200, "method": "cash", "request_id": f"{TAG}-am1-{name}"}))),
+                ("amend", lambda: (__import__("time").sleep(0.3), purchase_api.api_post_purchase(
+                    json.dumps(payload), f"{TAG}-amend-{name}", amended_from=name))[1])])
+        else:
+            read_view("Purchase Document")
+            frappe.get_doc("Purchase Document", name)  # 本连接（内部调用方的事务）先读过原单
+            box = _threads(site, user, [("pay", lambda: purchase_api.api_purchase_payment(name, json.dumps(
+                {"amount": 200, "method": "cash", "request_id": f"{TAG}-am1-{name}"})))])
+            try:
+                entry.post(dict(payload), request_id=f"{TAG}-amend-{name}", amended_from=name)
+                box["amend"] = {"ok": True}
+            except Exception as error:  # noqa: BLE001
+                frappe.db.rollback()
+                box["amend"] = {"error": type(error).__name__}
+        frappe.db.rollback()
+        row = frappe.db.get_value("Purchase Document", name, ["status", "paid_amount"], as_dict=True)
+        paid = sum(float(v) for v in frappe.get_all("ERP Purchase Payment", filters={"parent": name, "is_reversal": 0},
+                                                       pluck="amount"))
+        reversed_ = -sum(float(v) for v in frappe.get_all("ERP Purchase Payment", filters={"parent": name, "is_reversal": 1},
+                                                           pluck="amount"))
+        voided_right = row.status == "void" and abs(reversed_ - paid) < 0.001 and float(row.paid_amount or 0) == 0
+        if web:
+            good = voided_right and "error" not in box.get("amend", {})  # 页面入口：一定改成，且按最新付款冲回
+        else:
+            # 内部调用：要么改成且冲回正确，要么撞冲突整笔回滚（原单未作废、没有冲回行），不许作废了却冲少
+            good = voided_right or (row.status != "void" and reversed_ == 0 and "error" in box.get("amend", {}))
+        tally(results, label, good, {"box": box, "status": row.status, "paid": paid, "reversed": reversed_})
+
+
 def erp(site, rounds):
     results = {}
     guarded(results, "erp.sales_same_request", erp_sales_same_request, site, rounds, results)
@@ -334,6 +456,9 @@ def erp(site, rounds):
     frappe.set_user("Administrator")  # 看板权限：管理员能改所有看板
     guarded(results, "erp.void_with_children", void_with_children, site, rounds, results)
     guarded(results, "erp.stale_save_keeps_ledger", stale_save_keeps_ledger, site, rounds, results)
+    guarded(results, "erp.same_doc_writes", same_doc_writes, site, rounds, results)
+    guarded(results, "erp.amend_vs_payment_web", amend_vs_payment, site, rounds, results, True)
+    guarded(results, "erp.amend_vs_payment_internal", amend_vs_payment, site, rounds, results, False)
     frappe.set_user("Administrator")
     guarded(results, "erp.board_same_gap", board_same_gap, site, rounds, results, "pearnly_erp_portal.work.service", None,
             "ERP Work Card", "ERP Work Column", "erp")
