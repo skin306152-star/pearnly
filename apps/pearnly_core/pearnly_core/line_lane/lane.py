@@ -293,7 +293,7 @@ def _interrupted(line_user_id: str) -> None:
     )
     for row in rows:
         answered = bool(row.get("replied")) or replied(row["name"])
-        frappe.db.sql(  # overwrite-ok: 只从 processing 转出（带条件的 UPDATE、rowcount 判输赢），replied 只会由 0 记成 1  # loop-query: 本人中断的事件最多 20 条
+        frappe.db.sql(  # loop-query: 本人中断的事件最多 20 条，逐条带条件转出
             "update `tabPearnly LINE Event` set status='failed', detail=%s, replied=%s, content=null, "
             "lease_until=null, modified=%s where name=%s and status='processing'",
             ("interrupted: not replayed" + ("" if answered else "; sender told to retry"), int(answered), now,

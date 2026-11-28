@@ -15,3 +15,4 @@ apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py	apply_balances
 apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py	settle_payment	$DOCTYPE	选择在写之前加锁重读（11-23）；方向与票面识别结果建单后不变
 apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py	document	ERP POS Day Summary	按所含小票现算的合计整值重写，重算幂等
 apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py	vat_registered	ERP Company	只在公司还没记登记状态时补记税务局查到的结果，幂等
+apps/pearnly_core/pearnly_core/line_lane/lane.py	_interrupted	Pearnly LINE Event	后写的为准是本意：只从 processing 转出（带 status 条件的 UPDATE、rowcount 判输赢），replied 由读到的行与 Redis 标记取或，只会由 0 记成 1（11-28 LINE 按用户排队）
