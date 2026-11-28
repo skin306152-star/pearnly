@@ -462,8 +462,9 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
         # 行上记的批号不是写前指针的两种：调入行记的是本单自己的新批；11-28 前的 CC 盘盈行记的是挂靠的进货批（= RDOCNUM）。写入时链头
         # 没换成本单的批就不动；换了就按库存卡写入顺序找本单之前的链头（_previous_lot）。原生盘盈行记的是写前指针、挂靠批只在 RDOCNUM
         # （11-28 70EXP\\test 原生 TK0000002 与其作废：主档回到行上记的批号），与其他行一样原样回写
-        linked = (first["POSOPR"] == S.STCRD_POSOPR_COUNT and first["qty"] > 0 and _links_purchase(head, first["RDOCNUM"])) \
-            or _own_lot(head, docnum)
+        # 旧版 CC 盘盈行挂不上进货批时批号是空的，同样不是写前指针（写入时主档已换成本单的批），也走找回（11-28 101 本回放 T7HENG15）
+        linked = (first["POSOPR"] == S.STCRD_POSOPR_COUNT and first["qty"] > 0
+                  and (not head or _links_purchase(head, first["RDOCNUM"]))) or _own_lot(head, docnum)
         if fits and first["DOCDAT"] and not _later_rows(remaining[key], first, docnum):
             new = replace(start, head=head)  # 原样回到写前：空链时原生记 B/F（11-24 NLTTEST 实录），照行上记的写回
             if linked:  # 写入时链头没换成本单的批（先进先出账套指着仍有剩余的最早一批）就不动；换了才回之前那一批
