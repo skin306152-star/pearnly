@@ -425,7 +425,8 @@ def _fallback_summary(qa: Dict[str, Any]) -> Dict[str, str]:
 
 
 def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """车型赠品（只读）：标题、逐项一行「名称 … 数量 单位 × 单价 = 金额」、合计；最多列 15 项。"""
+    """车型赠品（只读）：标题、逐项（不显示价格时一行「名称 … 数量 单位」，显示价格时名称下一行「数量 单位 × 单价 = 金额」）、
+    合计；最多列 15 项。"""
     freebies = car_freebies.for_car(qa)
     items = freebies.get("rows") or []
     if not items:
