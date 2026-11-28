@@ -186,12 +186,27 @@ class PreviewRowTests(Isolated):
         self.assertEqual(texts[-1], "103,170.65")
         self.assertEqual(sum(1 for row in rows if row.get("layout") == "vertical"), 15)
 
-    def test_another_car_or_no_freebies_adds_nothing(self):
-        qa = self.qa(FORM)
-        qa["answers"]["car"]["id"] = "C2"
-        self.assertEqual(self.cards.freebie_rows(qa), [])
-        self.assertEqual(self.cards.freebie_rows({"answers": {"car": {"id": "C1"}}}), [])
+    def test_each_freebie_is_one_line_with_the_quantity_on_the_right(self):
+        """用户 11-28：每件赠品原先占两行（名称一行、数量另起一行靠右），太占地方。只有「数量 单位」时（默认不显示价格）改为一行：
+        名称在左占剩余宽度、长名在本格折行；数量在右按内容宽度、不折行、贴顶——名称再长也不把数量挤到下一行。"""
+        rows = self.cards.freebie_rows(self.qa(FORM, hide_price=True))
+        items = [row for row in rows if row.get("type") == "box"]
+        self.assertEqual(len(items), 4)
+        for row in items:
+            self.assertEqual((row["layout"], row["spacing"]), ("horizontal", "md"))
+            name, detail = row["contents"]
+            self.assertEqual((name["flex"], name["wrap"]), (1, True))
+            self.assertEqual((detail["flex"], detail["align"], detail["gravity"]), (0, "end", "top"))
+            self.assertNotIn("wrap", detail)
+        self.assertEqual([row["contents"][1]["text"] for row in items], ["1 set", "1 car", "1 policy", "50 litre"])
 
+    def test_with_prices_the_sum_stays_whole_under_the_name(self):
+        # 显示价格时算式长，放同一行会被拆成两三行：仍是名称在上、算式在下靠右；合计仍是左标签右值
+        rows = self.cards.freebie_rows(self.qa(FORM))
+        items = [row for row in rows if row.get("type") == "box"]
+        self.assertEqual([row["layout"] for row in items], ["vertical"] * 4 + ["baseline"])
+        self.assertEqual(items[3]["contents"][1], {"type": "text", "text": "50 litre × 18.00 = 900.00", "size": "sm",
+                                                   "color": "#111111", "align": "end", "wrap": True})
 
 class CarLabelTests(Isolated):
     # 生产 ris 的 VUK60 那一行（下拉行没有 ชื่อรถ；ชื่อรถ 在车型主档表单 txtdescmodelname）。

@@ -201,7 +201,7 @@ class Summary(unittest.TestCase):
         summary = report.summarize([{"model": "VSB20", "color": "BOS", "status": "รถลงแล้ว", "location": place}
                                     for place in ("ระยอง-สำนักงานใหญ่", "ปลวกแดง")], "available", {})
         with lang("th"):
-            page = stock_render.document(summary["rows"], summary, "available", {"date": "26/11/2026", "time": "21.08"})
+            page = stock_render.document(summary["rows"], summary, "available", {"date": "26/11/2026", "time": "21:08"})
         self.assertIn("<span>ปลวกแดง\u00a01</span> / <span>ระยอง-สำนักงานใหญ่\u00a01</span>", page)
         self.assertIn("td.p span{display:inline-block}", page)  # 整块换行；不用 nowrap（超长地点名会被截掉）
 
@@ -229,7 +229,7 @@ class Layout(unittest.TestCase):
         self.assertIn("<th>รถรุ่น ว่าง</th><th>Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
         self.assertNotIn("<h1", page)
         self.assertIn("border:0", page)
-        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16.53 Total</td><td class=n>6</td>", page)
+        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16:53 Total</td><td class=n>6</td>", page)
 
     def test_header_wording_for_scope(self):
         rows = report.parse_export(export(TEST_LIBRARY))
@@ -314,7 +314,7 @@ class Colours(unittest.TestCase):
         self.assertEqual(first[2].alignment.horizontal, "center")
         self.assertEqual({first[0].fill.fill_type, second[0].fill.fgColor.rgb[-6:]}, {None, stock_render.STRIPE_FILL})
         footer = sheet.max_row
-        self.assertEqual(sheet.cell(footer, 1).value, "อัพเดต 20/11/2026 เวลา 16.53 Total")
+        self.assertEqual(sheet.cell(footer, 1).value, "อัพเดต 20/11/2026 เวลา 16:53 Total")
         self.assertEqual(sheet.cell(footer, 1).font.color.rgb[-6:], stock_render.FOOT_COLOR)
         self.assertEqual(sheet.cell(footer, 3).value, 9)
         self.assertEqual(sheet.cell(footer, 3).font.color.rgb[-6:], stock_render.COUNT_COLOR)
@@ -323,9 +323,9 @@ class Colours(unittest.TestCase):
 
 class Languages(unittest.TestCase):
     """报表文字跟发起人的 LINE 语言（`i18n.line_lang()`，后台任务里由 `line/out.run_guarded` 的 `i18n.line_language(user)` 设好），
-    不写死某一种；四语各自的表头、底部一行（日期四语都用公历、照样表；时间：泰文用点）、文件名都对（用户 11-26：「不要写死中文」）。"""
+    不写死某一种；四语各自的表头、底部一行（日期四语都用公历、照样表；时间四语都是「时:分」，用户 11-28「应该是：不是 .」）、文件名都对（用户 11-26：「不要写死中文」）。"""
 
-    EXPECT = {"th": ("จำนวน", "อัพเดต 26/11/2026 เวลา 11.20 Total", "สต๊อกตามที่จอดรถ [26112026_1120]"),
+    EXPECT = {"th": ("จำนวน", "อัพเดต 26/11/2026 เวลา 11:20 Total", "สต๊อกตามที่จอดรถ [26112026_1120]"),
               "zh": ("台数", "更新 26/11/2026 11:20 合计", "库存停放报表 [26112026_1120]"),
               "en": ("Qty", "Updated 26/11/2026 11:20 Total", "Stock by location [26112026_1120]"),
               "ja": ("台数", "更新 26/11/2026 11:20 合計", "在庫・保管場所 [26112026_1120]")}
@@ -349,6 +349,7 @@ class Languages(unittest.TestCase):
                     stock_flow.messages({"summary": summary, "originals": {"xlsx": {"content": b"PK", "name": "o.xlsx"},
                                                                          "pdf": {"content": b"%PDF", "name": "o.pdf"}},
                                          "rendered": {"pdf": b"%PDF", "images": [b"j"], "omitted": 0}}, "all", as_of, moment)
+                self.assertEqual(as_of["time"], "11:20")  # 卡片副标题与下载页也取这个
                 self.assertEqual(book["C1"].value, count)
                 self.assertEqual(book.cell(book.max_row, 1).value, foot)
                 self.assertIn(count, page)
@@ -576,7 +577,7 @@ class Links(unittest.TestCase):
             self.assertEqual(self.download(query).status_code, 404)
 
 
-MANIFEST = {"lang": "th", "title": "สต๊อกตามที่จอดรถ", "subtitle": "92 คัน · 26/11/2026 21.08", "select_all": "เลือกทั้งหมด",
+MANIFEST = {"lang": "th", "title": "สต๊อกตามที่จอดรถ", "subtitle": "92 คัน · 26/11/2026 21:08", "select_all": "เลือกทั้งหมด",
             "share": "แชร์", "download": "ดาวน์โหลด",
             "files": [{"label": "สรุป PDF", "name": "สรุป <1>.pdf", "type": "application/pdf", "file": "F1",
                        "url": "https://dms.example.test/d?f=F1", "size": 47273},
@@ -624,7 +625,7 @@ class DownloadPage(unittest.TestCase):
         self.assertIn("<html lang=th>", page)
         self.assertEqual(page.count('type="checkbox" data-i='), 2)
         self.assertEqual(page.count(" checked>"), 3)  # 两个文件 + 全选，默认全勾
-        for text in ("สต๊อกตามที่จอดรถ", "92 คัน · 26/11/2026 21.08", "เลือกทั้งหมด", "แชร์ <span>", "ดาวน์โหลด <span>",
+        for text in ("สต๊อกตามที่จอดรถ", "92 คัน · 26/11/2026 21:08", "เลือกทั้งหมด", "แชร์ <span>", "ดาวน์โหลด <span>",
                      "สรุป PDF<small>46 KB</small>", "ต้นฉบับ Excel<small>2.0 MB</small>"):
             self.assertIn(text, page)
         # 按钮用 Frappe 官方原生样式类、引官方样式表，不自己定颜色尺寸；「分享」要浏览器说能分享这些文件才露出

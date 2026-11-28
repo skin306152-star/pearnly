@@ -425,7 +425,7 @@ def _fallback_summary(qa: Dict[str, Any]) -> Dict[str, str]:
 
 
 def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """车型赠品（只读）：标题、逐项「名称」+「数量 单位 × 单价 = 金额」、合计；最多列 15 项。"""
+    """车型赠品（只读）：标题、逐项一行「名称 … 数量 单位 × 单价 = 金额」、合计；最多列 15 项。"""
     freebies = car_freebies.for_car(qa)
     items = freebies.get("rows") or []
     if not items:
@@ -437,11 +437,19 @@ def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
     for item in items[: car_freebies.CARD_LIMIT]:
         quantity = " ".join(part for part in (item["qty"], item["unit"]) if part)
         detail = quantity if hide else f"{quantity} × {item['price']} = {item['amount']}"
-        # 两行：名称在上（长名照常折行），「数量 单位 × 单价 = 金额」在下靠右，窄屏不会把算式拆开。
-        rows.append({"type": "box", "layout": "vertical", "contents": [
-            {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "wrap": True},
-            {"type": "text", "text": detail, "size": "sm", "color": "#111111", "align": "end", "wrap": True},
-        ]})
+        if hide:
+            # 一行（用户 11-28：两行太占地方）：名称在左占剩下的宽度、长名在自己那一格里折行；「数量 单位」在右按内容宽度、
+            # 不折行、贴顶，名称再长也不会把数量挤到下一行。
+            rows.append({"type": "box", "layout": "horizontal", "spacing": "md", "contents": [
+                {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "wrap": True, "flex": 1},
+                {"type": "text", "text": detail, "size": "sm", "color": "#111111", "align": "end", "gravity": "top", "flex": 0},
+            ]})
+        else:
+            # 显示价格时「数量 单位 × 单价 = 金额」很长，放同一行会把算式拆成两三行：仍是名称在上、算式在下靠右，算式不拆开
+            rows.append({"type": "box", "layout": "vertical", "contents": [
+                {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "wrap": True},
+                {"type": "text", "text": detail, "size": "sm", "color": "#111111", "align": "end", "wrap": True},
+            ]})
     hidden = len(items) - car_freebies.CARD_LIMIT
     if hidden > 0:
         rows.append({"type": "text", "text": qat("TXT_FREEBIES_MORE", n=hidden), "size": "sm", "color": "#8a8a8a"})

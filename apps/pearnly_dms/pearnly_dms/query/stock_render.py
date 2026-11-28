@@ -39,10 +39,10 @@ def _t(key: str, **kw) -> str:
 
 
 def as_of_label(moment) -> Dict[str, str]:
-    """更新日期与时间：四语都用公历（照样表「อัพเดต 20/11/2026 …」，用户 11-26 定）；泰文时间照样表用点（16.53），其它用冒号。"""
-    thai = i18n.line_lang() == "th"
+    """更新日期与时间：四语都用公历（照样表「อัพเดต 20/11/2026 …」，用户 11-26 定）；时与分之间四语都用冒号（16:53，
+    用户 11-28「时间格式不对，应该是：不是 .」，原先泰文照样表用点）。卡片副标题、汇总图 / PDF / Excel 底部那行都取这里。"""
     return {"date": f"{moment.day:02d}/{moment.month:02d}/{moment.year}",
-            "time": f"{moment.hour:02d}{'.' if thai else ':'}{moment.minute:02d}"}
+            "time": f"{moment.hour:02d}:{moment.minute:02d}"}
 
 
 def header_text(scope: str) -> tuple:
