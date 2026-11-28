@@ -144,18 +144,25 @@ AUTO_RETRY_REASONS = POLL_REASONS
 
 
 def result_unknown(state, reason="") -> bool:
-    """停下的原因是结果不明（:data:`UNKNOWN_REASONS`，MR.ERP 的带 ``: <码>`` 后缀；纯判断）。网页列表 / 详情 / Express 弹窗、
-    筛选、LINE 回执、待处理、导出、CC 列单与推送结果都从这里判（用户 11-28：「结果不明」单列成状态）。迟到写成
-    （:data:`MOVED_DURING_WRITE`：单号在单据上、确实写进去了）不算：它是「已写进 Express，需人工处理」，状态词照停下的「失败」。"""
+    """停下的原因是真正的结果不明（:data:`UNKNOWN_REASONS`，MR.ERP 的带 ``: <码>`` 后缀；纯判断）：写没写进去不知道，出口是
+    「核对后记下」（CC 核对工具、MR.ERP「已在 MR.ERP 核对」）。迟到写成（:data:`MOVED_DURING_WRITE`）不算：它确实写进去了、
+    单号在单据上，没有要核对的。显示用 :func:`shown_unknown`。"""
     reason = str(reason or "")
     return state == HELD and reason.startswith(UNKNOWN_REASONS) and reason != MOVED_DURING_WRITE
+
+
+def shown_unknown(state, reason="") -> bool:
+    """状态词与筛选档落「结果不明」（用户 11-28 单列成状态）：真正的结果不明（:func:`result_unknown`），加迟到写成——它已经写进
+    Express，说「失败」会让人重录、变两张（主会话 11-28）；它保留自己那句原因与单号，判据仍分开。网页列表 / 详情 / Express 弹窗、
+    筛选、LINE 回执、导出都按它；``transactions.js`` 的 ``p.ledger_word`` 同口径（契约测试比对）。"""
+    return state == HELD and str(reason or "").startswith(UNKNOWN_REASONS)
 
 
 def ledger_word(state, reason="") -> str:
     """单据账本状态（与停下的原因）→ 状态词词条（没在表里的原样）。"""
     if state == HELD and str(reason or "") in AUTO_RETRY_REASONS:
         return ENTERING
-    if result_unknown(state, reason):
+    if shown_unknown(state, reason):
         return RESULT_UNKNOWN
     return LEDGER_WORDS.get(state or "", state or "")
 
@@ -194,14 +201,12 @@ def _word_condition(word):
         return _any(["ledger_state", "=", QUEUED], _all(held, ["ledger_reason", "in", retry]))
     if word == SUCCEEDED:
         return ["ledger_state", "in", [WRITTEN, HANDLED]]
-    if word == RESULT_UNKNOWN:
-        return _all(held, ["ledger_reason", "!=", MOVED_DURING_WRITE],
-                    _any(*[["ledger_reason", "like", like] for like in _UNKNOWN_LIKE]))
+    if word == RESULT_UNKNOWN:  # 同 :func:`shown_unknown`（含迟到写成）
+        return _all(held, _any(*[["ledger_reason", "like", like] for like in _UNKNOWN_LIKE]))
     if word == NOT_DONE:
-        known = _any(["ledger_reason", "=", MOVED_DURING_WRITE],
-                     _all(*[["ledger_reason", "not like", like] for like in _UNKNOWN_LIKE]))
         return _any(["ledger_state", "in", [FAILED, MISMATCH, DETACHED]],
-                    _all(held, ["ledger_reason", "not in", retry], known))
+                    _all(held, ["ledger_reason", "not in", retry],
+                         *[["ledger_reason", "not like", like] for like in _UNKNOWN_LIKE]))
     if word == _BLANK:
         return ["ledger_state", "is", "not set"]
     return None
@@ -559,7 +564,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "LOST", "MOVED_DURING_WRITE", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "FILTER_WORDS", "LEDGER_WORD_FIELD", "ledger_settled", "ledger_word", "ledger_word_filter", "with_ledger_words", "result_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
+__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "LOST", "MOVED_DURING_WRITE", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "FILTER_WORDS", "LEDGER_WORD_FIELD", "ledger_settled", "ledger_word", "ledger_word_filter", "with_ledger_words", "result_unknown", "shown_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "OFFLINE", "WAITING_COMPUTER", "waiting_computer", "waiting_computer_of", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

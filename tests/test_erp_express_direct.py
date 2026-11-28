@@ -2158,11 +2158,11 @@ class StaleJobReceipt(PushModule):
         view = precheck.document_view("P:PUR-1", "Purchase Document", "PUR-1", found={})
         self.assertEqual((view["state"], view["reason"]), (precheck.card.NOT_WRITABLE, precheck.WRITTEN))
 
-    def test_result_unknown_is_its_own_status_word_and_a_late_write_is_not(self):
-        """「结果不明」单列成状态（用户 11-28）：只有一个判据 `contracts.result_unknown`（Express 收回后转人工、MR.ERP 导入结果不明，
-        含导入后单据已变的 ERR_MOVED_DURING_IMPORT），网页状态词、LINE 回执开头、CC 列单的结果不明标记都按它；迟到写成
-        （``MOVED_DURING_WRITE``：已写进 Express，单号在单据上）不算，状态词照停下的「失败」、CC 列单说已写进 + 需人工处理。
-        单据页 / 列表的 ``p.result_unknown`` 与服务端同一组常量。"""
+    def test_result_unknown_is_its_own_status_word_and_a_late_write_shows_in_it_without_rewrite_exits(self):
+        """「结果不明」单列成状态（用户 11-28）。判据两个：`contracts.result_unknown`（真正的结果不明：Express 收回后转人工、MR.ERP
+        导入结果不明，出口是核对）与 `contracts.shown_unknown`（状态词与筛选档：再加迟到写成 ``MOVED_DURING_WRITE``——已写进 Express，
+        说「失败」会让人重录变两张，主会话 11-28）。迟到写成保留自己那句原因与单号，三入口都没有会再写一次的出口：LINE 只给【查看
+        结果】不给【编辑】，网页弹窗不给「再写一次」（接口也拒），CC 列单不带核对标记、不再推。"""
         from pearnly_erp_portal.express import cc_tools, pending
         stub = types.ModuleType("pearnly_erp_portal.integrations.line_flow")  # LINE 收发（要 requests）这里用不到
         with mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.line_flow": stub}):
@@ -2171,18 +2171,20 @@ class StaleJobReceipt(PushModule):
         self.addCleanup(sys.modules.pop, "pearnly_erp_portal.integrations.line_cards", None)
         unknown = (self.push.jobs.LOST, "mrerp.result_unknown: ERR_IMPORT_INTERRUPTED",
                    "mrerp.result_unknown: ERR_MOVED_DURING_IMPORT")
-        for reason in unknown:
-            self.assertTrue(E.result_unknown(E.HELD, reason), reason)
+        for reason in (*unknown, E.MOVED_DURING_WRITE):
+            self.assertTrue(E.shown_unknown(E.HELD, reason), reason)
             self.assertEqual(E.ledger_word(E.HELD, reason), E.RESULT_UNKNOWN, reason)
             self.assertTrue(E.ledger_settled(E.HELD, reason))
             self.assertEqual(pending.reason_code(E.HELD, reason), "manual")  # 待处理粗分照停下
-        self.assertFalse(E.result_unknown(E.HELD, E.MOVED_DURING_WRITE))
-        self.assertEqual(E.ledger_word(E.HELD, E.MOVED_DURING_WRITE), E.NOT_DONE)
-        self.assertFalse(E.result_unknown(E.QUEUED, self.push.jobs.LOST))  # 只管停下的
+        for reason in unknown:
+            self.assertTrue(E.result_unknown(E.HELD, reason), reason)
+        self.assertFalse(E.result_unknown(E.HELD, E.MOVED_DURING_WRITE))  # 判据与真正的结果不明分开（不出「核对」）
+        self.assertFalse(E.shown_unknown(E.QUEUED, self.push.jobs.LOST))  # 只管停下的
+        self.assertFalse(E.shown_unknown(E.HELD, E.VOIDED_AFTER_WRITE))
         desk = (pathlib.Path(__file__).resolve().parents[1]
                 / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
         self.assertIn('const UNKNOWN_REASONS = ["%s"];' % '", "'.join(E.UNKNOWN_REASONS), desk)
-        self.assertIn('const MOVED_DURING_WRITE = "%s";' % E.MOVED_DURING_WRITE, desk)
+        self.assertIn('p.shown_unknown(state, reason) ? __("Result unknown")', desk)
         fake.STATE.db.table("Purchase Document")["PUR-1"]["system_no"] = "PE-1"
         listed = {}
         for reason in (self.push.jobs.LOST, E.MOVED_DURING_WRITE):
@@ -2191,15 +2193,40 @@ class StaleJobReceipt(PushModule):
             with mock.patch.object(line_cards, "_", lambda key: key), \
                     mock.patch.object(line_cards, "editor_link", lambda doc: "https://x/edit"):
                 reply = line_cards.result(types.SimpleNamespace(direction="purchase", name="LI-1", get=lambda key: "PUR-1"))
-            listed[reason] = (reply["text"], cc_tools._list_row(cc_tools.KINDS["purchase"], fake._Row(
+            listed[reason] = (reply, cc_tools._list_row(cc_tools.KINDS["purchase"], fake._Row(
                 {**self.row, "doc_date": "2026-10-24", "supplier_name": "x", "grand_total": 1})))
-        text, row = listed[self.push.jobs.LOST]
-        self.assertTrue(text.startswith("Result unknown · express.reason.resultUnknown"), text)  # LINE 回执开头
+        reply, row = listed[self.push.jobs.LOST]
+        self.assertTrue(reply["text"].startswith("Result unknown · express.reason.resultUnknown"), reply)
         self.assertTrue(row.get("result_unknown"), row)
-        text, row = listed[E.MOVED_DURING_WRITE]
-        self.assertTrue(text.startswith("Failed · express.reason.writtenNeedsHandling"), text)
-        self.assertFalse(row.get("result_unknown"), row)
+        reply, row = listed[E.MOVED_DURING_WRITE]
+        self.assertEqual(reply["text"], "Result unknown · express.reason.writtenNeedsHandling · HP-OLD")
+        actions = [item["action"]["data"] for item in reply["quickReply"]["items"]]
+        self.assertEqual(len(actions), 1)
+        self.assertIn("a=erp_result", actions[0])  # 只有【查看结果】，没有【编辑】
+        self.assertFalse(row.get("result_unknown"), row)  # 不出「核对」
         self.assertTrue(row.get("needs_person"), row)
+        self.assertFalse(row.get("push_again"), row)
+
+    def test_a_late_write_on_a_pos_day_keeps_the_handled_exit_but_not_write_again(self):
+        """收银日汇总停在迟到写成：只留「已在 Express 手工处理」，不给「再写一次」（接口也拒：再写就是第二张，主会话 11-28）。"""
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        from pearnly_erp_portal.express import api
+        row = types.SimpleNamespace(name="PDS-1", company="CO-1", ledger_state="held", ledger_job=None,
+                                    ledger_void_state=None, ledger_book=None, ledger_docnum="HS-OLD",
+                                    ledger_reason=E.MOVED_DURING_WRITE, ledger_needed=None, day=None,
+                                    vat_whole_document=0, get=lambda key: getattr(row, key, None))
+        with mock.patch.object(api, "_document", lambda doctype, name, write=False: row), \
+                mock.patch.object(api.push, "enabled", lambda company: True), \
+                mock.patch.object(api.guard, "has", lambda capability: True), \
+                mock.patch.object(api.push, "send", side_effect=AssertionError("must not send")), \
+                mock.patch.object(api.jobs, "retry", side_effect=AssertionError("must not retry")):
+            with self.assertRaises(frappe.PermissionError):
+                api.retry("ERP POS Day Summary", "PDS-1")
+            view = api._view("ERP POS Day Summary", row)
+        self.assertEqual((view["can_retry"], view["can_mark_handled"], view["docnum"]), (False, True, "HS-OLD"))
 
 
 class LinkRulesUnchanged(PushModule):

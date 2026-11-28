@@ -370,10 +370,14 @@ def result(doc, created=None, *, final=False, name=""):
         # 排队中钉在一台不在线的电脑上：原因行写「等待电脑 · 名称」（同单据页，`pending.reason_label`）
         why = pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) is not None else ""
         return entering(doc, why) if final else None
-    if express_contracts.result_unknown(state, reason):
-        # 写账结果不明（账本里可能有、还没核对；判据同网页状态表 `express.contracts.result_unknown`）：单独一类、沿用已有词，
-        # 原因行是先去账本核对那句，只给【查看结果】，不给【编辑】（主会话 11-25）
-        return result_unknown(doc, pending.reason_label(state, reason))
+    if express_contracts.shown_unknown(state, reason):
+        # 写账结果不明（账本里可能有、还没核对；判据同网页状态表 `express.contracts.shown_unknown`）：单独一类、沿用已有词，
+        # 原因行是先去账本核对那句，只给【查看结果】，不给【编辑】（主会话 11-25）。迟到写成同一档：原因说「已写进 Express，需人工
+        # 处理」并带单号；也不给【编辑】——编辑后保存会再写一次 Express、变两张（主会话 11-28）
+        why = pending.reason_label(state, reason)
+        if not express_contracts.result_unknown(state, reason) and row.get("ledger_docnum"):
+            why = f"{why} · {row.ledger_docnum}"
+        return result_unknown(doc, why)
     word = express_contracts.ledger_word(state, reason)
     if word == express_contracts.SUCCEEDED:
         number = row.get("ledger_docnum") or row.get("system_no") or row.name

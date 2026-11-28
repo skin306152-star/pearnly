@@ -240,10 +240,11 @@ def _view(doctype, row):
             if row.ledger_reason == contracts.NO_BOOK and row.get("day") else "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
             # 代录交的那件不给「再写一次」（`retry` 拒：代录的单由代录再录；被拦那一项答过后不再列，按钮出来也只会报错）
+            # 迟到写成转人工（已写进 Express、单号在单据上）不给「再写一次」：再写就是第二张（主会话 11-28；`retry` 也拒）
             "can_retry": bool((job and job["status"] == "manual" and not blocked
                                and not str(job.get("request_key") or "").startswith(push.OPERATOR_KEY))
                               or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))
-            and guard.has(CAPABILITIES[doctype][1]),
+            and row.ledger_reason != contracts.MOVED_DURING_WRITE and guard.has(CAPABILITIES[doctype][1]),
             # 收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的…）的出口：人标记「已在 Express 手工处理」（主会话 10-26）
             "can_mark_handled": bool(stuck) and guard.has(CAPABILITIES[doctype][1]),
             "vat_whole": bool(row.get("vat_whole_document")),
@@ -422,6 +423,8 @@ def retry(doctype, name):
         mrerp_push.send(doctype, name, manual=True)  # 人点的：清这个账号的被踢标记、照常登录（同 CC 推送）
         return _view(doctype, _document(doctype, name))
     _require_enabled(row)
+    if row.get("ledger_reason") == contracts.MOVED_DURING_WRITE and not row.get("ledger_void_state"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)  # 已写进 Express（迟到写成）：再写就是第二张
     if row.get("ledger_void_state"):
         void_job = jobs.find_by_name(row.ledger_void_job) if row.ledger_void_job else None
         if not void_job or void_job["status"] != "manual":
