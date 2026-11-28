@@ -1357,14 +1357,17 @@ class Offsets(Base):
         self.assertEqual(self.step(), "card")
         self.assertEqual(self.rows(), {"IV2": ("500.00", "3"), "AI1": ("500.00", "0")})
 
-    def test_only_offsets_or_offsets_above_the_invoices_stay_on_the_invoice_step(self):
+    def test_only_offsets_stay_on_the_invoice_step(self):
         self.to_invoices(("SR1",))
         self.assertIn("Choose at least one invoice", self.last_text())
-        self.tap("a=col&s=inv&v=IV2")
-        self.tap("a=col&s=inv&v=AI1")
-        self.tap("a=col&s=invoices&v=done")
-        self.assertIn("Credit notes exceed the invoices", self.last_text())
         self.assertEqual(self.step(), "invoices")
+
+    def test_offsets_above_the_invoices_go_to_the_card_paying_the_difference_back_in_cash(self):
+        # 原生 69EXP 测试账套 TEST 的 RE0000034（11-28）：差额退现金、现金记负数，不问方式
+        self.to_invoices(("IV2", "SR1", "AI1"))
+        self.assertEqual(self.step(), "card")
+        card = json.dumps(self.last(), ensure_ascii=False)
+        self.assertIn("-300.00", card)
 
     def test_collect_later_keeps_ticked_offsets_whole(self):
         self.to_invoices(("IV1", "IV2", "SR1"))

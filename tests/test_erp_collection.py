@@ -563,7 +563,12 @@ class Contracts(unittest.TestCase):
         self.assertEqual((settled["total"], settled["methods"], settled["cash"]), (Decimal("0.00"), [], Decimal("0.00")))
         cases = [
             ({"invoices": [{"docnum": "SR1", "amount": "300"}]}, C.INVOICES_EMPTY),
-            ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}]}, C.OFFSETS_EXCEED),
+            ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}],
+              "methods": [{"prefix": "TR", "amount": "-200"}]}, C.AMOUNT_INVALID),
+            ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}], "cash": "-150"},
+             C.AMOUNT_MISMATCH),
+            ({"invoices": [{"docnum": "IV2", "amount": "300"}, {"docnum": "SR1", "amount": "100"}], "cash": "-200"},
+             C.AMOUNT_INVALID),
             ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300.01"}]}, C.OVER_COLLECTED),
             ({"invoices": [{"docnum": "IV2", "amount": "300.24"}, {"docnum": "SR1", "amount": "300"}],
               "methods": [{"prefix": "DC", "amount": "0.24"}]}, C.DISCOUNT_ONLY),
@@ -572,6 +577,22 @@ class Contracts(unittest.TestCase):
             with self.subTest(code=code), self.assertRaises(C.CollectionError) as caught:
                 C.check(draft, self.offset_rows(), catalog)
             self.assertEqual(caught.exception.code, code)
+
+    def test_offsets_above_the_invoices_pay_the_difference_back_in_cash_only(self):
+        # 原生 69EXP 测试账套 TEST 的 RE0000034（11-28）：净额 < 0 现金记负数；转账退负数没有原生证据
+        catalog = C.catalog(TYPES, CASH_ACCOUNT)
+        draft = {"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}]}
+        for cash in ("", "-200", "-200.00"):
+            with self.subTest(cash=cash):
+                checked = C.check({**draft, "cash": cash}, self.offset_rows(), catalog)
+                self.assertEqual((checked["total"], checked["cash"], checked["methods"]),
+                                 (Decimal("-200.00"), Decimal("-200.00"), []))
+        with self.assertRaises(C.CollectionError) as caught:
+            C.check({**draft, "methods": [{"prefix": "DC", "amount": "1"}]}, self.offset_rows(), catalog)
+        self.assertEqual(caught.exception.code, C.OFFSETS_EXCEED)
+        with self.assertRaises(C.CollectionError) as caught:
+            C.check(draft, self.offset_rows(), C.catalog(TYPES, ""))
+        self.assertEqual(caught.exception.code, C.CASH_ACCOUNT_MISSING)
 
     def test_a_total_leaves_ticked_offsets_whole_and_spreads_over_the_invoices(self):
         rows = [{"docnum": "IV2", "doc_date": "2026-10-05", "available": "500"},

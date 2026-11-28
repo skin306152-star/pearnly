@@ -86,7 +86,12 @@ export const splitRemainder = (rows: readonly AmountRow[], total: string): bigin
  *  总额是 0（收款：抵减单正好抵平发票，没有钱要分）时一项都不填就对。 */
 export function splitProblem(rows: readonly AmountRow[], total: string): SplitProblem {
   const filled = rows.filter((row) => row.amount.trim() !== "");
-  if (!filled.length) return toMinor(total) === 0n ? "" : "empty";
+  if (!filled.length) {
+    // 应分不是正数（收款抵减单抵平为 0、抵过头为负、差额退现金）：一项不填就能交
+    const clean = String(total ?? "").trim();
+    const due = toMinor(clean.startsWith("-") ? clean.slice(1) : clean);
+    return due !== null && (due === 0n || clean.startsWith("-")) ? "" : "empty";
+  }
   if (filled.some((row) => (toMinor(row.amount) ?? 0n) <= 0n)) return "amount";
   return splitRemainder(filled, total) === 0n ? "" : "mismatch";
 }

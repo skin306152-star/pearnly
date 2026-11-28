@@ -611,11 +611,11 @@ READING_CODES = ("express.masters_reading", "collection.mrerp_reading")  # 主�
 def _answer_invoices_done(line_user_id, payload, value, reply_token):
     if not _picked_invoices(payload):
         return _show_invoices(payload, reply_token, note=_("Choose at least one invoice"))
-    if _picked_total(payload) < 0:
-        return _show_invoices(payload, reply_token, note=_("Credit notes exceed the invoices"))
+    total = _picked_total(payload)
     payload.update(cash="0", methods=[], allocation=None)
-    if _picked_total(payload) == 0:  # 抵减正好抵平：不收钱、不问方式，直接出确认卡（原生净额 0 的 RE）
-        payload["allocation"] = _full(payload, payload["picked"])
+    if total <= 0:
+        # 抵减正好抵平：不收钱、不问方式（原生净额 0 的 RE）；抵减大于发票：差额退现金（原生 RE0000034，现金记负数），也不问方式
+        payload.update(cash=contracts.text(total), allocation=_full(payload, payload["picked"]))
         return _draft(line_user_id, payload, reply_token)
     try:
         _ask_method(line_user_id, payload, reply_token)

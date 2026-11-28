@@ -105,6 +105,8 @@ export const SplitField: FC<{
   const locked = lockedRows(options, all, maxRows);
   const filled = all.filter((row) => row.amount.trim() !== "");
   const rest = splitRemainder(filled, total);
+  // 应分为负（收款抵减单抵过头，差额退现金）：不用分，合计行照现有金额格式显示这个负数
+  const owed = total.trim().startsWith("-") && !filled.length ? -(toMinor(total.trim().slice(1)) ?? 0n) : null;
   return (
     <ItemGroup data-slot="cc-guide-split" className="cc-guide-body">
       {options.map((option) => {
@@ -130,7 +132,7 @@ export const SplitField: FC<{
           </Item>
         );
       })}
-      <TotalLine total={sumMinor(filled)} rest={rest} />
+      {owed !== null ? <TotalLine total={owed} /> : <TotalLine total={sumMinor(filled)} rest={rest} />}
     </ItemGroup>
   );
 };

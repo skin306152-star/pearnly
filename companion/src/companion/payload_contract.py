@@ -61,7 +61,7 @@ from typing import Optional
 # 都是同一 DOCTYP 下的另一前缀。旧版不认 ``book``（会照单别写进 OU / JU），所以带了它的载荷盖 22，旧版诚实拒收。
 # 23：收款单 RE 带抵减单（``offsets``：减项 RECTYP 5 / 定金 RECTYP 0，从合计里扣；净额 0 的不写凭证；评估
 # docs/work/2026-11-28-credit-note-assessment.md）。旧版不认 ``offsets``（会只写发票、按发票合计写，金额与原生不符），所以带了它的
-# 收款载荷盖 23，旧版诚实拒收；不带抵减单的收款照旧 20。
+# 收款载荷盖 23，旧版诚实拒收；不带抵减单的收款照旧 20。抵减大于发票（净额 < 0）只退现金（``cash`` 为负，原生 RE0000034）。
 SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
 OPERATOR_PAYLOAD_VERSION = 16
 REMARKS_PAYLOAD_VERSION = 17

@@ -59,6 +59,10 @@ assert.deepEqual(setAmount(rows, "IV003", "5"), rows);                          
 // 分摊
 const blank = [{ code: "cash", amount: "" }, { code: "transfer", amount: "" }, { code: "discount", amount: "" }];
 assert.equal(splitProblem(blank, "1250.50"), "empty");
+// 应分不是正数（收款抵减单抵平 0、抵过头为负：差额退现金）：一项不填就能交；没给合计照旧算空
+assert.equal(splitProblem(blank, "0.00"), "");
+assert.equal(splitProblem(blank, "-37.00"), "");
+assert.equal(splitProblem(blank, ""), "empty");
 let split = setAmount(blank, "cash", "250.50");
 assert.equal(splitProblem(split, "1250.50"), "mismatch");
 assert.equal(splitRemainder(split, "1250.50"), 100000n);

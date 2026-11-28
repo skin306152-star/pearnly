@@ -962,6 +962,10 @@ class Release1122Edges(unittest.TestCase):
             for path in (COMPANION / "express_receivables.py", COMPANION / "dbf_receipt.py"):
                 self.assertEqual(number_constants(path, ("OFFSET_RECTYPS",))["OFFSET_RECTYPS"], server["OFFSET_RECTYPS"], path.name)
             self.assertIn('payload.get("offsets")', (COMPANION / "dbf_receipt.py").read_text(encoding="utf-8"))
+            # 抵减大于发票（净额 < 0）退现金：服务端只在带抵减单的载荷（23）里发负数现金，CC 23 起才收；两边都只认现金
+            self.assertIn("only cash can be paid back", (COMPANION / "dbf_receipt.py").read_text(encoding="utf-8"))
+            self.assertIn("if out_methods:\n            raise CollectionError(OFFSETS_EXCEED",
+                          (self.ERP / "collection" / "contracts.py").read_text(encoding="utf-8"))
         snapshot = (self.ERP / "collection" / "snapshot.py").read_text(encoding="utf-8")
         self.assertIn('params["offsets"] = True', snapshot)
         self.assertIn("offsets=False", snapshot)  # 够得到的都旧时退回不带的那种

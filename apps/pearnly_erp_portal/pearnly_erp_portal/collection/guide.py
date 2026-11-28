@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import contextlib
+from decimal import Decimal
 
 import frappe
 from frappe import _
@@ -334,7 +335,10 @@ def method_options(ctx, txt="", start=0, page_length=20, codes=None):
 
 def method_check(ctx, value) -> str:
     paid = sum((contracts.money(row["amount"]) for row in value or ()), contracts.ZERO)
-    if paid != _invoice_total(_answers(ctx), _offsets(ctx)):
+    total = _invoice_total(_answers(ctx), _offsets(ctx))
+    if total < 0 and not value:
+        return ""  # 抵减大于发票：差额退现金（原生 RE0000034），不分摊，草稿按现金记负数（`contracts.check`）
+    if paid != total:
         return contracts.AMOUNT_MISMATCH
     money = [row for row in value or () if not str(row.get("code") or "").startswith(DISCOUNT)]
     if len(money) > 1:
@@ -413,7 +417,7 @@ def review(ctx, draft) -> dict:
     with _conversation(ctx):
         card = service.card(name)
     label = lambda key: f"guide.step.collection.{key}"  # noqa: E731
-    methods = ([{"code": CASH, "name": _("Cash"), "amount": card["cash"]}] if contracts.money(card["cash"]) else []) + [
+    methods = ([{"code": CASH, "name": _("Cash"), "amount": card["cash"]}] if Decimal(str(card["cash"] or 0)) else []) + [
         {"code": row["prefix"], "name": row.get("label") or row["name"], "amount": row["amount"],
          **({"note": _("Discount")} if row.get("role") == contracts.DISCOUNT else {})} for row in card["methods"]]
     problem = card.get("problem") or ""

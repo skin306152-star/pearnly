@@ -291,6 +291,20 @@ class FullOffset(Base):
         self.assertEqual((str(frappe.db.get_value("ERP Collection", draft, "total")), self.runs[name].status),
                          ("0.00", "reviewing"))
 
+    def test_offsets_above_the_invoices_pay_the_difference_back_in_cash(self):
+        # 原生 69EXP 测试账套 TEST 的 RE0000034（11-28）：应分为负，交空的分摊，草稿现金记负数
+        name, _found = self.to_invoices()
+        self.read_back(self.ROWS)
+        run.view(self.runs[name])
+        found = run.answer(name, {"invoices": [{"code": "IV1", "amount": "100"}, {"code": "AI1", "amount": "300"}]})
+        self.assertEqual(self.questions(found)["methods"]["total"], "-200.00")
+        found = run.answer(name, {"methods": []})
+        self.assertEqual(found["status"], "reviewing")
+        self.assertEqual((found["review"]["total"], found["review"]["ready"]), ("-200.00", True))
+        self.assertEqual([(row["code"], row["amount"]) for row in found["review"]["tables"][1]["rows"]], [(guide.CASH, "-200.00")])
+        refused = run.answer(name, {"methods": [{"code": guide.CASH, "amount": "200"}]})
+        self.assertIn("methods", _codes(refused))
+
     def test_an_empty_split_is_refused_when_money_is_due(self):
         name, _found = self.to_invoices()
         self.read_back(self.ROWS)

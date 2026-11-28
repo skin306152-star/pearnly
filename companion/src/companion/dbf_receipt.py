@@ -29,7 +29,9 @@ RE2401052 多张发票）：
   ``RE{期}`` 加、ARMAS.BALANCE 减的也是这个数（NLTTEST 原生 RE2400956 / RE2401841 等定金单逐月对上；11-28 副本回放查出）；
 - 冲掉的应收为 0（只有减项单、正好抵平，原生 29 张）：DOCSTAT ``N``、没有方式行、**没有凭证**（GLJNL / GLJNLIT 都不写）、ARBAL 与 ARMAS
   不动；有定金的全抵照样有凭证、DOCSTAT ``M``；
-- 净额 < 0（抵减大于发票）：载荷不合格（:data:`ERR_VALIDATION`），原生只有 2018 年一张退现金的，等原生实录再定。
+- 净额 < 0（抵减大于发票，差额退给客户）：只收**现金**（原生 69EXP 测试账套 TEST 的 RE0000034，11-28 实录）：CSHRCV = NETAMT = IVCAMT = 净额（负），
+  DOCSTAT ``M``；凭证 SEQIT 2 **贷**现金、SEQIT 6 **借**应收（金额都写正数，借贷反过来），ARBAL ``RE{期}`` 加负数、ARMAS.BALANCE 加回；
+  转账 / 支票等方式退负数没有原生证据，载荷不合格。现金只在净额 < 0 时可为负。
 
 管钱底线（写前，持 ``PEARNLY.LCK``，worker 已拿着）：同客户、同 YOUREF、没作废的 RE 已在 → 回原号，一行不写（幂等）；逐张重读发票，
 任一张不在 / 不是这个客户 / 已作废 / 服务品现金制增值税（:data:`ERR_INVOICE_NOT_FOUND`，本批不收）或当前余额不够本次收（:data:`ERR_ALREADY_COLLECTED`，含已被别人收清）
@@ -268,7 +270,9 @@ def parse(payload: Dict[str, Any], allowed: tuple = ALLOWED_ACCOUNT_SETS) -> Rec
         if any(docnum == seen for seen, _amount in invoices) or any(docnum == seen for seen, _r, _a in offsets):
             raise ValueError(f"offset {docnum} listed twice")
         offsets.append((docnum, rectyp, _money(row.get("amount"), f"offset {docnum} amount", positive=True)))
-    cash = _money(payload.get("cash") if payload.get("cash") not in (None, "") else "0.00", "cash", positive=False)
+    raw_cash = payload.get("cash") if payload.get("cash") not in (None, "") else "0.00"
+    cash = (_money(raw_cash, "cash", positive=False, signed=True)
+            if str(raw_cash).strip().startswith("-") else _money(raw_cash, "cash", positive=False))
     given = payload.get("methods") or []
     if not isinstance(given, list) or len(given) > MAX_METHODS:
         raise ValueError("methods must be a list")
@@ -286,11 +290,15 @@ def parse(payload: Dict[str, Any], allowed: tuple = ALLOWED_ACCOUNT_SETS) -> Rec
                               _text(row.get("code"))))
     total = sum((amount for _docnum, amount in invoices), Decimal(0)) - sum((amount for _d, _r, amount in offsets), Decimal(0))
     paid = cash + sum((method.amount for method in methods), Decimal(0))
-    if total < 0:
-        raise ValueError(f"offsets exceed invoices ({total})")
     if total != paid:
         raise ValueError(f"invoices less offsets {total} != cash + methods {paid}")
-    if paid < 0 or (paid == 0 and (not offsets or methods)):
+    if total < 0:
+        # 退给客户：原生只有现金（RE0000034）；转账 / 支票退负数没证据
+        if methods:
+            raise ValueError(f"offsets exceed invoices ({total}): only cash can be paid back")
+    elif cash < 0:
+        raise ValueError("cash out of range")
+    elif paid == 0 and (not offsets or methods):
         raise ValueError("nothing received")
     return Receipt(values["ref_no"], doc_date, values["customer"], values["salesman"], values["department"], invoices,
                    cash, methods, values["user"], total, offsets)
@@ -448,7 +456,7 @@ def plan_bank(account_dir, methods: List[Tuple[Method, str]]) -> List[Tuple[Meth
 
 
 def cash_account(account_dir, receipt: Receipt) -> str:
-    if receipt.cash <= 0:
+    if not receipt.cash:
         return ""
     account = account_rules.default_account(account_dir, CASH_SLOT)
     if not account or (account_rules.chart_account(account_dir, account) is not None
@@ -710,19 +718,21 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
 def journal_rows(plan: _Plan) -> List[Tuple[str, str, str, Decimal]]:
     """凭证分录 [(SEQIT, 科目, 借贷, 金额)]：SEQIT 2 现金与各方式按（科目, 借贷）合并、按科目排（原生多方式的 RE 分录行按科目升序，
     与方式行的先后无关：RE2402979 TX 行在前、分录 1112-01 在前；RE2402889 DC / AP / TF 三行分录 4100-04、5220-02、5390-01），
-    负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；抵了定金另有 SEQIT 4 借定金科目；最后 SEQIT 6 贷应收合计（净额 + 定金）。冲掉的应收为 0 没有凭证，回空。"""
+    负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；抵了定金另有 SEQIT 4 借定金科目；最后 SEQIT 6 贷应收合计（净额 + 定金）。冲掉的应收为 0 没有凭证，回空。
+    净额 < 0 退现金（原生 RE0000034）：现金贷方、应收借方，金额正数。"""
     if not plan.receipt.receivable():
         return []
     merged: Dict[Tuple[str, str], Decimal] = {}
-    if plan.receipt.cash > 0:
-        merged[(plan.cash_acc, S.TRNTYP_DEBIT)] = plan.receipt.cash
+    if plan.receipt.cash:
+        merged[(plan.cash_acc, S.TRNTYP_DEBIT if plan.receipt.cash > 0 else S.TRNTYP_CREDIT)] = abs(plan.receipt.cash)
     for method, acc in plan.methods:
         side = S.TRNTYP_DEBIT if method.amount > 0 else S.TRNTYP_CREDIT
         merged[(acc, side)] = merged.get((acc, side), Decimal(0)) + abs(method.amount)
     rows = [(SEQIT_RECEIVED, acc, side, amount) for (acc, side), amount in sorted(merged.items())]
     if plan.receipt.deposits():
         rows.append((SEQIT_DEPOSIT, plan.deposit_acc, S.TRNTYP_DEBIT, plan.receipt.deposits()))
-    return rows + [(SEQIT_RECEIVABLE, plan.ar_acc, S.TRNTYP_CREDIT, plan.receipt.receivable())]
+    owed = plan.receipt.receivable()
+    return rows + [(SEQIT_RECEIVABLE, plan.ar_acc, S.TRNTYP_CREDIT if owed > 0 else S.TRNTYP_DEBIT, abs(owed))]
 
 
 def description(account_dir, jnlexp: str, customer: str) -> str:
@@ -836,8 +846,8 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
         fail(f"journal lines {got} differ from {sorted(gl_rows)}", "GLJNLIT")
     debit = sum((amount for _s, _a, side, amount in got if side == S.TRNTYP_DEBIT), Decimal(0))
     credit = sum((amount for _s, _a, side, amount in got if side != S.TRNTYP_DEBIT), Decimal(0))
-    receivable = sum((amount for seqit, _a, side, amount in got if seqit == SEQIT_RECEIVABLE and side != S.TRNTYP_DEBIT),
-                     Decimal(0))
+    receivable = sum(((amount if side != S.TRNTYP_DEBIT else -amount) for seqit, _a, side, amount in got
+                      if seqit == SEQIT_RECEIVABLE), Decimal(0))
     if debit != credit or receivable != receipt.receivable():
         fail(f"journal not balanced {debit} / {credit} (receivable {receivable})", "GLJNLIT")
     if plan.bank:

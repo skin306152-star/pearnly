@@ -141,9 +141,35 @@ def test_bad_offsets_write_nothing(acct, over):
     assert not res.ok and res.error_code == R.ERR_VALIDATION and _state(acct) == before
 
 
-def test_offsets_larger_than_the_invoices_are_refused_until_the_native_recording(acct):
-    before = _state(acct)
+def test_offsets_larger_than_the_invoices_pay_cash_back_like_native_re0000034(acct):
+    """净额 < 0 退现金（69EXP\\TEST RE0000034：IV 20 + SR 57 → 现金 -37）：单头三栏负数、DOCSTAT M；凭证贷现金、借应收，金额正数；
+    ARBAL RE 桶加负数、ARMAS 加回；减项单抵清标完成。"""
     res = _write(acct, _pay((("IVP42400241", "1000.00"),), (), (("SR002400054", "5", "6310.00"),), cash="-5310.00"))
+    assert res.ok, res.error
+    head = _head(acct, res.docnum)
+    assert (head["NETAMT"], head["IVCAMT"], head["CSHRCV"], head["CHQRCV"], head["DOCSTAT"], head["CMPLAPP"]) == \
+        (-5310.0, -5310.0, -5310.0, 0.0, "M", "Y")
+    assert _rows(acct, "ARRCPCQ", RCPNUM=res.docnum) == []
+    assert _journal(acct, res.docnum) == [(" 2", "1111-00", "1", Decimal("5310.0"), "CPI"),
+                                          (" 6", AR, "0", Decimal("5310.0"), "CPI")]
+    assert _re_bucket(acct) == -5310.0 and _balance(acct) == 30000.0 + 5310.0
+    sr = _artrn(acct, "SR002400054")
+    assert (sr["RCVAMT"], sr["REMAMT"], sr["CMPLAPP"]) == (6310.0, 0.0, "Y")
+
+
+@pytest.mark.parametrize("methods, cash", [
+    ((("BB", "-5310.00"),), "0.00"),                    # 转账退负数：没有原生证据
+    ((("BB", "-5000.00"),), "-310.00"),
+])
+def test_offsets_larger_than_the_invoices_paid_back_other_than_by_cash_are_refused(acct, methods, cash):
+    before = _state(acct)
+    res = _write(acct, _pay((("IVP42400241", "1000.00"),), methods, (("SR002400054", "5", "6310.00"),), cash=cash))
+    assert not res.ok and res.error_code == R.ERR_VALIDATION and _state(acct) == before
+
+
+def test_negative_cash_is_refused_when_the_invoices_are_larger(acct):
+    before = _state(acct)
+    res = _write(acct, _pay((("IVP42400239", "9972.00"),), (("BB", "10072.00"),), (), cash="-100.00"))
     assert not res.ok and res.error_code == R.ERR_VALIDATION and _state(acct) == before
 
 
