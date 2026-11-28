@@ -730,8 +730,10 @@ def job_changed(view):
         _void_changed(view)  # 作废那一件：记在作废栏上，写入时的单号与状态不动
         return
     if view.get("status") == "cancelled" and frappe.db.get_value(doctype, name, "status") == "void":
-        # 单据作废后撤掉的那件（作废时撤、或领单前兜底 `still_wanted`）：清账本栏，不记成「失败」（11-13）
-        _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
+        # 单据作废后撤掉的那件（作废时撤、或领单前兜底 `still_wanted`）：清账本栏，不记成「失败」（11-13）；已写进 Express 的单
+        # 撤的是多出来的件（作废时按来源单据全撤，11-28 B ③），写入状态与单号照旧留着（出入库单另排原生作废那一件）
+        if frappe.db.get_value(doctype, name, "ledger_state", for_update=True) not in (contracts.WRITTEN, contracts.MISMATCH):
+            _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
     before = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_docnum"], as_dict=True)
     before.company = company_of(doctype, name)
