@@ -610,7 +610,8 @@ class LineItems(Base):
         self.items = line_items
         self.enterContext(patch.object(line_items, "_", _same))
         self.docs = {}
-        self.enterContext(patch.object(line_items, "_doc", side_effect=lambda name, **kw: self.docs[name]))
+        self.enterContext(patch.object(line_items, "_doc", side_effect=lambda name: self.docs[name]))
+        self.enterContext(patch.object(line_items, "_locked_doc", side_effect=lambda name: self.docs[name]))
         self.enterContext(patch.object(line_questions, "_doc", side_effect=lambda name: self.docs[name]))
         self.enterContext(patch.object(line_items, "_save_choices",
                                        side_effect=lambda name, value: setattr(self.docs[name], "line_choices", json.dumps(value))))

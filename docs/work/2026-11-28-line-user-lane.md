@@ -107,7 +107,7 @@
 | # | 入口 | 改法 | 测试 |
 |---|---|---|---|
 | L6 | ERP 识别完出题 `line_questions.begin`（后台识别任务里调） | 整段进 `line_session.serialized`（调用方已先提交）：块里读会话是加锁读，`_precheck` 中途提交也没人能插进来；两张同时识别完、识别完时本人在答题，不再整份互盖。锁到点后别人改过，写回照旧报 417，调用方降级直接出卡 | `tests/test_line_lane_phase2.py` ErpBeginSerialized；ERP 自带 `test_line_intake` 148 条 |
-| L7 | ERP 按行追问 `line_items.answer / search` | 点回来时这张卡加锁读（`_doc(name, lock=True)`），与网页编辑、CC 代录记付款写同一列互斥；会话在道里已串行 | `test_line_intake` |
+| L7 | ERP 按行追问 `line_items.answer / search` | 点回来时这张卡加锁读（`_locked_doc`），与网页编辑、CC 代录记付款写同一列互斥；会话在道里已串行 | `test_line_intake` |
 | L8 | ERP 收款凭证 `line_collection.store_voucher`（后台） | 取图、存凭证在块外；存好先提交，进块加锁重读，还在等这一笔才挂上；已取消 / 换了一笔就删掉刚存的凭证、不回话，不把取消的流程写活 | `tests/test_erp_collection_line.py` VoucherAfterCancel |
 | L9 | ERP 收图 `_receive_document` 整份写回 | 不用改：它在道里（串行块），读是加锁读；后台出题进了同一把锁 | — |
 | L10 | DMS 写档失败 `_dms_failed / _offer_check`（写 DMS 之后） | 改 `_set_retry`：`update_session` 里加锁读此刻的会话、只改 `dms_retry` 一键；会话已经没了不重建 | DMS 离线全套 |
