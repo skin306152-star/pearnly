@@ -18,14 +18,17 @@ image=${1:-}
 docker image inspect "$image" >/dev/null 2>&1 || { printf 'PLAN-FAILED image %s is not on this host (stage it first)\n' "$image"; exit 1; }
 SITES=/home/frappe/frappe-bench/sites
 status=0
-# 测试环境实测用（生产不设）：PEARNLY_PLAN_PRODUCTS="dms"、PEARNLY_PLAN_WEB="pearnly-testenv-{p}-{p}-web-1"
+# 测试环境实测用（生产都不设）：PEARNLY_PLAN_PRODUCTS="dms"、PEARNLY_PLAN_WEB="pearnly-testenv-{p}-{p}-web-1"、
+# PEARNLY_PLAN_NAME="<自己的前缀>-pearnly-surfaces-plan"、PEARNLY_PLAN_MOUNTS="<代替 --volumes-from 的 -v 参数>"
+# （测试栈的网页容器把别的分支的源码挂在 App 目录上，要换成被测分支的源码；两个挂载同一目的地 Docker 不允许）
 products=${PEARNLY_PLAN_PRODUCTS:-erp cowork dms}
+name_prefix=${PEARNLY_PLAN_NAME:-pearnly-surfaces-plan}
 default_web='pearnly-production-{p}-web-1'
 web_format=${PEARNLY_PLAN_WEB:-$default_web}
 
 for product in $products; do
   web=${web_format//\{p\}/$product}
-  name=pearnly-surfaces-plan-$product
+  name=$name_prefix-$product
   work=$(mktemp -d)
   echo "-- $product: preview with $image"
   if ! docker exec "$web" cat "$SITES/common_site_config.json" </dev/null > "$work/common.json"; then
@@ -47,12 +50,19 @@ PY
   network=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$web" | head -1)
   docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$web" | grep -v '^$' > "$work/env"
   docker rm -f "$name" >/dev/null 2>&1 || true
-  timeout 900 docker run --rm --name "$name" --memory 2g --network "$network" --volumes-from "$web:ro" \
+  mounts=(--volumes-from "$web:ro")
+  # shellcheck disable=SC2206  # 测试用：按空格拆成多个 -v 参数
+  [[ -z "${PEARNLY_PLAN_MOUNTS:-}" ]] || mounts=($PEARNLY_PLAN_MOUNTS)
+  started=$(date +%s)
+  timeout 900 docker run --rm --name "$name" --memory 2g --network "$network" "${mounts[@]}" \
     -v "$work/common.json:$SITES/common_site_config.json:ro" --env-file "$work/env" -w "$SITES" \
     --entrypoint /home/frappe/frappe-bench/env/bin/python "$image" -m pearnly_core.line_surfaces check --product "$product" \
     </dev/null > "$work/out" 2>&1
   rc=$?
+  echo "   ($product preview took $(( $(date +%s) - started ))s, exit $rc)"
   grep -E '^(SITE|SUMMARY) ' "$work/out"
+  # 只读挂载与连不上的缓存下的告警（写不了日志 / 锁文件、连不上 Redis）照实打出来，便于判断是静默退回还是出错
+  grep -vE '^(SITE|SUMMARY) ' "$work/out" | grep -iE 'error|traceback|denied|read-only|warning' | head -10 | sed 's/^/   note: /'
   summary=$(sed -n 's/^SUMMARY //p' "$work/out" | tail -1)
   if [[ -z "$summary" || $rc -gt 1 ]] || python3 -c 'import json,sys; sys.exit(0 if json.loads(sys.argv[1])["failed"] else 1)' "$summary"; then
     tail -15 "$work/out" | sed 's/^/    /'
