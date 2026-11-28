@@ -147,7 +147,8 @@ def move_list(name, before=None, after=None):
             return None
         return frappe.db.get_value(COLUMN, {"name": other, "board": board, "archived": 0}, "position", for_update=True)
 
-    position = contracts.position_between(neighbour(before), neighbour(after))
+    position = contracts.position_between(_past_taken(COLUMN, "board", board, neighbour(before), neighbour(after), name),
+                                          neighbour(after))
     if position is None:
         rows = frappe.db.get_values(COLUMN, {"board": board, "archived": 0, "name": ["!=", name]}, "name",  # bounded: 一块板的列表
                                     pluck=True, order_by="position asc, creation asc", for_update=True)
@@ -470,6 +471,22 @@ def _column_tail(board_list, exclude=None):
     return rows[0].position if rows else None
 
 
+def _past_taken(doctype, scope, owner, low, high, exclude):
+    """同一空隙同时有几个人拖进来（11-28，B ③）：落点两边的位置是页面打开时看到的；别人刚放进这两边之间的，加锁读看得到——
+    落到它们后面，位置不重号、先放的在前。``scope`` 是列（卡片：所在列表）或看板（列表）的字段，``owner`` 是它的值。
+    调用方已在那一列 / 那块板上加锁排队，这里加锁读拿最新位置。"""
+    where, values = [f"`{scope}` = %s", "archived = 0", "name != %s"], [owner, exclude or ""]
+    if low is not None:
+        where.append("position > %s")
+        values.append(low)
+    if high is not None:
+        where.append("position < %s")
+        values.append(high)
+    rows = frappe.db.sql(f"select position from `tab{doctype}` where {' and '.join(where)} "  # bounded: 一列的卡 / 一块板的列表
+                         "order by position desc limit 1 for update", values)
+    return rows[0][0] if rows else low
+
+
 def _complete(doc, done):
     """标记完成 / 未完成。重复到期的卡"完成"时不算完成：到期日滚到下一次（照 Trello），返回 True。"""
     if done and (doc.recurrence or "never") != "never" and doc.due_date:
@@ -686,7 +703,7 @@ def _field_values(board, raw):
 
 def move(name, board_list, before=None, after=None):
     """拖到 `board_list`（可以在别的看板，两边都要能改）、落在 `before` 与 `after` 两张卡之间。"""
-    target = _list_for(board_list, "edit")
+    target = _list_for(board_list, "edit", lock=True)  # 往同一列拖的排队（见 `_past_taken`）
     doc = _card(name, "edit", lock=True, archived=False)
     source_board = doc.board
 
@@ -696,14 +713,16 @@ def move(name, board_list, before=None, after=None):
         return frappe.db.get_value(CARD, {"name": other, "board_list": target.name, "archived": 0}, "position",
                                    for_update=True)
 
-    position = contracts.position_between(neighbour(before), neighbour(after))
+    position = contracts.position_between(_past_taken(CARD, "board_list", target.name, neighbour(before), neighbour(after),
+                                                      doc.name), neighbour(after))
     if position is None:
         # 两卡之间挤不下：整列按当前顺序重排，再算一次。
         column = frappe.db.get_values(CARD, {"board_list": target.name, "archived": 0, "name": ["!=", doc.name]},  # bounded: 一列的卡
                                       "name", pluck=True, order_by="position asc, creation asc", for_update=True)
         for row, value in zip(column, contracts.renumber(len(column))):
             frappe.db.set_value(CARD, row, "position", value, update_modified=False)
-        position = contracts.position_between(neighbour(before), neighbour(after))
+        position = contracts.position_between(_past_taken(CARD, "board_list", target.name, neighbour(before),
+                                                          neighbour(after), doc.name), neighbour(after))
     if position is None:
         position = contracts.position_between(_column_tail(target.name, doc.name), None)
     _place(doc, target, position)

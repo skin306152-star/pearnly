@@ -35,7 +35,7 @@ class EmailTests(unittest.TestCase):
             ])
         self.account = NS(name="Pearnly", enable_outgoing=1, email_id=welcome.SENDER, always_bcc="")
         frappe.conf = {"pearnly_welcome_email_account": "Pearnly"}
-        frappe.db = NS(sql=Mock(),get_value=Mock(return_value="DEP-TEST"),
+        frappe.db = NS(sql=Mock(side_effect=lambda query, values=None: [(self.issue.get("welcome_email_queue"),)]),get_value=Mock(return_value="DEP-TEST"),
             set_value=Mock(side_effect=self.set_value),savepoint=Mock(),rollback=Mock())
         frappe.get_doc = Mock(side_effect=lambda dt,name: self.issue if dt==welcome.ISSUE else self.account)
         frappe.get_app_path = lambda app,*parts: str(ROOT / 'apps' / app / app / Path(*parts))

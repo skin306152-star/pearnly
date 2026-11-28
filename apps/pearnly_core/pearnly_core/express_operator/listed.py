@@ -40,7 +40,10 @@ def remember(task: str, company: str, rows) -> dict:
     调用方都在会提交的路径上（资料清单接口只收 POST、CC 工具、写入计划、交单），这里不自己提交。"""
     if not task:
         return {}
-    doc = tasks._own(task, for_update=True)
+    name = tasks._own_name(task, for_update=True)
+    # 快照在加锁读里取：调用方的事务早有读视图，普通读读到的是旧快照，合并后写回会丢掉另一路刚记进去的单（11-28，B ③）
+    doc = frappe.db.get_value(tasks.DOCTYPE, {"name": name}, ["name", "company", "status", FIELD], as_dict=True,
+                              for_update=True)
     if doc.company != company or doc.status != "preparing":
         return {}
     snapshot = _load(doc.get(FIELD))

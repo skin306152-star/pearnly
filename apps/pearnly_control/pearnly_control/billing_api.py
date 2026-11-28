@@ -20,6 +20,7 @@ from frappe.utils import now
 
 from pearnly_control import billing
 from pearnly_control.payments.transactions import retry_service
+from pearnly_core.transaction import conflicts
 
 TOKEN_KEY = "pearnly_billing_token"
 
@@ -83,7 +84,6 @@ def service_status(tenant: str, kind: str, units: int = 0, tier: str = "B") -> d
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-@retry_service
 def service_charge(tenant: str, product: str, kind: str, units: int, tier: str = "B",
                    reference: str = "", description: str = "") -> dict:
     """干完活后扣费。调用方必须是"确实识别成功了"的那一刻。"""
@@ -92,11 +92,25 @@ def service_charge(tenant: str, product: str, kind: str, units: int, tier: str =
     # 排队拿租户锁之前先结束这次请求的读快照（上面查租户存在已经开始了一个）：MariaDB 11.8 开着快照隔离，快照早于排队
     # 的话，拿到锁时前一笔已经改过的钱包一读就是 1020，整笔回滚、在计费线程里睡着重试、再排一次队；同一租户集中扣费时
     # 计费线程被这些重试占满，各租户问余额都超时（独立复查 2026-10-01，本机 MariaDB 11.8.9 复现）。到这里还没写过东西。
+    # 这次空提交在重试包装外面：包在里面时它把「已提交」标上，之后撞 1213 就不再重试，产品侧只记一条「没记上」（11-28 B ③）。
     frappe.db.commit()
-    return billing.charge(
-        tenant, product=product, kind=kind, units=int(units or 0),
-        tier=tier, reference=reference, description=description,
-    )
+    try:
+        return retry_service(billing.charge)(
+            tenant, product=product, kind=kind, units=int(units or 0),
+            tier=tier, reference=reference, description=description,
+        )
+    except Exception as error:
+        if conflicts.is_conflict(error):
+            # 重试用尽：这笔没扣上。留一条带 reference 的记录给补扣核对（产品侧同一 reference 再报只扣一次）。
+            frappe.db.rollback()
+            frappe.log_error(title=CHARGE_NOT_RECORDED,
+                             message=f"tenant={tenant} product={product} kind={kind} units={int(units or 0)} "
+                                     f"tier={tier} reference={reference}")
+            frappe.db.commit()
+        raise
+
+
+CHARGE_NOT_RECORDED = "billing charge conflict exhausted"
 
 
 @frappe.whitelist(allow_guest=True)

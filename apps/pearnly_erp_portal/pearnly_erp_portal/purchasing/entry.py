@@ -134,12 +134,18 @@ def post(payload, *, request_id, name=None, amended_from=None, finalize=None, al
     # Serialize auto-item matching until commit. Unique request_id remains the durable replay guard.
     with pearnly_state.store().lock(pearnly_state.store().make_key("erp-purchase-post"), timeout=120, blocking_timeout=20):
         try:
-            existing = frappe.db.get_value("Purchase Document", {"request_id": request_id}, "name")
+            # 加锁读查重：读视图早于拿锁，普通读看不到另一路刚提交的同号单（11-28 B ③）；锁住这一行到本事务结束
+            existing = frappe.db.get_value("Purchase Document", {"request_id": request_id},
+                                           ["name", "status", "request_hash", "company", "owner"], as_dict=True,
+                                           for_update=True)
             if existing:
-                doc = access.get_document(existing)
-                if doc.request_hash != fingerprint:
+                # 权限同 `access.get_document`（公司、只看自己的），按加锁读到的这几列判：这张可能是读视图之后才建的，
+                # 普通 get_doc 读不到它
+                if access.document_permission(existing, "read", frappe.session.user) is False:
+                    frappe.throw(_("Not permitted"), frappe.PermissionError)
+                if existing.request_hash != fingerprint:
                     frappe.throw(_("Request ID already exists"))
-                return {"name": doc.name, "status": doc.status, "duplicate": True}
+                return {"name": existing.name, "status": existing.status, "duplicate": True}
             result = _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate)
             if finalize:
                 finalize(result)

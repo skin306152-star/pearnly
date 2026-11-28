@@ -78,10 +78,12 @@ def ready_products(issue, request):
 
 def queue_for_request(request):
     # Lock the durable issue receipt: concurrent completion/retry creates one queue row.
-    frappe.db.sql("SELECT name FROM `tabPearnly Issue` WHERE name=%s FOR UPDATE", (request.issue,))
+    # 「排过没有」就在这条加锁读里取：调用方的事务早有读视图，之后的普通读看不到另一路刚提交的排队号，会再排一封带初始密码的信
+    # （11-28，B ③）。
+    locked = frappe.db.sql("SELECT welcome_email_queue FROM `tabPearnly Issue` WHERE name=%s FOR UPDATE", (request.issue,))
+    if locked and locked[0][0]:
+        return locked[0][0]
     issue = frappe.get_doc(ISSUE, request.issue)
-    if issue.get("welcome_email_queue"):
-        return issue.welcome_email_queue
     require_cloud_target(issue.target, use_default=False)
     products = ready_products(issue, request)
     account_name = frappe.conf.get("pearnly_welcome_email_account")
