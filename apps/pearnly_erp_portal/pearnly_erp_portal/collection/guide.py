@@ -265,8 +265,11 @@ def invoice_options(ctx, txt="", start=0, page_length=20, codes=None):
             found = service.open_invoices(_company(ctx), customer, _day(ctx), refresh=fresh)
         except contracts.CollectionError as error:
             return {"options": [], "more": False, "facts": _explained(error)}
-    rows = [{"code": item["docnum"], "name": item["docnum"], "note": item["doc_date"], "amount": item["available"],
-             "max": item["available"], "remaining": item["remaining"]} for item in found["items"]]
+    # 抵减单（减项 / 定金）列在发票下面，备注带类型、``negative`` 标出它从合计里扣（页面合计按它减）；勾不勾由人定
+    rows = [{"code": item["docnum"], "name": item["docnum"], "amount": item["available"], "max": item["available"],
+             "remaining": item["remaining"],
+             **({"note": f"{_kind(item['rectyp'])} · {item['doc_date']}", "negative": True} if item.get("offset")
+                else {"note": item["doc_date"]})} for item in found["items"]]
     out = _page(rows, txt, start, page_length, codes, fields=("code", "note"))
     state = found.get("refresh") or ""
     if state in READ_FACTS:
@@ -279,8 +282,25 @@ def invoice_options(ctx, txt="", start=0, page_length=20, codes=None):
     return out
 
 
-def _invoice_total(values):
-    return sum((contracts.money(row["amount"]) for row in values.get("invoices") or ()), contracts.ZERO)
+def _kind(rectyp) -> str:
+    return {"5": _("Credit Note"), "0": _("Deposit")}.get(str(rectyp or ""), "")
+
+
+def _offsets(ctx) -> set:
+    """这位客户此刻快照里的抵减单号（不重读）。"""
+    customer = str(_answers(ctx).get("customer") or "")
+    with _conversation(ctx):
+        try:
+            found = service.open_invoices(_company(ctx), customer, _day(ctx), refresh=False)
+        except contracts.CollectionError:
+            return set()
+    return {item["docnum"] for item in found["items"] if item.get("offset")}
+
+
+def _invoice_total(values, offsets=frozenset()):
+    """要收的合计：发票 − 抵减单（`contracts.check` 同一口径）。"""
+    return sum(((-contracts.money(row["amount"]) if row["code"] in offsets else contracts.money(row["amount"]))
+                for row in values.get("invoices") or ()), contracts.ZERO)
 
 
 # ── 收款方式（分摊：现金 / 各种转账 / 折扣，合计 = 所选发票收的合计）──────────────────────────────
@@ -306,12 +326,15 @@ def method_options(ctx, txt="", start=0, page_length=20, codes=None):
     out = _page(rows, txt, start, page_length, codes)
     if single:
         out["max_rows"] = 1
+    invoices = _answers(ctx).get("invoices") or ()
+    if invoices:
+        out["total"] = contracts.text(_invoice_total(_answers(ctx), _offsets(ctx)))  # 应分 = 发票 − 抵减单
     return out
 
 
 def method_check(ctx, value) -> str:
     paid = sum((contracts.money(row["amount"]) for row in value or ()), contracts.ZERO)
-    if paid != _invoice_total(_answers(ctx)):
+    if paid != _invoice_total(_answers(ctx), _offsets(ctx)):
         return contracts.AMOUNT_MISMATCH
     money = [row for row in value or () if not str(row.get("code") or "").startswith(DISCOUNT)]
     if len(money) > 1:
@@ -409,7 +432,10 @@ def review(ctx, draft) -> dict:
         ],
         "tables": [
             {"key": "invoices", "label_key": label("invoices"), "step": "invoices",
-             "rows": [{"code": row["docnum"], "name": row["docnum"], "note": row["invoice_date"], "amount": row["amount"]}
+             "rows": [{"code": row["docnum"], "name": row["docnum"],
+                       "note": " · ".join(part for part in (_kind(row.get("rectyp")) if row.get("offset") else "",
+                                                            row["invoice_date"]) if part),
+                       "amount": ("-" if row.get("offset") else "") + row["amount"]}
                       for row in card["invoices"]]},
             {"key": "methods", "label_key": label("methods"), "step": "methods", "rows": methods},
         ],

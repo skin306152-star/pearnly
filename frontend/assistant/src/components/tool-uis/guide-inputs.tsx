@@ -19,7 +19,7 @@ import { shownError } from "@/lib/frappe";
 import { type GuideSub, guideFiles } from "@/lib/guide-run";
 import { ACCEPT, refusalOf } from "@/lib/managed-agents/attachments";
 import {
-  type AmountOption, type AmountRow, type ValueKind, amountsProblem, fillRest, formatMinor, lockedRows, setAmount, splitRemainder, sumMinor,
+  type AmountOption, type AmountRow, type ValueKind, amountsProblem, fillRest, formatMinor, lockedRows, setAmount, signedSumMinor, splitRemainder, sumMinor,
   toMinor, toggleRow, valueOk,
 } from "@/lib/guide-inputs";
 
@@ -85,7 +85,7 @@ export const AmountsField: FC<{
           </Item>
         );
       })}
-      <TotalLine total={sumMinor(rows)} />
+      <TotalLine total={signedSumMinor(options, rows)} />
     </ItemGroup>
   );
 };

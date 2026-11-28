@@ -533,6 +533,9 @@ def _pick_customer(line_user_id, payload, value, reply_token, note=""):
     payload.update(customer=value, customer_name=name, picked=[], cash="0", methods=[], allocation=None,
                    due={row["docnum"]: row["available"] for row in found["items"][:contracts.MAX_INVOICES]},
                    dates={row["docnum"]: row["doc_date"] for row in found["items"][:contracts.MAX_INVOICES]},
+                   # 抵减单（减项 / 定金，从合计里扣，列在发票下面）：单号 → 类型
+                   kinds={row["docnum"]: row["rectyp"] for row in found["items"][:contracts.MAX_INVOICES]
+                          if contracts.is_offset(row.get("rectyp"))},
                    order=[row["docnum"] for row in found["items"][:contracts.MAX_INVOICES]])
     if not payload["order"]:
         payload["step"] = "customer"
@@ -559,8 +562,25 @@ def _answer_customer(line_user_id, payload, value, reply_token):
 # ── 发票（多选）─────────────────────────────────────────────────────────────
 
 
+def _is_offset(payload, docnum) -> bool:
+    return docnum in (payload.get("kinds") or {})
+
+
+def _signed(payload, docnum, value) -> Decimal:
+    """抵减单记负数（合计 = 发票 − 抵减）。"""
+    return -_amount(value) if _is_offset(payload, docnum) else _amount(value)
+
+
 def _picked_total(payload) -> Decimal:
-    return sum((_amount(payload["due"][docnum]) for docnum in payload.get("picked") or []), contracts.ZERO)
+    return sum((_signed(payload, docnum, payload["due"][docnum]) for docnum in payload.get("picked") or []), contracts.ZERO)
+
+
+def _picked_invoices(payload) -> list:
+    return [docnum for docnum in payload.get("picked") or [] if not _is_offset(payload, docnum)]
+
+
+def _full(payload, docnums) -> list:
+    return [{"docnum": docnum, "amount": payload["due"][docnum]} for docnum in docnums]
 
 
 def _show_invoices(payload, reply_token, note=""):
@@ -589,9 +609,14 @@ READING_CODES = ("express.masters_reading", "collection.mrerp_reading")  # 主�
 
 
 def _answer_invoices_done(line_user_id, payload, value, reply_token):
-    if not payload.get("picked"):
+    if not _picked_invoices(payload):
         return _show_invoices(payload, reply_token, note=_("Choose at least one invoice"))
+    if _picked_total(payload) < 0:
+        return _show_invoices(payload, reply_token, note=_("Credit notes exceed the invoices"))
     payload.update(cash="0", methods=[], allocation=None)
+    if _picked_total(payload) == 0:  # 抵减正好抵平：不收钱、不问方式，直接出确认卡（原生净额 0 的 RE）
+        payload["allocation"] = _full(payload, payload["picked"])
+        return _draft(line_user_id, payload, reply_token)
     try:
         _ask_method(line_user_id, payload, reply_token)
     except contracts.CollectionError as error:
@@ -745,9 +770,11 @@ def _answer_more(line_user_id, payload, value, reply_token):
 
 
 def _ask_split(line_user_id, payload, reply_token):
-    picked, paid = payload["picked"], _paid(payload)
-    if len(picked) == 1:
-        payload["allocation"] = [{"docnum": picked[0], "amount": contracts.text(paid)}]
+    picked, paid = _picked_invoices(payload), _paid(payload)
+    offsets = [docnum for docnum in payload["picked"] if _is_offset(payload, docnum)]
+    credit = -sum((_signed(payload, docnum, payload["due"][docnum]) for docnum in offsets), contracts.ZERO)
+    if len(picked) == 1:  # 勾了的抵减单整张抵（主会话 11-28：自动分配不动抵减行），发票收「收到的 + 抵减」
+        payload["allocation"] = [{"docnum": picked[0], "amount": contracts.text(paid + credit)}, *_full(payload, offsets)]
         return _draft(line_user_id, payload, reply_token)
     total = _picked_total(payload)
     # 留余额的那张：其余收满后还要收到钱（> 0）
@@ -765,18 +792,21 @@ def _answer_split(line_user_id, payload, value, reply_token):
     if value not in (payload.get("offered") or []):
         return _text(reply_token, _("This option is no longer current"))
     payload.pop("offered", None)
-    picked, paid = payload["picked"], _paid(payload)
+    picked, paid = _picked_invoices(payload), _paid(payload)
+    offsets = [docnum for docnum in payload["picked"] if _is_offset(payload, docnum)]
+    credit = -sum((_signed(payload, docnum, payload["due"][docnum]) for docnum in offsets), contracts.ZERO)
     if value == EACH:
         payload.update(step="each", each={}, at=0)
         _save(line_user_id, payload)
         return _ask_each(payload, reply_token)
     if value == OLDEST:
-        rows = [{"docnum": docnum, "doc_date": payload["dates"].get(docnum) or "", "available": payload["due"][docnum]}
-                for docnum in picked]
+        rows = [{"docnum": docnum, "doc_date": payload["dates"].get(docnum) or "", "available": payload["due"][docnum],
+                 "rectyp": (payload.get("kinds") or {}).get(docnum, "")} for docnum in payload["picked"]]
         allocation = contracts.allocate(rows, paid)
     else:
         others = [{"docnum": docnum, "amount": _amount(payload["due"][docnum])} for docnum in picked if docnum != value]
-        allocation = [*others, {"docnum": value, "amount": paid - sum((row["amount"] for row in others), contracts.ZERO)}]
+        allocation = [*others, *_full(payload, offsets),
+                      {"docnum": value, "amount": paid + credit - sum((row["amount"] for row in others), contracts.ZERO)}]
     payload["allocation"] = [{"docnum": row["docnum"], "amount": contracts.text(row["amount"])} for row in allocation]
     _draft(line_user_id, payload, reply_token)
 
@@ -784,10 +814,11 @@ def _answer_split(line_user_id, payload, value, reply_token):
 def _ask_each(payload, reply_token, note=""):
     docnum = payload["picked"][payload["at"]]
     due = _amount(payload["due"][docnum])
-    left = _paid(payload) - sum((_amount(value) for value in payload["each"].values()), contracts.ZERO)
+    left = _paid(payload) - sum((_signed(payload, key, value) for key, value in payload["each"].items()), contracts.ZERO)
     choices = [money(value) for value in sorted({due, max(contracts.ZERO, min(due, left)), contracts.ZERO}, reverse=True)]
     lines = [note] if note else [_("Received {0} · due {1}").format(money(_paid(payload)), money(_rest(payload)))]
-    lines += [f"{docnum} · " + _("Due {0}").format(money(due)), _("Enter the amount for {0}").format(docnum)]
+    lines += [f"{docnum} · " + _("Due {0}").format(money(-due if _is_offset(payload, docnum) else due)),
+              _("Enter the amount for {0}").format(docnum)]
     _ask(reply_token, "\n".join(lines), [_button(value, _data("each", value.replace(",", ""))) for value in choices])
 
 
@@ -806,7 +837,7 @@ def _each_amount(line_user_id, payload, typed, reply_token):
     if payload["at"] < len(payload["picked"]):
         _save(line_user_id, payload)
         return _ask_each(payload, reply_token)
-    entered = sum((_amount(value) for value in payload["each"].values()), contracts.ZERO)
+    entered = sum((_signed(payload, key, value) for key, value in payload["each"].items()), contracts.ZERO)
     if entered != _paid(payload) or not entered:
         payload.update(each={}, at=0)
         _save(line_user_id, payload)

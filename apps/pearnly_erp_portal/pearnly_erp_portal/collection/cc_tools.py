@@ -590,7 +590,9 @@ TOOLS = [
                     "remaining and available (what can be collected now: remaining less what other collectors already "
                     "recorded). Only available can be collected; never work amounts out yourself. It reads the books again "
                     "first; read says whether the list is fresh (ready) or not (reading / offline / outdated) — only a "
-                    "ready list can tell that an invoice is not open; follow note.",
+                    "ready list can tell that an invoice is not open; follow note. Rows with offset true are credit "
+                    "notes or deposits (rectyp 5 / 0): listed after the invoices, never picked unless the user asks; when "
+                    "picked their amount (positive) is taken off the total to collect.",
      "input_schema": {"type": "object", "properties": {"customer": {"type": "string", "description": "Customer code."},
                                                        "date": DATE_PROP},
                       "required": ["customer"]},

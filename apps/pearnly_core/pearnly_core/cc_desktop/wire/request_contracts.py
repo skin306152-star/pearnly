@@ -86,7 +86,8 @@ KIND_MIN_COMPANION = {"express_masters": "1.10.0", "express_marks": "1.12.0", "e
                       "express_ar_open": "1.12.20"}
 # 后加的参数同理：带了它的请求只派给这一版起的 CC 桌面端（旧版对不认的参数回 ``params_invalid``）。
 # express_ar_open.docnums：按单号查这几张发票在账套里的状态（已收清 / 已作废 / 账套里没有，1.12.22）
-PARAM_MIN_COMPANION = {"express_ar_open": {"docnums": "1.12.22"}}
+# express_ar_open.offsets：另列抵减单（减项 RECTYP 5、定金 RECTYP 0；退货 / 减项进收款，1.12.26）
+PARAM_MIN_COMPANION = {"express_ar_open": {"docnums": "1.12.22", "offsets": "1.12.26"}}
 _KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,140}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")

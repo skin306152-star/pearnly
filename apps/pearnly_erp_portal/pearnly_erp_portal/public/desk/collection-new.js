@@ -201,8 +201,9 @@
 				{company, customer, day: dialog.get_value("doc_date") || ""}, "POST");
 			open = found.items || [];
 			// 行要有 name：原生表格的勾选按行名记（`grid.js` setup_check），没名字的行勾了也不算选中
+			// 抵减单（减项 / 定金，服务端 `offset`）列在发票下面、未收记负数：勾上从合计里扣（交回时按正数，服务端按类型扣）
 			dialog.fields_dict.invoices.df.data = open.map(row => ({name: row.docnum, docnum: row.docnum, doc_date: row.doc_date,
-				available: amount(row.available), amount: 0}));
+				available: row.offset ? -amount(row.available) : amount(row.available), amount: 0}));
 			dialog.fields_dict.invoices.grid.refresh();
 		}
 		// 勾选一张发票（原生表格的行勾选）= 收它：「本次收」还空着就填未收余额，可再改（11-14 真机：只勾不填提交报「请至少选择一张发票」）
@@ -220,7 +221,7 @@
 			fill_checked();
 			// 读表格自己的行（在格子里改的「本次收」在这里），不读打开时塞进去的那份
 			const invoices = (dialog.fields_dict.invoices.grid.get_data() || [])
-				.filter(row => amount(row.amount) > 0).map(row => ({docnum: row.docnum, amount: row.amount}));
+				.filter(row => Math.abs(amount(row.amount)) > 0).map(row => ({docnum: row.docnum, amount: Math.abs(amount(row.amount))}));
 			const single = methods?.single ? extra.single_method?.get_value() || "" : "";
 			const paid = methods?.single ? extra.single_amount?.get_value() || 0 : 0;
 			const chosen = methods?.single ? [

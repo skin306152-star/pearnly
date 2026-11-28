@@ -81,7 +81,10 @@
 				...(data.reason ? [shown("reason", __("Reason"), voided?.text || data.reason_text || data.reason, "Small Text")] : []),
 				{fieldtype: "Section Break"},
 				{fieldtype: "Table", fieldname: "invoices", label: __("Invoices"), cannot_add_rows: true,
-					cannot_delete_rows: true, in_place_edit: false, read_only: 1, data: data.invoices || [], fields: [
+					cannot_delete_rows: true, in_place_edit: false, read_only: 1,
+					// 抵减单（减项 / 定金）记负数：从合计里扣
+					data: (data.invoices || []).map(row => row.offset
+						? {...row, remaining: -amount(row.remaining), amount: -amount(row.amount)} : row), fields: [
 						{fieldtype: "Data", fieldname: "docnum", label: __("Invoice No"), in_list_view: 1, read_only: 1},
 						{fieldtype: "Date", fieldname: "invoice_date", label: __("Invoice Date"), in_list_view: 1, read_only: 1},
 						{fieldtype: "Currency", fieldname: "remaining", label: __("Outstanding Amount"), in_list_view: 1, read_only: 1},
@@ -163,9 +166,11 @@
 				{fieldtype: "Select", fieldname: "department", label: __("Department"), default: card.department,
 					options: choice(data.staff?.departments, card.department)},
 				{fieldtype: "Section Break", label: __("Invoices")},
+				// 抵减单（减项 / 定金）：金额照填正数，从合计里扣；未收记负数
 				...card.invoices.map((row, index) => ({fieldtype: "Currency", fieldname: `invoice_${index}`,
-					label: row.docnum, default: amount(row.amount),
-					description: __("Due {0}", [money(data.available?.[row.docnum] ?? row.remaining)])})),
+					label: row.offset ? `${row.docnum} · ${row.rectyp === "0" ? __("Deposit") : __("Credit Note")}` : row.docnum,
+					default: amount(row.amount),
+					description: __("Due {0}", [(row.offset ? "-" : "") + money(data.available?.[row.docnum] ?? row.remaining)])})),
 				{fieldtype: "Section Break", label: __("Collection Method")},
 				...(methods.single ? single_fields() : [
 					...(methods.cash || amount(card.cash) ? [{fieldtype: "Currency", fieldname: "cash", label: __("Cash"),

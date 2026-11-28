@@ -1312,5 +1312,68 @@ class MrErpResultLines(unittest.TestCase):
         self.assertNotIn("Express", text)
 
 
+class Offsets(Base):
+    """退货 / 减项进收款（11-28，docs/work/2026-11-28-credit-note-assessment.md）：抵减单列在发票下面、标类型、未收带负号，
+    默认不勾；勾了从合计里扣；正好抵平不问方式直接出卡；只勾抵减单或抵减大于发票照原因停在勾单这一步。"""
+
+    def setUp(self):
+        super().setUp()
+        T.snapshot.replace("CO-1", T.BOOK["key"], [
+            {"docnum": "IV1", "rectyp": "3", "docdat": "2026-10-01", "customer": C1, "salesman": "S1",
+             "department": "CPI", "net": "1000.00", "received": "0.00", "remaining": "1000.00"},
+            {"docnum": "IV2", "rectyp": "3", "docdat": "2026-10-05", "customer": C1, "salesman": "S2",
+             "department": "", "net": "800.00", "received": "300.00", "remaining": "500.00"},
+            {"docnum": "SR1", "rectyp": "5", "docdat": "2026-09-01", "customer": C1, "net": "300.00", "received": "0.00",
+             "remaining": "300.00"},
+            {"docnum": "AI1", "rectyp": "0", "docdat": "2026-09-02", "customer": C1, "net": "500.00", "received": "0.00",
+             "remaining": "500.00"}], "2026-11-11T03:10:00+00:00")
+
+    def rows(self):
+        return {row["docnum"]: (str(row["amount"]), row.get("rectyp") or "")
+                for row in T.S.table("ERP Collection Invoice").values()}
+
+    def test_offsets_are_listed_after_the_invoices_with_their_kind_and_a_minus(self):
+        self.tap("a=col&s=start")
+        self.type(C1)
+        self.assertEqual(self.payload()["order"], ["IV1", "IV2", "SR1", "AI1"])
+        listed = json.dumps(self.last(), ensure_ascii=False)
+        self.assertIn("Credit Note · ", listed)
+        self.assertIn("Due -300.00", listed)
+        self.assertIn("Deposit · ", listed)
+        self.assertEqual(self.payload()["picked"], [])
+
+    def test_a_credit_note_comes_off_and_the_rest_is_collected(self):
+        self.to_invoices(("IV2", "SR1"))
+        self.assertIn("2 selected · total 200.00", self.last_text())
+        self.pick("Cash")
+        self.type("200")
+        self.assertEqual(self.step(), "card")
+        self.assertEqual(self.rows(), {"IV2": ("500.00", "3"), "SR1": ("300.00", "5")})
+        card = json.dumps(self.last(), ensure_ascii=False)
+        self.assertIn("-300.00", card)
+
+    def test_a_full_offset_goes_straight_to_the_card_without_a_method(self):
+        self.to_invoices(("IV2", "AI1"))
+        self.assertEqual(self.step(), "card")
+        self.assertEqual(self.rows(), {"IV2": ("500.00", "3"), "AI1": ("500.00", "0")})
+
+    def test_only_offsets_or_offsets_above_the_invoices_stay_on_the_invoice_step(self):
+        self.to_invoices(("SR1",))
+        self.assertIn("Choose at least one invoice", self.last_text())
+        self.tap("a=col&s=inv&v=IV2")
+        self.tap("a=col&s=inv&v=AI1")
+        self.tap("a=col&s=invoices&v=done")
+        self.assertIn("Credit notes exceed the invoices", self.last_text())
+        self.assertEqual(self.step(), "invoices")
+
+    def test_collect_later_keeps_ticked_offsets_whole(self):
+        self.to_invoices(("IV1", "IV2", "SR1"))
+        self.pick("Cash")
+        self.type("900")
+        self.tap("a=col&s=more&v=later")
+        self.tap("a=col&s=split&v=%40oldest")
+        self.assertEqual(self.rows(), {"IV1": ("1000.00", "3"), "IV2": ("200.00", "3"), "SR1": ("300.00", "5")})
+
+
 if __name__ == "__main__":
     unittest.main()

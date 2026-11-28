@@ -6,9 +6,10 @@
   「名 姓」，MR.ERP 去掉空格比 CONCAT(名, 姓)）、客户码；现金 / 零用金 / 其他 1 / 其他 2 / 其他 3 各一对「科目 + 金额」（科目都必填、
   要在科目表里，金额可 0）；备注 1–3。**第 20 列必须有值**：PHPExcel 按「最后有数据的列」数列数，不到 20 列整表拒；
 - Sheet2 冲哪几张应收：单号、应收单号（带前缀，赊销 / 期初 / 增减债都按单号认）、本次金额（属于这位客户、不超过未收余额）；
+  减债单金额也写正数，MR.ERP 按单号认出是减债、从核销合计里减（``importpc.php`` 第 560 行），这里 ``bills`` 那一行带 ``offset: true``；
 - Sheet3 支票：只写表头 5 列（支票不做）。
 
-平衡（MR.ERP 判「รับสุทธิ = รวมรับชำระ」）：现金 + 零用金 = 核销合计 + 其他 1 + 其他 2 + 其他 3；其他三格可负——客户少付的折扣、
+平衡（MR.ERP 判「รับสุทธิ = รวมรับชำระ」）：现金 + 零用金 = 核销合计（减债单扣掉）+ 其他 1 + 其他 2 + 其他 3；其他三格可负——客户少付的折扣、
 扣下的预扣税记负数（例：发票 100、收到 95、折扣 5 → 其他 2 = -5）。
 
 照现有生成器的模板克隆写法拼 XML（同 `purchase.generate_xlsx_purchase`，借用它那份 3-sheet 模板的样式与相对路径关系文件），
@@ -58,6 +59,12 @@ def money(value, *, negative=False) -> Decimal:
     return number.quantize(CENT)
 
 
+def net_billed(bills) -> Decimal:
+    """核销合计：减债单（``offset``）从合计里减，同 MR.ERP 导入。"""
+    return sum(((-money(b.get("amount")) if b.get("offset") else money(b.get("amount"))) for b in bills or []),
+               Decimal("0.00"))
+
+
 def check(receipt: Dict[str, Any]) -> str:
     """收款单（:func:`row` 读的形状）过不过导入表规则：过了回空串，否则回原因码。"""
     number = str(receipt.get("number") or "").strip()
@@ -69,7 +76,7 @@ def check(receipt: Dict[str, Any]) -> str:
         return BILLS_EMPTY
     try:
         amounts = {slot: money(receipt.get(slot), negative=slot.startswith("other")) for slot in SLOTS}
-        billed = sum((money(b.get("amount")) for b in bills), Decimal("0.00"))
+        billed = net_billed(bills)
         if any(money(b.get("amount")) <= 0 for b in bills):
             return AMOUNT_INVALID
     except ValueError as error:

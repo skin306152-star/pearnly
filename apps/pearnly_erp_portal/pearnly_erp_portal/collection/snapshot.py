@@ -2,7 +2,8 @@
 
 经共用机器通道的按需请求 ``express_ar_open`` 请够得到这份账套的电脑读（共享种类：账套的公共资料，谁先来谁读；参数里带
 ``customer`` 时只读这一位客户），结果 ``{"read_at", "items": [{docnum, rectyp, docdat, customer, salesman, department, net,
-received, remaining}]}`` 落进快照表（一本账套一行一张发票）。
+received, remaining}]}`` 落进快照表（一本账套一行一张发票）。请求都带 ``offsets``（CC 桌面版 1.12.26 起另列抵减单：减项 RECTYP 5、
+定金 RECTYP 0，同表同栏，`contracts.is_offset`）；够得到的电脑都还旧时退回不带的那种（只有发票，:func:`request`）。
 
 什么时候读：
 - 收款员选了客户（`service.open_invoices`）：按客户即时读一次（几十行），读好了就地落；
@@ -65,8 +66,10 @@ def request_key(book_key, customer="", docnums=()):
     return key
 
 
-def _params(book, customer="", docnums=()):
+def _params(book, customer="", docnums=(), offsets=True):
     params = {"account_set": book["path"], "account_root": book.get("root") or ""}
+    if offsets:
+        params["offsets"] = True
     if customer:
         params["customer"] = str(customer)
     if _docnums(docnums):
@@ -94,6 +97,10 @@ def request(company, book, customer="", docnums=()):
             frappe.cache.delete_value(LANDED + key)
             return READY
         waiting = requests.waiting(KIND, book["key"], params=params)
+        if waiting and waiting.get("reason") == "update_needed":
+            # 够得到的电脑都还不认 ``offsets``（旧版 CC 桌面版）：照旧只读发票，不让收款流程卡住
+            params = _params(book, customer, docnums, offsets=False)
+            waiting = requests.waiting(KIND, book["key"], params=params)
         if waiting:
             return OUTDATED if waiting.get("reason") == "update_needed" else OFFLINE
         requests.create(KIND, key, params, book_key=book["key"], actor=frappe.session.user)
@@ -268,7 +275,7 @@ def apply_balances(book_key, found, at=None):
 def rows(book_key, customer, limit=200, locked=False):
     """一位客户在这本账套此刻的未收清发票（快照），日期早的在前。客户按原样比：库的排序规则把不换行空格与空格当相等，
     只差空白的是 Express 里两位客户，不能把另一位的发票列进来。``locked``：加锁读（放行判余额，`service.release`）。"""
-    fields = ["name", "customer", "docnum", "doc_date", "salesman", "department", "net", "received", "remaining", "read_at"]
+    fields = ["name", "customer", "docnum", "rectyp", "doc_date", "salesman", "department", "net", "received", "remaining", "read_at"]
     filters = {"book_key": book_key, "customer": customer}
     if locked:
         found = frappe.qb.get_query(DOCTYPE, fields=fields, filters=filters, order_by="doc_date asc, docnum asc", limit=limit,

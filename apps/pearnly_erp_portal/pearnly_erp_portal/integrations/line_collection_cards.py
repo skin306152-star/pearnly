@@ -44,21 +44,29 @@ def _header(title, subtitle=""):
     return {"type": "box", "layout": "vertical", "backgroundColor": ACCENT, "paddingAll": "md", "contents": contents}
 
 
+def _kind(rectyp) -> str:
+    """抵减单的类型名（Express / MR.ERP 原生叫法）：减项、定金；发票不标。"""
+    return {"5": _("Credit Note"), "0": _("Deposit")}.get(str(rectyp or ""), "")
+
+
 def _invoice_row(docnum, payload):
     picked = docnum in (payload.get("picked") or [])
+    kind = _kind((payload.get("kinds") or {}).get(docnum))
+    due = _money(payload["due"][docnum])
     button = _clean(_postback(_("Selected") if picked else _("Select"), _data("inv", docnum),
                               "primary" if picked else "secondary"))
     button["flex"] = 2
     return {"type": "box", "layout": "horizontal", "margin": "md", "spacing": "sm", "alignItems": "center", "contents": [
         {"type": "box", "layout": "vertical", "flex": 4, "contents": [
             {"type": "text", "text": docnum, "size": "sm", "weight": "bold", "color": "#1B1B2B", "wrap": True},
-            {"type": "text", "text": _be_date(payload["dates"].get(docnum)) + " · " + _("Due {0}").format(
-                _money(payload["due"][docnum])), "size": "xxs", "color": "#777777", "wrap": True}]},
+            {"type": "text", "text": " · ".join(part for part in (kind, _be_date(payload["dates"].get(docnum)),
+                                                                   _("Due {0}").format("-" + due if kind else due)) if part),
+             "size": "xxs", "color": "#777777", "wrap": True}]},
         button]}
 
 
 def invoices(payload) -> dict:
-    """未收清发票的多选列表（日期早的在前）。"""
+    """未收清发票的多选列表（日期早的在前；抵减单在发票下面，标类型、金额带负号）。"""
     from pearnly_erp_portal.integrations.line_collection import PER_BUBBLE, _picked_total
 
     order = payload["order"]
@@ -85,7 +93,7 @@ def confirm(card, edit_url="", nonce="") -> dict:
             _kv(_("Customer"), f"{card.get('customer') or ''} {card.get('customer_name') or ''}".strip()),
             _separator()]
     for row in card.get("invoices") or []:
-        rows.append(_kv(row["docnum"], _money(row["amount"])))
+        rows.append(_kv(row["docnum"], ("-" if row.get("offset") else "") + _money(row["amount"])))
     rows.append(_separator())
     if float(card.get("cash") or 0):
         rows.append(_kv(_("Cash"), _money(card["cash"])))

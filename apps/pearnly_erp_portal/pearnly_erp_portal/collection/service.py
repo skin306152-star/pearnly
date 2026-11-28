@@ -424,7 +424,8 @@ def _open_rows(book_key, customer, exclude=None, locked=False) -> dict:
     out = {}
     for row in found:
         remaining = contracts.money(row.remaining or 0)
-        out[row.docnum] = {"docnum": row.docnum, "doc_date": str(row.doc_date or ""), "salesman": row.salesman or "",
+        out[row.docnum] = {"docnum": row.docnum, "rectyp": row.rectyp or "", "offset": contracts.is_offset(row.rectyp),
+                           "doc_date": str(row.doc_date or ""), "salesman": row.salesman or "",
                            "department": row.department or "", "net": contracts.money(row.net or 0),
                            "received": contracts.money(row.received or 0), "remaining": remaining,
                            "reserved": held.get(row.docnum, contracts.ZERO),
@@ -469,6 +470,7 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",
                                                                        "available")}}
              for value in rows.values() if value["available"] > 0]
+    items.sort(key=lambda item: item["offset"])  # 抵减单列在发票下面（主会话 11-28）
     for item in items:
         item.pop("read_at", None)
     found = {"items": items, "refresh": state, "book": book["key"], "customer": customer}
@@ -579,14 +581,15 @@ def edit_choices(name) -> dict:
 
 
 def _fill(doc, checked, people=None):
-    first = checked["invoices"][0]
+    first = checked["invoices"][0]  # 发票在前（`contracts.check`），抵减单不定销售员 / 部门
     people = people or {"salesman": first["salesman"], "department": first["department"]}
     doc.update({"salesman": people["salesman"], "department": people["department"], "cash": checked["cash"],
                 "transfer": checked["transfer"], "discount": checked["discount"], "total": checked["total"],
                 "voucher_count": sum(1 for row in checked["methods"] if row["voucher"]),
                 **contracts.summaries(checked)})
     doc.set("invoices", [{"docnum": row["docnum"], "invoice_date": row["doc_date"] or None, "remaining": row["remaining"],
-                          "amount": row["amount"], "salesman": row["salesman"]} for row in checked["invoices"]])
+                          "amount": row["amount"], "salesman": row["salesman"], "rectyp": row.get("rectyp") or ""}
+                         for row in checked["invoices"]])
     doc.set("payments", [{"prefix": row["prefix"], "code": row["code"], "type_name": row["name"], "role": row["role"],
                           "amount": row["amount"], "voucher": row["voucher"] or None} for row in checked["methods"]])
 
@@ -768,7 +771,8 @@ def _view(doc) -> dict:
             "book": doc.book_label or "", "customer": doc.customer, "customer_name": doc.customer_name,
             "doc_date": str(doc.doc_date or ""), "date_chosen": bool(doc.get("date_chosen")), "source": doc.source, "collector": doc.collector or "",
             "invoices": [{"docnum": row.docnum, "invoice_date": str(row.invoice_date or ""),
-                          "remaining": contracts.text(row.remaining or 0), "amount": contracts.text(row.amount or 0)}
+                          "remaining": contracts.text(row.remaining or 0), "amount": contracts.text(row.amount or 0),
+                          "rectyp": row.get("rectyp") or "", "offset": contracts.is_offset(row.get("rectyp"))}
                          for row in doc.invoices],
             "cash": contracts.text(doc.cash or 0),
             "methods": [{"prefix": row.prefix, "name": row.type_name, "role": row.role,

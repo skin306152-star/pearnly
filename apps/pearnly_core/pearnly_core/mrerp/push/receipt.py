@@ -17,7 +17,7 @@ formupload → uploadexcel → formrdpc → importpc → report），模块 ``re
 
     {"number", "date", "customer", "salesman", "department",
      "money": {"kind": "cash" | "transfer", "account": 转账的银行科目, "amount"},
-     "discount": {"amount", "account"}, "bills": [{"docnum", "amount"}], "notes": [备注1, 备注2, 备注3],
+     "discount": {"amount", "account"}, "bills": [{"docnum", "amount", "offset"?}], "notes": [备注1, 备注2, 备注3],
      "menu": 选过的收款菜单号, "defaults": {主档字段: 选过的代码}}
 """
 from __future__ import annotations
@@ -137,7 +137,7 @@ def _run(importer: MrErpImport, receipt: Dict[str, Any]) -> Dict[str, Any]:
         return _outcome(importer, "failed", reason)
     selmenu = menu["idmenu"]
     importer._menu_label = str(menu.get("label") or "")
-    bills = [{"docnum": str(b.get("docnum") or "").strip(), "amount": str(b.get("amount") or "")}
+    bills = [{"docnum": str(b.get("docnum") or "").strip(), "amount": str(b.get("amount") or ""), "offset": bool(b.get("offset"))}
              for b in receipt.get("bills") or []]
     number = str(receipt.get("number") or "").strip()
     filled = {"number": number, "date": receipt.get("date"), "customer": receipt.get("customer"),
@@ -175,7 +175,7 @@ def _run(importer: MrErpImport, receipt: Dict[str, Any]) -> Dict[str, Any]:
                         meta=meta)
     if already:
         meta["already_pushed"] = True
-    billed = sum((sheet.money(b["amount"]) for b in bills), ZERO)
+    billed = sheet.net_billed(bills)
     meta["verify"] = readback.amount_check(listed.amount, str(billed))  # farev 列表金额 = 核销合计（只记不拦）
     return _outcome(importer, "success", docnum=listed.docno, meta=meta)
 

@@ -940,6 +940,26 @@ class Release1122Edges(unittest.TestCase):
                              number_constants(self.ERP / "collection" / "snapshot.py", ("DOCNUMS_MAX",))["DOCNUMS_MAX"])
             self.assertIn('"looked_up"', (COMPANION / "express_receivables.py").read_text(encoding="utf-8"))
 
+    def test_offsets_go_only_to_a_cc_that_takes_them_and_both_sides_agree_on_the_kinds(self):
+        """退货 / 减项进收款（11-28，docs/work/2026-11-28-credit-note-assessment.md）：读取参数 ``offsets``（另列减项 RECTYP 5、
+        定金 RECTYP 0）只派给认得它的版本；带抵减单的收款载荷盖 23（旧版诚实拒收），两端同号；抵减类型两端同值；服务端退回不带
+        ``offsets`` 的那种（旧版照旧只读发票，不出错）。"""
+        minimum = number_constants(WIRE / "request_contracts.py", ("PARAM_MIN_COMPANION",))["PARAM_MIN_COMPANION"]
+        floor = tuple(int(part) for part in minimum["express_ar_open"]["offsets"].split("."))
+        optional = number_constants(COMPANION / "express_receivables.py", ("OPTIONAL_KEYS",))["OPTIONAL_KEYS"]
+        self.assertEqual("offsets" in optional, self.version() >= floor)
+        server = number_constants(self.ERP / "collection" / "contracts.py", ("OFFSETS_PAYLOAD_VERSION", "OFFSET_RECTYPS"))
+        if "offsets" in optional:
+            self.assertEqual(_literal(COMPANION / "payload_contract.py", "RECEIPT_OFFSETS_PAYLOAD_VERSION"),
+                             server["OFFSETS_PAYLOAD_VERSION"])
+            self.assertIn(server["OFFSETS_PAYLOAD_VERSION"], _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+            for path in (COMPANION / "express_receivables.py", COMPANION / "dbf_receipt.py"):
+                self.assertEqual(number_constants(path, ("OFFSET_RECTYPS",))["OFFSET_RECTYPS"], server["OFFSET_RECTYPS"], path.name)
+            self.assertIn('payload.get("offsets")', (COMPANION / "dbf_receipt.py").read_text(encoding="utf-8"))
+        snapshot = (self.ERP / "collection" / "snapshot.py").read_text(encoding="utf-8")
+        self.assertIn('params["offsets"] = True', snapshot)
+        self.assertIn("offsets=False", snapshot)  # 够得到的都旧时退回不带的那种
+
     def test_the_wake_up_in_the_lease_reply_is_read_by_name_or_ignored(self):
         # 领单回复的 requests_waiting：新版读这个名字叫醒按需请求线程；旧版只按名字取 jobs / master_refresh，多一个键不碍事
         wire = (WIRE / "queue_contracts.py").read_text(encoding="utf-8")
@@ -1863,7 +1883,7 @@ class ReceiptContract(unittest.TestCase):
         helper = number_constants(COMPANION / "express_receivables.py", ("PARAM_KEYS", "OPTIONAL_KEYS"))
         self.assertEqual(set(helper["PARAM_KEYS"]), set(server["LOCATION_KEYS"]))
         # docnums（按单号查状态，1.12.22）只派给认得它的版本：`Release1122Edges`
-        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer", "docnums"))
+        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer", "docnums", "offsets"))
         self.assertIn('"express_ar_open": express_receivables.read_ar_open',
                       (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
         tree = ast.parse((COMPANION / "express_receivables.py").read_text(encoding="utf-8"))

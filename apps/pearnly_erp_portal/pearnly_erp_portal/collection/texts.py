@@ -16,6 +16,7 @@ CODES = {
     contracts.METHOD_DUPLICATE: "This collection method is not available",
     contracts.CASH_ACCOUNT_MISSING: "Cash is not set up for this account set",
     contracts.DISCOUNT_ONLY: "Enter the amount received",
+    contracts.OFFSETS_EXCEED: "Credit notes exceed the invoices",
     contracts.VOUCHER_MISSING: "Send a photo of the transfer slip",
     contracts.CHANGED: "The collection changed. Check it again",
     contracts.NOT_DRAFT: "This collection cannot be changed",

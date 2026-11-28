@@ -5,8 +5,9 @@
 ลดหนี้（减债，``tab-arsc``）；每页签一行一张 ``balnetfarev > 0`` 的单：选框、单号、日期、到期日（``dd/mm/佛历年``）、金额、未收余额。
 客户内部号 = 客户主档接口（``armas/component/bshlistboxdata.php``）``inpdupdata`` 里那一行的 id（按客户码一字不差找）。
 
-只收**赊销与增债**两类：收款导入核销表里减债单是扣减（``importpc.php`` billtype 4 从合计里减），预收不是应收；ERP 收款一张发票
-只记正数收多少，这两类不列。
+收**赊销、增债与减债**三类：减债单在收款导入核销表里是扣减（``importpc.php`` billtype 4 从合计里减，金额照写正数），读进快照
+记 ``5``（同 Express 减项的 RECTYP，快照里 5 一律是抵减单，`collection.contracts.is_offset`；退货 / 减项进收款 11-28）。预收不列
+（导入里 billtype 1 是加进合计，与 Express 定金方向相反，语义待核，主会话 11-28 定不做）。
 """
 from __future__ import annotations
 
@@ -18,8 +19,8 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-TABS = {"artran": "2", "arsd": "3"}  # 页签 → 记进快照的类型（同 importpc 的 billtype）
-SKIPPED_TABS = ("arad", "arsc")
+TABS = {"artran": "2", "arsd": "3", "arsc": "5"}  # 页签 → 记进快照的类型（赊销、增债同 importpc 的 billtype；减债记 5 = 抵减单）
+SKIPPED_TABS = ("arad",)
 ROWS_MAX = 2000
 READ_FAILED = "ERR_MRERP_RECEIVABLES_UNREADABLE"
 LOCK_WAIT_SECONDS = 60
@@ -51,7 +52,7 @@ def _amount(value: str) -> str:
 
 
 def parse_bills(page: str) -> Optional[List[Dict[str, str]]]:
-    """选单页 → ``[{docnum, rectyp, docdat, net, received, remaining}]``（赊销、增债，余额 > 0）；页上没有这几个页签（掉线、被踢回
+    """选单页 → ``[{docnum, rectyp, docdat, net, received, remaining}]``（赊销、增债、减债，余额 > 0）；页上没有这几个页签（掉线、被踢回
     登录页、没有权限）回 None。"""
     tabs = _TAB.findall(page or "")
     if not any(name == "artran" for name, _body in tabs):

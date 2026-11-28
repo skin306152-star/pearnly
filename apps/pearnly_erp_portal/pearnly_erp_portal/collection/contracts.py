@@ -27,7 +27,13 @@ from decimal import Decimal, InvalidOperation
 from pearnly_core.express_rules.contracts import codes
 
 PAYLOAD_VERSION = 20
+# 带抵减单的收款盖 23（CC 桌面版 1.12.26 起认 ``offsets``，旧版诚实拒收、派单只给认得的电脑）；不带的照旧 20
+OFFSETS_PAYLOAD_VERSION = 23
 DIRECTION = "receipt"
+# 抵减单（退货 / 减项进收款，评估 docs/work/2026-11-28-credit-note-assessment.md）：快照里 ``rectyp`` 是这几种的，收款时从合计里扣——
+# Express 减项（RECTYP 5，CN 簿 SR / SE / EC）与定金（RECTYP 0，AI）；MR.ERP 减债（arsc）读进来也记 5。其余（发票 3、MR.ERP 赊销 2 /
+# 增债 3）是要收的
+OFFSET_RECTYPS = ("5", "0")
 CENT = Decimal("0.01")
 ZERO = Decimal("0.00")
 MAX_INVOICES = 50
@@ -128,6 +134,7 @@ METHOD_DUPLICATE = "collection.method_duplicate"
 METHODS_TOO_MANY = "collection.methods_too_many"
 CASH_ACCOUNT_MISSING = "collection.cash_account_missing"
 DISCOUNT_ONLY = "collection.discount_only"
+OFFSETS_EXCEED = "collection.offsets_exceed_invoices"   # 抵减大于发票（净额 < 0），等原生实录再定
 VOUCHER_MISSING = "collection.voucher_missing"
 CHANGED = "collection.changed"
 CONSENT_MISSING = "collection.consent_missing"
@@ -326,6 +333,11 @@ def method_of(catalog_value, prefix):
 # ── 余额与分配 ───────────────────────────────────────────────────────────────
 
 
+def is_offset(rectyp) -> bool:
+    """这一行是抵减单（从合计里扣）。"""
+    return str(rectyp or "").strip() in OFFSET_RECTYPS
+
+
 def available(remaining, reserved) -> Decimal:
     """快照余额减去别的记录的预留，不小于 0。"""
     return max(ZERO, money(remaining) - money(reserved or 0))
@@ -333,9 +345,13 @@ def available(remaining, reserved) -> Decimal:
 
 def allocate(rows, amount) -> list:
     """收款员只给了一个总数：按发票日期、单号从早到晚分（先收满早的，最后一张可部分收）。``rows`` 每张带 ``available``。
-    分不完（总数大于这些发票能收的合计）回 :data:`OVER_COLLECTED`，``detail`` 带能收的合计。"""
-    left = money(amount, allow_zero=False)
-    out = []
+    分不完（总数大于这些发票能收的合计）回 :data:`OVER_COLLECTED`，``detail`` 带能收的合计。
+    勾了的抵减单不参与分配（主会话 11-28）：整张能抵的都抵上，发票按「总数 + 抵减」分。"""
+    offsets = [row for row in rows if is_offset(row.get("rectyp"))]
+    rows = [row for row in rows if not is_offset(row.get("rectyp"))]
+    left = money(amount, allow_zero=False) + sum((money(row.get("available") or 0) for row in offsets), ZERO)
+    out = [{"docnum": row["docnum"], "amount": money(row.get("available") or 0)} for row in offsets
+           if money(row.get("available") or 0) > 0]
     for row in sorted(rows, key=lambda item: (str(item.get("doc_date") or ""), str(item.get("docnum") or ""))):
         if left <= 0:
             break
@@ -358,7 +374,8 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
     过了回规整后的一笔（金额 Decimal、方式带角色与名称、各合计）；不过抛 :class:`CollectionError`。
 
     规则：至少一张发票、最多 :data:`MAX_INVOICES` 张、不重复；每张收 > 0 且不超过此刻能收的（部分收可以）；方式按前缀认、
-    不重复、每种 > 0；收现金要这本账套有现金科目；发票合计 = 现金 + 各方式（含折扣）；只有折扣、没有收到钱的拒；
+    不重复、每种 > 0；收现金要这本账套有现金科目；发票合计 − 抵减单合计 = 现金 + 各方式（含折扣）；只有折扣、没有收到钱的拒；
+    抵减单（:func:`is_offset`）同发票逐张核、可部分抵，抵减大于发票拒（:data:`OFFSETS_EXCEED`）；正好抵平（净额 0）不要方式；
     ``require_vouchers``（放行时）每种转账都要有凭证。"""
     invoices = list(draft.get("invoices") or [])
     if not invoices:
@@ -380,9 +397,12 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
             over[docnum] = text(can)
         out_invoices.append({"docnum": docnum, "amount": amount, "remaining": money(found.get("remaining") or 0),
                              "doc_date": found.get("doc_date") or "", "salesman": found.get("salesman") or "",
-                             "department": found.get("department") or ""})
+                             "department": found.get("department") or "", "rectyp": str(found.get("rectyp") or "")})
     if over:
         raise CollectionError(OVER_COLLECTED, {"available": over})
+    if all(is_offset(row["rectyp"]) for row in out_invoices):
+        raise CollectionError(INVOICES_EMPTY)
+    out_invoices.sort(key=lambda row: is_offset(row["rectyp"]))  # 发票在前（第一张发票定销售员 / 部门），抵减单在后
     cash = money(draft.get("cash") or 0)
     if cash > 0 and not catalog_value.get("cash"):
         raise CollectionError(CASH_ACCOUNT_MISSING)
@@ -402,21 +422,25 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
             raise CollectionError(VOUCHER_MISSING, {"prefix": item["prefix"]})
         out_methods.append({"code": item["code"], "prefix": item["prefix"], "name": item["name"], "role": role,
                             "amount": money(row.get("amount"), allow_zero=False), "voucher": voucher})
-    total = sum((row["amount"] for row in out_invoices), ZERO)
+    offset = sum((row["amount"] for row in out_invoices if is_offset(row["rectyp"])), ZERO)
+    total = sum((row["amount"] for row in out_invoices if not is_offset(row["rectyp"])), ZERO) - offset
+    if total < 0:
+        raise CollectionError(OFFSETS_EXCEED, {"invoices": text(total + offset), "offsets": text(offset)})
     discount = sum((row["amount"] for row in out_methods if row["role"] == DISCOUNT), ZERO)
     transfer = sum((row["amount"] for row in out_methods if row["role"] == TRANSFER), ZERO)
     paid = cash + transfer + discount
     if paid != total:
         raise CollectionError(AMOUNT_MISMATCH, {"invoices": text(total), "paid": text(paid)})
-    if cash + transfer <= 0:
+    if cash + transfer <= 0 and not (total == 0 and offset > 0 and not out_methods):
         raise CollectionError(DISCOUNT_ONLY)
     return {"invoices": out_invoices, "cash": cash, "methods": out_methods, "total": total, "transfer": transfer,
-            "discount": discount}
+            "discount": discount, "offset": offset}
 
 
 def summaries(checked) -> dict:
     """列表与导出用的几栏：发票与各收多少、各方式（不含现金）。"""
-    return {"invoice_summary": "; ".join(f"{row['docnum']} {text(row['amount'])}" for row in checked["invoices"])[:1000],
+    return {"invoice_summary": "; ".join(f"{row['docnum']} {'-' if is_offset(row.get('rectyp')) else ''}{text(row['amount'])}"
+                                         for row in checked["invoices"])[:1000],
             "method_summary": "; ".join(f"{row['prefix']} {text(row['amount'])}" for row in checked["methods"])[:1000]}
 
 
@@ -467,18 +491,21 @@ def release_check(status, current_version, shown_version, consent) -> str:
 
 def payload(record, book, company, user="") -> dict:
     """一笔已放行的收款 → 交给 CC 桌面版的载荷（方向 ``receipt``，载荷版本 20）。``record``：
-    ``{ref_no, doc_date, customer, salesman, department, cash, invoices: [{docnum, amount}], methods: [{code, prefix, amount}]}``；
+    ``{ref_no, doc_date, customer, salesman, department, cash, invoices: [{docnum, amount, rectyp?}], methods: [{code, prefix, amount}]}``；
+    抵减单（:func:`is_offset`）另放 ``offsets: [{docnum, rectyp, amount}]``、载荷盖 :data:`OFFSETS_PAYLOAD_VERSION`；没有抵减单时与以前逐字节相同。
     ``book``：账套（`books.for_company` 那一项：path、root、company）；``company``：``{tax_id, branch}``。
     账套位置几栏与其他写账载荷同名（领单时换成领取电脑的写法，`express_rules.push.wire_location`）。"""
     path = str(book.get("path") or "").strip()
-    return {
-        "direction": DIRECTION, "payload_version": PAYLOAD_VERSION,
+    offsets = [row for row in record["invoices"] if is_offset(row.get("rectyp"))]
+    out = {
+        "direction": DIRECTION, "payload_version": OFFSETS_PAYLOAD_VERSION if offsets else PAYLOAD_VERSION,
         "ref_no": str(record["ref_no"])[:REF_MAX],
         "company": {"tax_id": str(company.get("tax_id") or ""), "branch": str(company.get("branch") or "")},
         "doc_date": str(record["doc_date"])[:10],
         "customer": str(record["customer"] or ""), "salesman": str(record.get("salesman") or ""),
         "department": str(record.get("department") or ""),
-        "invoices": [{"docnum": row["docnum"], "amount": text(row["amount"])} for row in record["invoices"]],
+        "invoices": [{"docnum": row["docnum"], "amount": text(row["amount"])} for row in record["invoices"]
+                     if not is_offset(row.get("rectyp"))],
         "cash": text(record.get("cash") or 0),
         "methods": [{"code": row.get("code") or "", "prefix": row["prefix"], "amount": text(row["amount"])}
                     for row in record.get("methods") or []],
@@ -487,6 +514,10 @@ def payload(record, book, company, user="") -> dict:
         "account_set": path, "account_company": str(book.get("company") or "").strip(),
         "account_set_row": 0, "respect_period_lock": True,
     }
+    if offsets:
+        out["offsets"] = [{"docnum": row["docnum"], "rectyp": str(row["rectyp"]).strip(), "amount": text(row["amount"])}
+                          for row in offsets]
+    return out
 
 
 def balances(meta) -> dict:

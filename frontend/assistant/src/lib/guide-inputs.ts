@@ -6,7 +6,8 @@
 // 金额一律按「分」的整数算（BigInt），不用浮点：0.1 + 0.2 这种误差不能出现在钱上；显示与交回都是两位小数的字符串。
 
 export type AmountOption = { code: string; name?: string; note?: string; /** 勾上时默认填的数（发票的未收余额） */ amount?: string; /** 这一行最多能填多少 */ max?: string;
-  /** 不占 max_rows 的名额（折扣，wire 50ba9dfb9） */ free?: boolean };
+  /** 不占 max_rows 的名额（折扣，wire 50ba9dfb9） */ free?: boolean;
+  /** 这一行从合计里扣（收款的抵减单：减项、定金；行上照填正数） */ negative?: boolean };
 export type AmountRow = { code: string; amount: string };
 export type AmountProblem = "" | "empty" | "amount" | "over";
 export type SplitProblem = "" | "empty" | "amount" | "mismatch";
@@ -30,6 +31,12 @@ export function fromMinor(value: bigint): string {
 
 /** 各行金额的合计（分）；有一行不是金额就当 0（合计只作显示，交回前另有核对）。 */
 export const sumMinor = (rows: readonly AmountRow[]): bigint => rows.reduce((total, row) => total + (toMinor(row.amount) ?? 0n), 0n);
+
+/** 金额多选的合计：带 negative 的选项那几行减（收款：发票 − 抵减单）。 */
+export function signedSumMinor(options: readonly AmountOption[], rows: readonly AmountRow[]): bigint {
+  const minus = new Set(options.filter((option) => option.negative).map((option) => option.code));
+  return rows.reduce((total, row) => total + (minus.has(row.code) ? -1n : 1n) * (toMinor(row.amount) ?? 0n), 0n);
+}
 
 /** 勾上一行时填进去的数：这一行的默认数（没有就空着让人填），规范成两位小数。 */
 export function defaultAmount(option: AmountOption): string {

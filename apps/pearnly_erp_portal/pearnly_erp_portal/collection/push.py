@@ -55,12 +55,12 @@ def send(name):
     company = frappe.db.get_value(COMPANY, doc.company, ["tax_id", "branch"], as_dict=True) or {}
     record = {"ref_no": doc.name, "doc_date": doc.doc_date, "customer": doc.customer, "salesman": doc.salesman,
               "department": doc.department, "cash": doc.cash,
-              "invoices": [{"docnum": row.docnum, "amount": row.amount} for row in doc.invoices],
+              "invoices": [{"docnum": row.docnum, "amount": row.amount, "rectyp": row.get("rectyp") or ""} for row in doc.invoices],
               "methods": [{"code": row.code, "prefix": row.prefix, "amount": row.amount} for row in doc.payments]}
     payload = contracts.payload(record, book, company, user=doc.collector)
     job = jobs.enqueue(source_doctype=DOCTYPE, source_name=doc.name, request_key=request_key(doc.name, doc.get("attempt")),
                        actor=doc.collector, book_key=doc.book_key,
-                       payload=payload, payload_version=contracts.PAYLOAD_VERSION, label=doc.name)
+                       payload=payload, payload_version=payload["payload_version"], label=doc.name)
     _set(name, {"job": job["job"]})
     return job
 

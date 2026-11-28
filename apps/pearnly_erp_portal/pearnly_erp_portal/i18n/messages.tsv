@@ -2296,3 +2296,5 @@ Type	业务类型	ประเภท	種類	guide.step.documents.direction
 Document	单据	เอกสาร	書類	guide.step.documents.item
 Documents	单据	เอกสาร	書類	guide.step.documents.items
 Waiting for computer	等待电脑	รอคอมพิวเตอร์	パソコン待ち
+Deposit	定金	เงินมัดจำ	手付金
+Credit notes exceed the invoices	减项超过发票金额	ยอดลดหนี้เกินยอดใบแจ้งหนี้	値引額が請求額を超えています

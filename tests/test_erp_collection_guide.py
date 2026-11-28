@@ -241,6 +241,33 @@ class Checks(Base):
         self.assertTrue(doc.payments[0].voucher)
 
 
+class Offsets(Base):
+    """退货 / 减项进收款（11-28）：抵减单列在发票下面、带类型与 ``negative``；收款方式那张卡的应分 = 发票 − 抵减单（产品给
+    ``total``，引擎照它出）；合计核对按同一口径；复核卡上抵减单带负号。"""
+
+    ROWS = [
+        {"docnum": "IV1", "rectyp": "3", "docdat": "2026-10-01", "customer": "2100883", "salesman": "S1",
+         "department": "CPI", "net": "1000.00", "received": "0.00", "remaining": "1000.00"},
+        {"docnum": "SR1", "rectyp": "5", "docdat": "2026-09-01", "customer": "2100883", "net": "300.00",
+         "received": "0.00", "remaining": "300.00"}]
+
+    def test_a_credit_note_is_listed_last_and_comes_off_what_the_methods_must_split(self):
+        name, _found = self.to_invoices()
+        self.read_back(self.ROWS)
+        question = self.questions(run.view(self.runs[name]))["invoices"]
+        self.assertEqual([(row["code"], row.get("negative", False)) for row in question["options"]],
+                         [("IV1", False), ("SR1", True)])
+        self.assertEqual(question["options"][1]["note"], "Credit Note · 2026-09-01")
+        found = run.answer(name, {"invoices": [{"code": "IV1", "amount": "600"}, {"code": "SR1", "amount": "300"}]})
+        self.assertEqual(self.questions(found)["methods"]["total"], "300.00")
+        refused = run.answer(name, {"methods": [{"code": guide.CASH, "amount": "600"}]})
+        self.assertEqual(_codes(refused), {"methods": C.AMOUNT_MISMATCH})
+        found = run.answer(name, {"methods": [{"code": guide.CASH, "amount": "300"}]})
+        rows = found["review"]["tables"][0]["rows"]
+        self.assertEqual([(row["code"], row["amount"]) for row in rows], [("IV1", "600.00"), ("SR1", "-300.00")])
+        self.assertEqual(found["review"]["total"], "300.00")
+
+
 class SentBack(Base):
     def test_someone_collecting_the_same_invoice_after_review_sends_the_invoices_step_back(self):
         name, found = self.to_review(invoices=[{"code": "IV1", "amount": "1000"}],

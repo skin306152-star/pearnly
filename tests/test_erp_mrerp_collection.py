@@ -126,11 +126,24 @@ SELBILL = """<div id="tab-arad"><p><span>เลือก</span><span>เลข�
 <span>16/11/2569</span><span>16/11/2569</span><span>10.00</span><span>10.00</span></p></div>"""
 
 
+class SheetOffsets(unittest.TestCase):
+    def test_a_credit_note_bill_is_written_positive_and_taken_off_the_balance(self):
+        bills = [{"docnum": "SI000001-1", "amount": "100.00"}, {"docnum": "SC-1", "amount": "10.00", "offset": True}]
+        self.assertEqual(sheet.check(receipt(cash="90.00", bills=bills)), "")
+        self.assertEqual(sheet.check(receipt(cash="100.00", bills=bills)), sheet.UNBALANCED)
+        self.assertEqual(sheet.net_billed(bills), sheet.money("90.00"))
+        rows = cells(sheet.generate(receipt(cash="90.00", bills=bills)), 2)
+        self.assertEqual((rows["B3"], rows["C3"]), ("SC-1", "10"))
+
+
 class Receivables(unittest.TestCase):
-    def test_open_bills_are_credit_sales_and_debit_notes_with_dates_and_balances(self):
+    def test_open_bills_are_credit_sales_debit_and_credit_notes_with_dates_and_balances(self):
+        # 减债（arsc）11-28 起也列、记 5（= 抵减单，`collection.contracts.is_offset`）；预收（arad）不列
         found = receivables.parse_bills(SELBILL)
         self.assertEqual(found, [{"docnum": "SI000001-1", "rectyp": "2", "docdat": "2026-11-15", "net": "1070.00",
-                                  "received": "200.00", "remaining": "870.00"}])
+                                  "received": "200.00", "remaining": "870.00"},
+                                 {"docnum": "SC-1", "rectyp": "5", "docdat": "2026-11-16", "net": "10.00",
+                                  "received": "0.00", "remaining": "10.00"}])
 
     def test_a_bounced_page_is_unreadable_not_empty(self):
         self.assertIsNone(receivables.parse_bills('<script>alert("Login")</script>'))
@@ -475,8 +488,8 @@ class SwitchedOn(unittest.TestCase):
             ledger.run_read("CO-1", "15:1", "C0001")
         self.assertEqual(reads, [(USER, "15:1", "C0001", "")])
         self.assertEqual(SNAPSHOT[0][:3], ("CO-1", "15:1", "C0001"))
-        self.assertEqual([(i["docnum"], i["remaining"], i["customer"]) for i in SNAPSHOT[0][3]],
-                         [("SI000001-1", "870.00", "C0001")])
+        self.assertEqual([(i["docnum"], i["rectyp"], i["remaining"], i["customer"]) for i in SNAPSHOT[0][3]],
+                         [("SI000001-1", "2", "870.00", "C0001"), ("SC-1", "5", "10.00", "C0001")])
         self.assertEqual(ledger.request("CO-1", dict(BOOK), "C0001"), "ready")
 
     def test_prepare_full_partial_two_invoices_transfer_discount(self):
@@ -495,6 +508,14 @@ class SwitchedOn(unittest.TestCase):
         mixed = collection(name="COL3", cash="10.00", payments=[{"role": contracts.TRANSFER, "code": "1112-01",
                                                                   "amount": "90.00"}])
         self.assertEqual(ledger.prepare(mixed), {"failed": ledger.ONE_METHOD})
+
+    def test_prepare_marks_credit_notes_and_lets_a_full_offset_go_with_zero_cash(self):
+        bills = [{"docnum": "SI000001-1", "amount": "10.00"}, {"docnum": "SC-1", "amount": "10.00", "rectyp": "5"}]
+        settled = ledger.prepare(collection(name="COL4", cash="0.00", total="0.00", invoices=bills))["payload"]
+        self.assertEqual(settled["bills"], [{"docnum": "SI000001-1", "amount": "10.00"},
+                                            {"docnum": "SC-1", "amount": "10.00", "offset": True}])
+        self.assertEqual(settled["money"], {"kind": "cash", "account": "", "amount": "0.00"})
+        self.assertEqual(ledger.prepare(collection(name="COL5", cash="0.00", total="0.00")), {"failed": ledger.ONE_METHOD})
 
     def test_written_records_the_mrerp_number_and_rereads_the_customer(self):
         collection(cash="100.00")

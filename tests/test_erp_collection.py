@@ -541,6 +541,59 @@ class Contracts(unittest.TestCase):
             C.allocate(rows, "1500.01")
         self.assertEqual((caught.exception.code, caught.exception.detail), (C.OVER_COLLECTED, {"available": "1500.00"}))
 
+    # ── 抵减单（退货 / 减项进收款，docs/work/2026-11-28-credit-note-assessment.md）──
+
+    def offset_rows(self):
+        return {**self.rows(), "SR1": {"available": "300.00", "remaining": "300.00", "doc_date": "2026-10-03", "rectyp": "5"},
+                "AI1": {"available": "50.00", "remaining": "80.00", "doc_date": "2026-09-01", "rectyp": "0"}}
+
+    def test_a_credit_note_comes_off_the_total_and_lines_keep_invoices_first(self):
+        catalog = C.catalog(TYPES, CASH_ACCOUNT)
+        checked = C.check({"invoices": [{"docnum": "SR1", "amount": "300"}, {"docnum": "IV1", "amount": "1000"},
+                                        {"docnum": "AI1", "amount": "20"}], "cash": "680"}, self.offset_rows(), catalog)
+        self.assertEqual((checked["total"], checked["offset"], checked["cash"]),
+                         (Decimal("680.00"), Decimal("320.00"), Decimal("680.00")))
+        self.assertEqual([(row["docnum"], row["rectyp"]) for row in checked["invoices"]], [("IV1", ""), ("SR1", "5"), ("AI1", "0")])
+        self.assertEqual(C.summaries(checked)["invoice_summary"], "IV1 1000.00; SR1 -300.00; AI1 -20.00")
+
+    def test_a_full_offset_needs_no_money_and_an_offset_never_stands_alone(self):
+        catalog = C.catalog(TYPES, CASH_ACCOUNT)
+        settled = C.check({"invoices": [{"docnum": "IV2", "amount": "300"}, {"docnum": "SR1", "amount": "300"}]},
+                          self.offset_rows(), catalog)
+        self.assertEqual((settled["total"], settled["methods"], settled["cash"]), (Decimal("0.00"), [], Decimal("0.00")))
+        cases = [
+            ({"invoices": [{"docnum": "SR1", "amount": "300"}]}, C.INVOICES_EMPTY),
+            ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300"}]}, C.OFFSETS_EXCEED),
+            ({"invoices": [{"docnum": "IV2", "amount": "100"}, {"docnum": "SR1", "amount": "300.01"}]}, C.OVER_COLLECTED),
+            ({"invoices": [{"docnum": "IV2", "amount": "300.24"}, {"docnum": "SR1", "amount": "300"}],
+              "methods": [{"prefix": "DC", "amount": "0.24"}]}, C.DISCOUNT_ONLY),
+        ]
+        for draft, code in cases:
+            with self.subTest(code=code), self.assertRaises(C.CollectionError) as caught:
+                C.check(draft, self.offset_rows(), catalog)
+            self.assertEqual(caught.exception.code, code)
+
+    def test_a_total_leaves_ticked_offsets_whole_and_spreads_over_the_invoices(self):
+        rows = [{"docnum": "IV2", "doc_date": "2026-10-05", "available": "500"},
+                {"docnum": "IV1", "doc_date": "2026-10-01", "available": "1000"},
+                {"docnum": "SR1", "doc_date": "2026-09-01", "available": "300", "rectyp": "5"}]
+        self.assertEqual(C.allocate(rows, "900"), [{"docnum": "SR1", "amount": Decimal("300.00")},
+                                                   {"docnum": "IV1", "amount": Decimal("1000.00")},
+                                                   {"docnum": "IV2", "amount": Decimal("200.00")}])
+
+    def test_the_payload_with_offsets_is_v23_and_without_stays_v20(self):
+        record = {"ref_no": "COL261128-AB12", "doc_date": "2026-11-28", "customer": "NLT6010018", "salesman": "",
+                  "department": "", "cash": Decimal("0"), "methods": [],
+                  "invoices": [{"docnum": "IV1", "amount": Decimal("100"), "rectyp": "3"},
+                               {"docnum": "SRTEST01", "amount": Decimal("100"), "rectyp": "5"}]}
+        body = C.payload(record, BOOK, {"tax_id": "0105549038811", "branch": "00000"})
+        self.assertEqual((body["payload_version"], body["invoices"], body["offsets"]),
+                         (C.OFFSETS_PAYLOAD_VERSION, [{"docnum": "IV1", "amount": "100.00"}],
+                          [{"docnum": "SRTEST01", "rectyp": "5", "amount": "100.00"}]))
+        plain = C.payload({**record, "invoices": record["invoices"][:1]}, BOOK, {"tax_id": "1", "branch": "00000"})
+        self.assertEqual(plain["payload_version"], C.PAYLOAD_VERSION)
+        self.assertNotIn("offsets", plain)
+
     def test_release_takes_only_the_shown_version_with_an_explicit_consent(self):
         self.assertEqual(C.release_check(C.DRAFT, 3, 3, "line:evt-1"), "")
         self.assertEqual(C.release_check(C.DRAFT, 3, "3", "cc:msg-9"), "")

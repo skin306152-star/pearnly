@@ -197,6 +197,11 @@ def _options(step: Mapping[str, Any], ctx: Dict[str, Any], txt="", start=0, page
         found["facts"] = facts
     if (out or {}).get("wait"):
         found["wait"] = True
+    # 分摊题要分摊的合计可以由选项函数自己给（``total``，两位小数的字符串）：前一道金额多选里有要扣的行时（收款的抵减单），
+    # 引擎照各行相加不对；没给照旧由 :func:`_split_total` 加
+    total = (out or {}).get("total")
+    if step["input"] == "split" and isinstance(total, str) and steps.amount(total) is not None:
+        found["total"] = f"{steps.amount(total):.2f}"
     return found
 
 
@@ -321,7 +326,7 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
         if step.get("zero"):
             out["zero"] = True   # 金额多选的行上可以是 0（盘点数到 0），页面据此收 0
         if step["input"] == "split":
-            total = _split_total(guide, step, answers)
+            total = found.get("total") or _split_total(guide, step, answers)
             if total is not None:
                 out["total"] = total
         facts.extend(found.get("facts") or ())

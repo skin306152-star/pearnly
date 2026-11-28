@@ -693,7 +693,9 @@ class ReadBack(Base):
             refused = self.draft_of("IV1", "1000")
         self.assertEqual((refused["reason"], refused["read"]), (T.C.INVOICE_NOT_FOUND, "ready"))
         self.assertNotIn("invoice_state", refused)
-        self.assertEqual([("docnums" in params) for params in sent[:2]], [True, False])
+        # 先带单号与抵减单发，退一步不带抵减单（还带单号），都不认时改发不带单号的那种
+        self.assertEqual([("docnums" in params, "offsets" in params) for params in sent[:3]],
+                         [(True, True), (True, False), (False, True)])
 
     def test_an_offline_computer_is_said_as_not_connected(self):
         with mock.patch.object(self.requests, "waiting", side_effect=lambda kind, book_key, actor=None, params=None: {"reason": "offline"}):

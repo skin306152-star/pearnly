@@ -304,16 +304,19 @@ def prepare(doc) -> dict:
     menus, defaults = choices.chosen(choices.company_row(doc.company), book)
     paid = [row for row in doc.payments if row.role == contracts.TRANSFER]
     cash = contracts.money(doc.cash or 0)
-    if (cash > 0 and paid) or len(paid) > 1 or (cash <= 0 and not paid):
+    settled = cash <= 0 and not paid and contracts.money(doc.total or 0) == 0 and any(
+        contracts.is_offset(row.get("rectyp")) for row in doc.invoices)  # 减债正好抵平：现金格记 0
+    if (cash > 0 and paid) or len(paid) > 1 or (cash <= 0 and not paid and not settled):
         return {"failed": ONE_METHOD}
-    money = {"kind": "cash", "account": "", "amount": contracts.text(cash)} if cash > 0 else \
+    money = {"kind": "cash", "account": "", "amount": contracts.text(cash)} if cash > 0 or not paid else \
         {"kind": "transfer", "account": paid[0].code, "amount": contracts.text(paid[0].amount)}
     discount = next((row for row in doc.payments if row.role == contracts.DISCOUNT), None)
     payload = {"number": doc.name, "date": str(doc.doc_date or "")[:10], "customer": doc.customer,
                "salesman": doc.salesman or "", "department": doc.department or "", "money": money,
                "discount": {"amount": contracts.text(discount.amount) if discount else "0.00",
                             "account": discount.code if discount else ""},
-               "bills": [{"docnum": row.docnum, "amount": contracts.text(row.amount)} for row in doc.invoices],
+               "bills": [{"docnum": row.docnum, "amount": contracts.text(row.amount),
+                          **({"offset": True} if contracts.is_offset(row.get("rectyp")) else {})} for row in doc.invoices],
                # 第 20 列（备注 3）必须有值：记 ERP 收款记录号（同 Express RE 的 YOUREF）
                "notes": ["", "", doc.name], "menu": menus.get(SUBJECT) or "", "defaults": defaults}
     return {"payload": json.loads(json.dumps(payload, ensure_ascii=False, default=str)), "book": book}
