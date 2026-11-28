@@ -265,3 +265,27 @@
 - `express/masters.py`、`express/ledger_check.py` 也是 `requests.result` + `requests.drop`（当场删文件），同样有「回滚后文件没了」的问题，不在本条范围，没改；要改直接换成 `take`。
 - 唯一索引按库的排序规则比单号（只差大小写算同一张）；Express 单号实际是大写，没核过线上有没有只差大小写的两张。
 - 线上各 ERP 站有没有重复行没查（生产只读要主窗口排）；补丁会合并，日志里有删了几行。
+
+### A2 #1 / #3 无人值守推送判完之后人推了同一张（`folder_intake/push.push_one`、`push/automation/sweep`）；#2 泵登记误报
+
+- **现象**：文件夹定时推送（`push_one` 开头普通读 `edit_count / last_push_status / last_push_record`）与自动推送扫描（`sweep.candidates` 一轮开头普通读出最多 1000 张）判「没人改过、没推过」之后，中间多次提交、取要选的项、做判定，再交 `application.submit`；推送准备 `prepare` 锁住票后只比 `record_version` 与连接版本，不再核「人推过没有」。这段时间里人在网页推了这张，定时任务接着推。
+- **核实**：
+  - 人在网页推送：`api.submit` → `prepare` → `ledger.reserve` 建推送记录（准备好时不投影），页面随即调 `companion.submission.confirm` 转排队，`push_state.mirror` 把推送状态、记录（与去向）`set_value(update_modified=False)` 抄到票上，**不升 `record_version`**（版本只在人改票时由 `storage.validate_document` 升，改单次数同时 +1）。所以只比版本挡不住「人推过」。
+  - 请求号幂等挡不住：定时任务的键由（文件、票、版本、第几次）定，扫描的由（票、版本）定，网页是页面生成的键；`ledger.lookup_request` 只回同号的。
+  - 推送账本按单据键挡住一部分：`reserve` 对（工作空间、客户、票、连接、账套）已有的记录加锁读，准备好 / 排队 / 在写 / 成功 / 结果不明的回原记录，**推往同一份账套不会建第二条**。挡不住的：人推往**另一份账套**（单据键不同，两份账套各写一张）；人那条停在待人处理 / 失败 / 撤回（定时任务照推，盖过人的处理）；人那条还在「准备」与「确认」两次请求之间时，定时任务拿到人那条、替人确认（人的确认随后版本不对、票上记失败）。
+- **改法**：`prepare` / `submit` 加 `unattended`，只有 `push_one` 与 `sweep._push` 传 True（MR.ERP 定时任务不带 `automation`，所以不按 `automation` 判）。锁住票之后、请求号回放之后、版本比对之前，`_touched(doc)`（加锁读出的现值：改单次数不为 0，或已有推送状态 / 推送记录；推送原因不算，定时任务停下记过原因的票照常重推）为真就回 `{"status": "human"}`，不建推送记录、不记失败原因。放在回放之后：自己上一次同号的那条照旧回原记录；放在版本比对之前：人改过的票回 human，不再记成「记录已变」失败。`push_one` 收到回 `human`（同它开头的判断），扫描记为 `human` 一张。网页、CC、待处理卡片不传，行为不变。
+- **#2 判误报**：`pump._push_step` / `_push` 的文件行只有泵写（`outcome_json` 全仓只有 `pump.py` 写），泵由 Redis 锁单跑（120 秒 > 每步 45 秒），每次写回前 `read(FILE, for_update=True)` 重读；锁过期两路并跑时同一张票的请求号相同，推送服务按请求号回原记录。对票的写都在 `push_one` → 推送服务里，由上面的重核兜住。
+- **基线**：`unlocked-overwrite-baseline.tsv` 删 4 行（`pump._push`、`pump._push_step`、`push.push_one`、`sweep.run`）；静态检查仍会命中这几处（普通读出的值传给推送服务），`unlocked-overwrite-extended-reviewed.tsv` 登记 4 条（2 条「已修」写明重核在哪、2 条误报写明单写者与请求号回放）。`--extended` 新增 0。
+- **离线**：test_cowork_push_fixed 新增 `UnattendedRecheck` 4 条（人推过 / 推成功 / 改过回 human、判的是加锁那一份、不建记录；没人动过照常往下、人发起的不看这几栏；同号回放照旧回原记录；`submit` 透传）；test_cowork_folder_intake 1 条（回 human 时不确认、不撤、不记失败，推送声明无人值守）；test_cowork_da_tiers 1 条（扫描回 human 不确认、不记失败，计数 `human`）；test_cowork_folder_follow_year 替身收 `unattended`。三条新测试在修前代码上都红。Cowork 推送相关（push_lifecycle、push_fixed、push_conflicts、push_native_contract、da_automation / tiers / verify / replay、folder_intake / follow_year / tasks_mrerp / task_batch / reminders / task_guide、scheduled_task_fixes、mrerp_operator_dispatch、write_precheck、assistant_tools、goods_posting、cowork_express_* 13 个）全过；check-architecture、check-unbounded-queries、check-unlocked-overwrite --extended 通过。test_cowork_folder_computers、test_cowork_mrerp_push 本机缺 frappe / requests，用实验镜像跑时导入的是镜像里的旧应用代码，修前修后同样失败（候选离线按 APP_MOUNTS 跑），没测到。
+- **共用件**：改动的三个文件不是登记的共用件（`check-impact.py --base 51686e58b` 无命中）。
+
+| 格 | 修前（b4-before = 24e3f1e3f） | 修后（2494899f8 + 09d92f459） |
+|---|---|---|
+| `cowork.folder_push_vs_human`（判完之后另一路把这张推往另一份账套并提交；文件夹定时推送、自动推送扫描各半） | 0/10（两条路各 5 轮都越过、接着准备第二条推送） | 12/12（两条路各 6 轮回 human，推送记录只有人那 1 条） |
+
+实验站没有 Express 连接与目录：格里连接读取、请求号查找换成替身，越过重核后的第一步（`_document_block`）换成「会接着准备、建第二条推送记录」的标记；人推往另一份账套，是因为同一份账套的重复准备账本本来就挡住，测的是挡不住的那种。修后 Cowork 全部 5 格各 3 轮全过。
+
+#### 已知 / 没做
+
+- `push_one` 在推之前按跟随公司选的账套 `retarget`（加锁读比去向，但不看人是否刚推过）：人推往另一份账套后、定时任务回 human 之前，票上的去向已被改成任务那份（只影响显示与按公司归类，不建推送记录），没改。
+- 顺手（76c687b83）：实验格收款两格 `_collection_seed` 改账套资料前记下原值，`_collection_cleanup` 还原（原来没有就删文件，同 `collection_lib.restore`）；实验栈上跑前跑后资料一致，原来没有资料时跑完文件已删。
