@@ -169,8 +169,10 @@ _LATIN_WORD = re.compile(r"[A-Za-z]{2,}")
 
 
 def message_language(text) -> str:
-    """用户这句话写的语言名（同 `title_language` 的英文名）；判不出回空串。"""
-    text = str(text or "")
+    """用户这句话写的语言名（同 `title_language` 的英文名）；判不出回空串。
+    页面附在末尾的附件说明（`ATTACHMENT_NOTE`，英文、带文件名与沙箱路径）不是用户的话，先去掉：只发文件不打字的一句判不出，
+    由调用方用界面语言（11-28 testerp：中文界面只发一张票，被判成英文、CC 回英文）。"""
+    text = ATTACHMENT_NOTE.sub("", str(text or ""))
     if _KANA.search(text):
         return "Japanese"
     if len(_HAN.findall(text)) >= 2:
@@ -1008,6 +1010,27 @@ def business_note(business) -> str:
     if business not in BUSINESS_ASKED:
         return ""
     return BUSINESS_NOTE.format(business=business, asked=BUSINESS_ASKED[business])
+
+
+# 输入框交来的票据（`guide.composer`，11-28）：发出的文件已交进页面上的单据引导，或没选业务要模型问一次。只给模型，不经 _()
+GUIDE_FILES_NOTE = ("<guide_files>The files in this message were handed to the {business} guide card on the page. The card "
+                    "recognises them, and the user answers, reviews and confirms them on it before anything is entered. Do not "
+                    "recognise, enter or list these files yourself and do not ask about them; say in one short sentence that the "
+                    "card is reading them.</guide_files>")
+FILES_ASK_NOTE = ("<files_without_business>The user sent files without choosing a business on the menu above the input box. "
+                  "If they are documents to enter, ask once with ask_user which of these they are: {choices}. Then call "
+                  "pearnly_guide with that business and these files (their paths as given in the message); the guide card "
+                  "recognises them and the user reviews them there. Do not recognise or enter them another way.</files_without_business>")
+
+
+def composer_files_note(planned) -> str:
+    """批末系统消息里的一段：这句带着的文件怎么接的（`guide.composer.plan` 的结果）；不接回空。"""
+    planned = planned or {}
+    if planned.get("run"):
+        return GUIDE_FILES_NOTE.format(business=_tag_body(planned.get("business"), 40))
+    if planned.get("ask"):
+        return FILES_ASK_NOTE.format(choices=", ".join(_tag_body(item, 40) for item in planned["ask"]))
+    return ""
 
 
 def system_message(*texts):

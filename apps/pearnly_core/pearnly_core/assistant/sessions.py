@@ -1060,6 +1060,12 @@ def _mark_after_send(title, function, *args) -> None:
         frappe.log_error(title=title)
 
 
+def _composer():
+    from pearnly_core.assistant.guide import composer
+
+    return composer
+
+
 def send(session_id, text) -> dict:
     steps = timing.Steps(TURN_LOG)
     row = owned(session_id)
@@ -1097,9 +1103,14 @@ def send(session_id, text) -> dict:
     # 回复语言跟用户这句话自己的文字（11-10 S6，服务端判、不靠模型猜），判不出才用界面语言；记成这一轮的语言给工具结果用
     spoken = contracts.message_language(text)
     toolrun.remember_turn_language(row.session_id, spoken)
+    # 输入框挂着的票据：选了按单据的业务就交进那项业务的单据引导（开引导在这里，交识别在发出后由后台做）；没选业务叫模型问一次
+    # （`guide.composer`，11-28：直写点「采购」后用输入框 + 上传，原来只记「已交出」、不识别）
+    planned = waits.quietly("Assistant composer files to guide failed", lambda: _composer().plan(row, text),
+                            default={}) if "/uploads/" in text else {}
     note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), company,
                                     contracts.notices_note(shown), toolrun.TYPED_INSTEAD_NOTE if typed_instead else "",
                                     contracts.business_note(row.get("business")),
+                                    contracts.composer_files_note(planned),
                                     contracts.language_note(spoken or toolrun.interface_language(row.session_id)),
                                     contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:
@@ -1121,6 +1132,7 @@ def send(session_id, text) -> dict:
         # 交出可重入（同几份再交不重记、不重复识别），撞冲突整笔重来是安全的
         _mark_after_send("Assistant attachment hand-over failed",
                          lambda: chat_files.commit(row, chat_files.ids_in(row, text), via="send"))
+        waits.quietly("Assistant composer files queue failed", lambda: _composer().queue(planned))
     # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）
     context.active(row.name)
     turn = _count_turn(row.name)

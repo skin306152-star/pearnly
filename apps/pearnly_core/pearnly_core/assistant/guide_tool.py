@@ -45,10 +45,25 @@ LEDGER_PREFIX, MISMATCH_PREFIX = documents.LEDGER_PREFIX, documents.MISMATCH_PRE
 FOLLOW, SKIP = documents.FOLLOW, documents.SKIP
 
 
+FILES_OPENED = ("The guide card is open on the page with these files: it recognises them and the user answers, reviews and "
+                "confirms them on the card before anything is entered. Do not recognise or enter them yourself; say in one "
+                "short sentence that the card is reading them, then wait for the user.")
+FILES_REFUSED = ("The guide card could not take these files (reason). Tell the user briefly in plain words; when the reason is "
+                 "business_not_offered, offered lists what this conversation can do.")
+
+
 def prepare(tool_input) -> Dict[str, Any]:
-    """出卡前：模型给的 ``{company, doc_ids, hint?}`` → 要问 ``{"input": 卡}`` / 不用问 ``{"result": 文本}``。"""
-    company, doc_ids = precheck_api._tool_ids(tool_input)
+    """出卡前：模型给的 ``{company, doc_ids, hint?}`` → 要问 ``{"input": 卡}`` / 不用问 ``{"result": 文本}``。
+    给 ``files``（对话里用户上传的文件，编号 / 路径 / 文件名，带 ``business``）：开这项业务的单据引导并把文件当场交进去识别
+    （`guide.composer.open_with_files`，同输入框交文件），回 ``{"result": …}``——之后的题卡、复核、确定都在引导卡上，不经这张卡。"""
     session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    if (tool_input or {}).get("files"):
+        from pearnly_core.assistant.guide import composer
+
+        found = composer.open_with_files(session, str(tool_input.get("business") or ""), list(tool_input.get("files") or ()))
+        instruction = FILES_OPENED if found.get("status") == "opened" else FILES_REFUSED
+        return {"result": json.dumps({**found, "instruction": instruction}, ensure_ascii=False, default=str)}
+    company, doc_ids = precheck_api._tool_ids(tool_input)
     found, card = documents.card_for(company, doc_ids, session, guided.business_of(session),
                                      str((tool_input or {}).get("hint") or ""))
     if not documents.needs_card(card):

@@ -2666,6 +2666,20 @@ class NoticeTests(unittest.TestCase):
         self.assertEqual(judge("SINCERE ICE の請求書を入力"), "Japanese")
         self.assertEqual(judge("ก IV69"), "")  # 一个泰文字母判不出，同前
 
+    def test_the_attachment_note_is_not_the_users_words(self):
+        # 11-28 testerp：中文界面只发一张票，附件说明（英文、带文件名与沙箱路径）被判成英文，CC 回英文。去掉它再判：
+        # 只发文件判不出（调用方用界面语言），带着话的按话判
+        judge = contracts.message_language
+        note = "\n\n[Attached file, mounted read-only in the sandbox:\n- z1-test-invoice.png → /mnt/session/uploads/file_011Cab/z1-test-invoice.png]"
+        many = ("\n\n[Attached files, mounted read-only in the sandbox:\n- a invoice.pdf → /mnt/session/uploads/file_1/a invoice.pdf\n"
+                "- b receipt.jpg → /mnt/session/uploads/file_2/b receipt.jpg]")
+        self.assertEqual(judge(note), "")
+        self.assertEqual(judge(many), "")
+        self.assertEqual(judge("录" + note), "")  # 一个汉字判不出，同前
+        self.assertEqual(judge("这张录进去" + note), "Chinese")
+        self.assertEqual(judge("บันทึกใบนี้" + many), "Thai")
+        self.assertEqual(judge("Please enter this" + note), "English")
+
     def test_refusals_and_plain_text_results_also_carry_the_reply_language(self):
         # 审计 E3（11-12）：工具被拒的原因是纯英文文本，不带语言标记，CC 照抄英文给泰文用户。不是 JSON 对象的结果也包成带标记的对象：
         # 出错的原文放 reason（status failed），不出错的放 result；英文、读不到语言仍原样
@@ -2731,6 +2745,57 @@ class NoticeTests(unittest.TestCase):
         with mock.patch.object(toolrun, "turn_language", lambda conversation: ""), \
                 mock.patch.object(toolrun, "interface_language", lambda conversation, user=None: "Thai"):
             self.assertTrue(toolrun._with_language("conv", '{"status": "saved"}').startswith('{"reply_language": "Thai"'))
+
+    def test_files_sent_from_the_input_box_go_to_the_chosen_documents_guide(self):
+        # 11-28 testerp：直写点「采购」后用输入框 + 上传、发出，原来只记「已交出」、不识别，CC 还回英文。现在：发出前问
+        # `guide.composer.plan` 怎么接，批末系统消息告诉模型（交进了引导卡 / 没选业务问一次），发出后排后台交识别；
+        # 只发文件判不出语言，用界面语言
+        sessions = self._sessions()
+        row = _Row(name="row1", session_id="sesn_mine1", user="a@example.com", title="t", pending_carry="", business="purchase")
+        posted, queued = [], []
+        api = types.SimpleNamespace(post=lambda remote, batch: posted.append(batch))
+        db = types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
+                                   get_value=lambda *a, **k: None, rollback=lambda: None)
+        planned = {"business": "purchase", "run": "GR-1", "files": ["file_1"]}
+        composer = types.SimpleNamespace(plan=mock.Mock(return_value=planned), queue=lambda found: queued.append(found))
+        files = types.SimpleNamespace(commit=lambda row, ids, via: ids, ids_in=lambda row, text: ["file_1"])
+        note = "\n\n[Attached file, mounted read-only in the sandbox:\n- z1.png → /mnt/session/uploads/file_1/z1.png]"
+        with mock.patch.object(sessions, "owned", return_value=row), \
+                mock.patch.object(sessions, "segment_for_turn", return_value="sesn_mine1"), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions.toolrun, "remember_lang", lambda sid: None), \
+                mock.patch.object(sessions.toolrun, "interface_language", lambda sid: "Chinese"), \
+                mock.patch.object(sessions.toolrun, "remember_turn_language", lambda sid, name: None), \
+                mock.patch.object(sessions.relay, "ensure", lambda *a: None), \
+                mock.patch.object(sessions.notices, "uncarried", lambda sid, user: []), \
+                mock.patch.object(sessions.titles, "start", lambda row, text, user: None), \
+                mock.patch.object(sessions, "_composer", lambda: composer), \
+                mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": files}), \
+                mock.patch.object(sessions.frappe, "db", db, create=True):
+            sessions.send("sesn_mine1", note)
+            text = posted[-1][-1]["content"][0]["text"]
+            self.assertIn("<language>Chinese</language>", text)  # 不是 English
+            self.assertIn(contracts.composer_files_note(planned), text)
+            self.assertIn("purchase guide card", text)
+            self.assertEqual(queued, [planned])
+            composer.plan.assert_called_once_with(row, note.strip())
+            # 只有文字：不问 composer、不排
+            composer.plan.reset_mock()
+            queued.clear()
+            sessions.send("sesn_mine1", "这几张合计多少")
+            composer.plan.assert_not_called()
+            self.assertNotIn("<guide_files>", posted[-1][-1]["content"][0]["text"])
+            # 没选业务：叫模型问一次是哪项业务，再用 pearnly_guide 带 business 与 files
+            composer.plan.return_value = {"ask": ["purchase", "sales"], "files": ["file_1"]}
+            sessions.send("sesn_mine1", note)
+            text = posted[-1][-1]["content"][0]["text"]
+            self.assertIn("ask once with ask_user which of these they are: purchase, sales", text)
+            self.assertIn("pearnly_guide", text)
+            # composer 出错：照旧发出，不带说明
+            composer.plan.side_effect = RuntimeError("boom")
+            sessions.send("sesn_mine1", note)
+            self.assertNotIn("<guide_files>", posted[-1][-1]["content"][0]["text"])
+        self.assertEqual(contracts.composer_files_note({}), "")
 
     def test_send_tells_cc_the_interface_language_out_of_sight(self):
         # 10-19 测试：中文界面、中文提问夹着泰文公司名和单号（「P3-DEP-H 用 T.7 推送」），CC 整段答成泰文。

@@ -144,12 +144,18 @@ CORE_TOOLS = [
                     "nothing_to_ask means there is nothing to ask (only writable documents can be written; waiting / not_writable say why the others cannot); answered means the answers are saved and only writable "
                     "documents can be written now; skipped means the user closed the card and nothing was saved. When the "
                     "user answers in a chat message instead (for example 'this supplier is always cash'), save it with "
-                    "pearnly_precheck_answer using the keys of that card. Then make the write plan (pearnly_write_plan).",
+                    "pearnly_precheck_answer using the keys of that card. Then make the write plan (pearnly_write_plan). "
+                    "For files the user sent that are not documents yet: give business (purchase or sales, as the user "
+                    "said or chose) and files (their paths from the message) instead of doc_ids. That opens the guide card "
+                    "for that business on the page, which recognises the files; the user reviews and confirms them there.",
      "input_schema": {"type": "object", "properties": {
          "company": {"type": "string", "description": "The company id the documents belong to."},
          "doc_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
+         "business": {"type": "string", "description": "With files: the business they are for (purchase or sales)."},
+         "files": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 20,
+                   "description": "Files the user sent in this conversation (paths from the message), to recognise on the guide card."},
          "hint": {"type": "string", "description": "The expense category the user stated, in their words."}},
-         "required": ["company", "doc_ids"]},
+         "required": ["company"]},
      "handler": "pearnly_core.assistant.ask.unanswered"},
     {"name": "pearnly_guide_end",
      "label": "Ended the guided entry",
