@@ -205,3 +205,23 @@ def test_the_request_thread_knows_the_new_kind():
 def _inv(docnum, customer, net, received):
     return {"RECTYP": "3", "DOCNUM": docnum, "DOCDAT": dt.date(2026, 8, 22), "CUSCOD": customer, "SLMCOD": "NLTP4",
             "DEPCOD": "CPI", "NETAMT": net, "RCVAMT": received, "REMAMT": round(net - received, 2), "DOCSTAT": "N"}
+
+
+def test_offsets_also_list_open_credit_notes_and_deposits_only_when_asked(receipts):
+    """退货 / 减项进收款（11-28，评估 docs/work/2026-11-28-credit-note-assessment.md）：带 ``offsets: true`` 才另列抵减单——减项
+    RECTYP 5、定金 RECTYP 0，条件同发票；不带时只列发票（旧服务端照旧）。按单号查也认这两类。"""
+    _append(receipts.acct / "ARTRN.DBF", [
+        {**_inv("SR001", "C01", 100.0, 0.0), "RECTYP": "5"}, {**_inv("AI001", "C01", 300.0, 100.0), "RECTYP": "0"},
+        {**_inv("SR002", "C01", 50.0, 50.0), "RECTYP": "5"}, {**_inv("SR003", "C01", 70.0, 0.0), "RECTYP": "5", "DOCSTAT": "C"}])
+    _result, plain = _open(receipts, {**_params(receipts), "customer": "C01"})
+    assert [row["docnum"] for row in plain["items"]] == ["IV001", "IV002"]
+    _result, data = _open(receipts, {**_params(receipts), "customer": "C01", "offsets": True, "docnums": ["SR002", "SR003"]})
+    assert [(row["docnum"], row["rectyp"], row["remaining"]) for row in data["items"]] == [
+        ("IV001", "3", "9972.00"), ("IV002", "3", "29996.00"), ("SR001", "5", "100.00"), ("AI001", "0", "200.00")]
+    assert sorted((row["docnum"], row["state"]) for row in data["looked_up"]) == [("SR002", "settled"), ("SR003", "cancelled")]
+
+
+def test_offsets_must_be_a_flag(receipts):
+    with pytest.raises(RequestFailed) as error:
+        _open(receipts, {**_params(receipts), "offsets": "yes"})
+    assert error.value.code == "params_invalid"

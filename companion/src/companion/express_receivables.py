@@ -14,6 +14,10 @@
 - 带 ``docnums`` 时结果另有 ``looked_up``：``[{docnum, customer, state, remaining}]``，``state`` 是 ``open``（还没收清）/ ``settled``
   （余额 0）/ ``cancelled``（作废）；不论客户、不论上面那几条筛选（服务品现金制的也报），账套里没有的单号不列（服务端当「账套里没有」）。
   ``items`` 照旧。
+- 可选 ``offsets: true``（1.12.26 起，退货 / 减项进收款，评估 ``docs/work/2026-11-28-credit-note-assessment.md``）：``items`` 另列这位
+  （这本）客户还没抵完的**抵减单**——减项（``RECTYP 5``，单据簿 CN 的 SR / SE / EC）与定金（``RECTYP 0``，AI），条件同发票（未删、
+  没作废、余额 > 0、不是服务品现金制）；``rectyp`` 照原样交，金额照原样正数（收款时从合计里扣，服务端按类型判）。不带时只列发票
+  （旧服务端照旧）；旧版 CC 不认这个参数，服务端只派给新版。``looked_up`` 按单号查同样认这三类。
 """
 
 from __future__ import annotations
@@ -35,11 +39,12 @@ KIND = "express_ar_open"
 RESULT_VERSION = 1
 TABLES = ("ARTRN",)
 PARAM_KEYS = ("account_set", "account_root")
-OPTIONAL_KEYS = ("customer", "docnums")
+OPTIONAL_KEYS = ("customer", "docnums", "offsets")
 LOOKUP_STATES = ("open", "settled", "cancelled")
 DOCNUMS_MAX = 20
 DOCNUM_MAX = 40
 INVOICE_RECTYP = "3"
+OFFSET_RECTYPS = ("5", "0")   # 抵减单：减项（CN 簿）、定金（AI）；原生 RE 里与发票同表 ARRCPIT，从合计里扣
 CANCELLED = "C"
 CASH_BASIS_VAT = "2"   # 服务品现金制增值税的发票（SRV_VATTYP 2）本批不收，不列（主会话 11-11，写入那边同样挡掉）
 CUSTOMER_MAX = 10
@@ -58,15 +63,20 @@ def _params(params: dict) -> tuple:
     if docnums is not None and (not isinstance(docnums, list) or len(docnums) > DOCNUMS_MAX or any(
             not isinstance(value, str) or not value.strip() or len(value) > DOCNUM_MAX for value in docnums)):
         raise RequestFailed("params_invalid")
-    return values[0], values[1], customer, sorted({value.strip() for value in docnums or ()})
+    offsets = params.get("offsets", False)
+    if not isinstance(offsets, bool):
+        raise RequestFailed("params_invalid")
+    return values[0], values[1], customer, sorted({value.strip() for value in docnums or ()}), offsets
 
 
-def _open_invoice(customer: str):
+def _open_invoice(customer: str, offsets: bool = False):
     get, money = express_read._get, express_masters.money
     code = express_masters._code
+    wanted = (INVOICE_RECTYP, *OFFSET_RECTYPS) if offsets else (INVOICE_RECTYP,)
 
     def pick(rec, columns, _gone):
-        if code(get(rec, columns, "RECTYP")) != INVOICE_RECTYP or code(get(rec, columns, "DOCSTAT")) == CANCELLED \
+        rectyp = code(get(rec, columns, "RECTYP"))
+        if rectyp not in wanted or code(get(rec, columns, "DOCSTAT")) == CANCELLED \
                 or code(get(rec, columns, "SRV_VATTYP")) == CASH_BASIS_VAT:
             return None
         who = code(get(rec, columns, "CUSCOD"))
@@ -75,7 +85,7 @@ def _open_invoice(customer: str):
         remaining = money(get(rec, columns, "REMAMT"))
         if remaining.startswith("-") or remaining == "0.00":
             return None
-        return {"docnum": code(get(rec, columns, "DOCNUM")), "rectyp": INVOICE_RECTYP,
+        return {"docnum": code(get(rec, columns, "DOCNUM")), "rectyp": rectyp,
                 "docdat": express_read._iso(get(rec, columns, "DOCDAT")), "customer": who,
                 "salesman": code(get(rec, columns, "SLMCOD")), "department": code(get(rec, columns, "DEPCOD")),
                 "net": money(get(rec, columns, "NETAMT")), "received": money(get(rec, columns, "RCVAMT")),
@@ -85,13 +95,13 @@ def _open_invoice(customer: str):
 
 
 def _looked_up(docnums) -> Callable:
-    """按单号查（``docnums``）：发票（RECTYP 3）此刻的状态，不论客户与别的筛选。"""
+    """按单号查（``docnums``）：发票（RECTYP 3）与抵减单（5 / 0）此刻的状态，不论客户与别的筛选。"""
     get, money, code = express_read._get, express_masters.money, express_masters._code
     wanted = set(docnums)
 
     def pick(rec, columns, _gone):
         docnum = code(get(rec, columns, "DOCNUM"))
-        if docnum not in wanted or code(get(rec, columns, "RECTYP")) != INVOICE_RECTYP:
+        if docnum not in wanted or code(get(rec, columns, "RECTYP")) not in (INVOICE_RECTYP, *OFFSET_RECTYPS):
             return None
         remaining = money(get(rec, columns, "REMAMT"))
         if code(get(rec, columns, "DOCSTAT")) == CANCELLED:
@@ -105,28 +115,28 @@ def _looked_up(docnums) -> Callable:
     return pick
 
 
-def collect(folder: Path, customer: str = "", docnums=()) -> tuple:
+def collect(folder: Path, customer: str = "", docnums=(), offsets: bool = False) -> tuple:
     """从复制出来的 ARTRN 读出未收清的发票 → (行, 诊断, 按单号查到的)。没有 ARTRN 回 ``account_tables_missing``。
     没带单号时第三项是 None（结果里不带 ``looked_up``）。"""
     if not (folder / "ARTRN.DBF").is_file():
         raise RequestFailed("account_tables_missing")
     diag = {"rows": {}, "bad_rows": {}}
-    items = express_read._rows(folder, "ARTRN", diag, _open_invoice(customer))
+    items = express_read._rows(folder, "ARTRN", diag, _open_invoice(customer, offsets))
     looked = express_read._rows(folder, "ARTRN", {"rows": {}, "bad_rows": {}}, _looked_up(docnums)) if docnums else None
     return items, diag, looked
 
 
 def read_ar_open(cfg, params: dict, *, sleep: Callable[[float], None] = time.sleep) -> Result:
-    """{account_set, account_root[, customer][, docnums]} → 未收清发票（gzip JSON）。"""
+    """{account_set, account_root[, customer][, docnums][, offsets]} → 未收清发票（与抵减单，gzip JSON）。"""
     started = time.monotonic()
-    account_set, account_root, customer, docnums = _params(params)
+    account_set, account_root, customer, docnums, offsets = _params(params)
     folder = express_read.resolve(cfg, account_set, account_root)
     read, changed, stamp = None, False, ""
     for attempt in range(express_read.READS):
         stamp = express_masters.mark(folder, express_masters.AR_MARK_TABLES)  # 复制前取：复制途中又改了，下一次标记不同
         try:
             with express_read.snapshot(folder, tables=TABLES, sleep=sleep) as (copy, moved):
-                read, changed = collect(copy, customer, docnums), moved
+                read, changed = collect(copy, customer, docnums, offsets), moved
         except express_read._Unreadable as error:
             log.info("账套副本读不全，稍后重读: %s", error)
         else:

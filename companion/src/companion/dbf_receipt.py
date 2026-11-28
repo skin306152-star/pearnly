@@ -18,6 +18,15 @@ RE2401052 多张发票）：
 - 银行流水 BKTRN（11-13）：方式经 ``SHORTNAM`` 指到银行户头（BKMAS 有这个 BNKACC）的，每种方式另记一行（原生 NLTTEST 2247 / 2247 张这类
   方式行都有、没指户头的一行都没有，:func:`bank_row`）；只是科目号与户头科目相同、不经 SHORTNAM 的不记。
 
+抵减单（载荷 23，退货 / 减项进收款，评估 ``docs/work/2026-11-28-credit-note-assessment.md`` §1.2，NLTTEST 39 张带减项、20 张带定金的原生 RE）：
+
+- 载荷 ``offsets``：``[{docnum, rectyp, amount}]``，``rectyp`` 是 ``5``（减项，CN 簿 SR / SE / EC）或 ``0``（定金 AI），金额正数；
+- ARRCPIT 每张一行（RECTYP 照原样、RCVAMT 正数、VATAMT 0），被抵的单同发票：RCVAMT += 本次、REMAMT -= 本次、抵清 CMPLAPP Y + CMPLDAT
+  （原生定金有分几张 RE 抵的，部分抵照发票）；
+- 单头 IVCAMT = NETAMT = Σ发票 − Σ抵减（净额，39 / 39、20 / 20），现金与方式合计等于净额；凭证、ARBAL ``RE{期}``、ARMAS.BALANCE 都按净额；
+- 净额 0（全抵，原生 29 张）：DOCSTAT ``N``、没有方式行、**没有凭证**（GLJNL / GLJNLIT 都不写）、ARBAL 与 ARMAS 不动；
+- 净额 < 0（抵减大于发票）：载荷不合格（:data:`ERR_VALIDATION`），原生只有 2018 年一张退现金的，等原生实录再定。
+
 管钱底线（写前，持 ``PEARNLY.LCK``，worker 已拿着）：同客户、同 YOUREF、没作废的 RE 已在 → 回原号，一行不写（幂等）；逐张重读发票，
 任一张不在 / 不是这个客户 / 已作废 / 服务品现金制增值税（:data:`ERR_INVOICE_NOT_FOUND`，本批不收）或当前余额不够本次收（:data:`ERR_ALREADY_COLLECTED`，含已被别人收清）
 → **整单不写**，证据带每张的当前余额；不自动缩小金额。方式不在 / 没科目 / 科目冲突 → :data:`ERR_RECEIPT_TYPE`；有现金但账套没设现金科目
@@ -70,7 +79,9 @@ DIRECTION = "receipt"
 RUN_DOCTYP = "RE"          # ISRUN 单据簿行
 RECTYP = "9"               # ARTRN：收款单
 INVOICE_RECTYP = "3"       # ARTRN / ARRCPIT：发票（赊销 IV）
+OFFSET_RECTYPS = ("5", "0")  # ARTRN / ARRCPIT：抵减单——减项（CN 簿）、定金（AI）
 DOCSTAT = "M"              # 原生完成的 RE（非支票）
+DOCSTAT_SETTLED = "N"      # 原生净额 0 的 RE（全抵，没有凭证）
 CANCELLED = "C"
 BILNUM = "~"
 SRV_VATTYP = "-"
@@ -140,7 +151,15 @@ class Receipt:
     cash: Decimal
     methods: List[Method]
     user: str
-    total: Decimal = field(default=Decimal(0))
+    total: Decimal = field(default=Decimal(0))       # 净额 = Σ发票 − Σ抵减
+    offsets: List[Tuple[str, str, Decimal]] = field(default_factory=list)   # (单号, RECTYP, 本次抵多少)
+
+    def lines(self) -> List[Tuple[str, str, Decimal]]:
+        """ARRCPIT 要写的全部行：(单号, RECTYP, 金额)，发票在前。"""
+        return [(docnum, INVOICE_RECTYP, amount) for docnum, amount in self.invoices] + list(self.offsets)
+
+    def docnums(self) -> List[str]:
+        return [docnum for docnum, _rectyp, _amount in self.lines()]
 
 
 def _bytes(text: str) -> int:
@@ -219,6 +238,21 @@ def parse(payload: Dict[str, Any], allowed: tuple = ALLOWED_ACCOUNT_SETS) -> Rec
         if any(docnum == seen for seen, _amount in invoices):
             raise ValueError(f"invoice {docnum} listed twice")
         invoices.append((docnum, _money(row.get("amount"), f"invoice {docnum} amount", positive=True)))
+    given_offsets = payload.get("offsets") or []
+    if not isinstance(given_offsets, list) or len(rows) + len(given_offsets) > MAX_INVOICES:
+        raise ValueError("offsets must be a list")
+    offsets: List[Tuple[str, str, Decimal]] = []
+    for index, row in enumerate(given_offsets, start=1):
+        if not isinstance(row, dict):
+            raise ValueError(f"offset {index} is not an object")
+        docnum, rectyp = _text(row.get("docnum")), _text(row.get("rectyp"))
+        if not docnum or _bytes(docnum) > _WIDTH["docnum"]:
+            raise ValueError(f"offset {index} docnum invalid: {docnum!r}")
+        if rectyp not in OFFSET_RECTYPS:
+            raise ValueError(f"offset {docnum} rectyp invalid: {rectyp!r}")
+        if any(docnum == seen for seen, _amount in invoices) or any(docnum == seen for seen, _r, _a in offsets):
+            raise ValueError(f"offset {docnum} listed twice")
+        offsets.append((docnum, rectyp, _money(row.get("amount"), f"offset {docnum} amount", positive=True)))
     cash = _money(payload.get("cash") if payload.get("cash") not in (None, "") else "0.00", "cash", positive=False)
     given = payload.get("methods") or []
     if not isinstance(given, list) or len(given) > MAX_METHODS:
@@ -235,14 +269,16 @@ def parse(payload: Dict[str, Any], allowed: tuple = ALLOWED_ACCOUNT_SETS) -> Rec
         # 方式行可为负（原生 RE2402899：客户多转 0.55，「25 รายได้อื่นๆ」-0.55，凭证 SEQIT 2 贷 0.55），不可为 0
         methods.append(Method(prefix, _money(row.get("amount"), f"method {prefix} amount", positive=True, signed=True),
                               _text(row.get("code"))))
-    total = sum((amount for _docnum, amount in invoices), Decimal(0))
+    total = sum((amount for _docnum, amount in invoices), Decimal(0)) - sum((amount for _d, _r, amount in offsets), Decimal(0))
     paid = cash + sum((method.amount for method in methods), Decimal(0))
+    if total < 0:
+        raise ValueError(f"offsets exceed invoices ({total})")
     if total != paid:
-        raise ValueError(f"invoices {total} != cash + methods {paid}")
-    if paid <= 0:
+        raise ValueError(f"invoices less offsets {total} != cash + methods {paid}")
+    if paid < 0 or (paid == 0 and (not offsets or methods)):
         raise ValueError("nothing received")
     return Receipt(values["ref_no"], doc_date, values["customer"], values["salesman"], values["department"], invoices,
-                   cash, methods, values["user"], total)
+                   cash, methods, values["user"], total, offsets)
 
 
 # ── 写前只读 ─────────────────────────────────────────────────────────────────────────────────────
@@ -294,9 +330,10 @@ def existing(account_dir, receipt: Receipt) -> Optional[str]:
     return None
 
 
-def invoice_state(account_dir, customer: str, docnums) -> Dict[str, dict]:
-    """这几张发票此刻在账套里的样子：docnum → ``{found, customer, cancelled, rows, remaining, received, orgnum, slmcod,
-    depcod}``（只看未删、RECTYP 3 的行）。"""
+def invoice_state(account_dir, customer: str, docnums, rectyps=None) -> Dict[str, dict]:
+    """这几张发票（与抵减单）此刻在账套里的样子：docnum → ``{found, customer, cancelled, rows, remaining, received, orgnum, slmcod,
+    depcod}``（只看未删、RECTYP 是要的那种的行）。``rectyps``：单号 → 要的 RECTYP，没给的按发票（RECTYP 3）。"""
+    rectyps = rectyps or {}
     wanted = set(docnums)
     out: Dict[str, dict] = {docnum: {"found": False, "rows": 0} for docnum in wanted}
     table = _open(Path(account_dir), "ARTRN", dbf.READ_ONLY)
@@ -304,7 +341,7 @@ def invoice_state(account_dir, customer: str, docnums) -> Dict[str, dict]:
         has_orgnum = "ORGNUM" in _fields(table)
         for r in S.live_rows(table):
             docnum = _str(r, "DOCNUM")
-            if docnum not in wanted or _str(r, "RECTYP") != INVOICE_RECTYP:
+            if docnum not in wanted or _str(r, "RECTYP") != rectyps.get(docnum, INVOICE_RECTYP):
                 continue
             state = out[docnum]
             state["rows"] += 1
@@ -325,9 +362,9 @@ def invoice_state(account_dir, customer: str, docnums) -> Dict[str, dict]:
 
 def check_invoices(account_dir, receipt: Receipt) -> Dict[str, dict]:
     """逐张核：在、是这个客户的、没作废、只有一张、当前余额够本次收。任一张不过抛 :class:`Refused`（整单不写），证据带每张的当前余额。"""
-    states = invoice_state(account_dir, receipt.customer, [docnum for docnum, _amount in receipt.invoices])
+    states = _states(account_dir, receipt)
     report, worst = [], ""
-    for docnum, amount in receipt.invoices:
+    for docnum, _rectyp, amount in receipt.lines():
         state = states[docnum]
         problem = ""
         if not state["found"]:
@@ -352,6 +389,11 @@ def check_invoices(account_dir, receipt: Receipt) -> Dict[str, dict]:
         raise Refused(worst, f"receipt {receipt.ref_no} not written: {bad}",
                       {"kind": "receipt_invoices", "invoices": report})
     return states
+
+
+def _states(account_dir, receipt: Receipt) -> Dict[str, dict]:
+    return invoice_state(account_dir, receipt.customer, receipt.docnums(),
+                         {docnum: rectyp for docnum, rectyp, _amount in receipt.lines()})
 
 
 def plan_methods(account_dir, receipt: Receipt) -> List[Tuple[Method, str]]:
@@ -483,7 +525,7 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
     done = existing(account_dir, receipt)
     if done:
         log.info("receipt %s already written as %s, not written again", receipt.ref_no, done)
-        states = invoice_state(account_dir, receipt.customer, [docnum for docnum, _amount in receipt.invoices])
+        states = _states(account_dir, receipt)
         return DbfWriteResult(True, docnum=done, skipped=True, party_code=receipt.customer,
                               receipt=_receipt_result(done, receipt, states, after=False))
     try:
@@ -513,8 +555,10 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
         since = _table_sizes(account_dir, _VERIFY_TABLES + banked)
         docnum, gl_rows = _write_all(account_dir, plan)
         _write_bank(account_dir, plan, docnum)
-        notes = _update_arbal(account_dir, receipt.customer, receipt.doc_date, receipt.total)
-        master_create.move_party_balance(account_dir, "ARMAS", receipt.customer, -receipt.total)
+        notes = None
+        if receipt.total:  # 全抵（净额 0）：原生 ARBAL、ARMAS 都不动
+            notes = _update_arbal(account_dir, receipt.customer, receipt.doc_date, receipt.total)
+            master_create.move_party_balance(account_dir, "ARMAS", receipt.customer, -receipt.total)
         clock.lap("write")
         _reindex_or_defer(account_dir, WRITE_TABLES + banked, 0, "", index_batch)
         clock.lap("reindex")
@@ -546,9 +590,10 @@ def _userid(user: str, fallback: str) -> str:
 
 
 def _receipt_result(docnum: str, receipt: Receipt, states: Dict[str, dict], *, after: bool) -> dict:
-    """回执 ``meta.receipt``：``{docnum, invoices: [{docnum, remaining_after}]}``（``after``：这次刚收过，余额扣掉本次）。"""
+    """回执 ``meta.receipt``：``{docnum, invoices: [{docnum, remaining_after}]}``（``after``：这次刚收过，余额扣掉本次）。抵减单同列在
+    ``invoices`` 里（服务端按单号改快照，不分类型）。"""
     rows = []
-    for invoice, amount in receipt.invoices:
+    for invoice, _rectyp, amount in receipt.lines():
         remaining = states.get(invoice, {}).get("remaining", Decimal(0))
         rows.append({"docnum": invoice, "remaining_after": f"{_q2(remaining - amount) if after else remaining:.2f}"})
     return {"docnum": docnum, "invoices": rows}
@@ -568,17 +613,18 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
             "CUSCOD": receipt.customer, "YOUREF": receipt.ref_no, "DUEDAT": docdat, "BILNUM": BILNUM,
             "NETAMT": float(receipt.total), "IVCAMT": float(receipt.total), "CSHRCV": float(receipt.cash),
             "CHQRCV": float(received), "CHQPAS": float(received), "INTRCV": 0.0, "RCVAMT": 0.0, "REMAMT": 0.0,
-            "CMPLAPP": "Y", "CMPLDAT": docdat, "DOCSTAT": DOCSTAT, "SRV_VATTYP": SRV_VATTYP,
+            "CMPLAPP": "Y", "CMPLDAT": docdat, "DOCSTAT": DOCSTAT if receipt.total else DOCSTAT_SETTLED,
+            "SRV_VATTYP": SRV_VATTYP,
             "ORGNUM": int(first.get("orgnum") or 0), "USERID": plan.userid, "CHGDAT": _dt.date.today(),
         }))
-        # 被收的发票：余额减本次；收清的标完成（原生 CMPLAPP Y + CMPLDAT 收款日），没收清的不动这两栏
-        amounts = dict(receipt.invoices)
+        # 被收的发票与被抵的单：余额减本次；收清的标完成（原生 CMPLAPP Y + CMPLDAT 收款日），没收清的不动这两栏
+        amounts = {docno: (rectyp, amount) for docno, rectyp, amount in receipt.lines()}
         for rec in S.live_rows(head):
             docno = _str(rec, "DOCNUM")
-            if docno not in amounts or _str(rec, "RECTYP") != INVOICE_RECTYP or _str(rec, "CUSCOD") != receipt.customer \
+            if docno not in amounts or _str(rec, "RECTYP") != amounts[docno][0] or _str(rec, "CUSCOD") != receipt.customer \
                     or _str(rec, "DOCSTAT") == CANCELLED:
                 continue
-            amount = amounts.pop(docno)
+            amount = amounts.pop(docno)[1]
             with rec as row:
                 remaining = _q2(_dec(row["REMAMT"]) - amount)
                 row["RCVAMT"] = float(_q2(_dec(row["RCVAMT"]) + amount))
@@ -594,8 +640,8 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
 
     items = _open(account_dir, "ARRCPIT", dbf.READ_WRITE)
     try:
-        for invoice, amount in receipt.invoices:
-            items.append(_filtered(items, {"RCPNUM": docnum, "DOCNUM": invoice, "RECTYP": INVOICE_RECTYP,
+        for invoice, rectyp, amount in receipt.lines():
+            items.append(_filtered(items, {"RCPNUM": docnum, "DOCNUM": invoice, "RECTYP": rectyp,
                                            "RCVAMT": float(amount), "VATAMT": 0.0}))
     finally:
         items.close()
@@ -608,6 +654,9 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
         lines.close()
 
     gl_rows = journal_rows(plan)
+    if not gl_rows:  # 全抵：原生没有凭证（29 / 29）
+        _bump_run(account_dir, following)
+        return docnum, gl_rows
     descrp = description(account_dir, run.get("jnlexp", ""), receipt.customer)
     journal = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
@@ -633,7 +682,9 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
 def journal_rows(plan: _Plan) -> List[Tuple[str, str, str, Decimal]]:
     """凭证分录 [(SEQIT, 科目, 借贷, 金额)]：SEQIT 2 现金与各方式按（科目, 借贷）合并、按科目排（原生多方式的 RE 分录行按科目升序，
     与方式行的先后无关：RE2402979 TX 行在前、分录 1112-01 在前；RE2402889 DC / AP / TF 三行分录 4100-04、5220-02、5390-01），
-    负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；最后 SEQIT 6 贷应收合计。"""
+    负的方式行（多收的零头记其他收入等，原生 RE2402899）记贷方；最后 SEQIT 6 贷应收合计（净额）。全抵（净额 0）没有凭证，回空。"""
+    if not plan.receipt.total:
+        return []
     merged: Dict[Tuple[str, str], Decimal] = {}
     if plan.receipt.cash > 0:
         merged[(plan.cash_acc, S.TRNTYP_DEBIT)] = plan.receipt.cash
@@ -743,8 +794,8 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
             or _q2(heads[0]["CSHRCV"]) != receipt.cash or _q2(heads[0]["CHQRCV"]) != received
             or str(heads[0]["CUSCOD"]).strip() != receipt.customer):
         fail(f"header rows {heads!r}", "ARTRN")
-    got = sorted((str(r["DOCNUM"]).strip(), _q2(r["RCVAMT"])) for r in appended("ARRCPIT", "RCPNUM"))
-    if got != sorted((invoice, amount) for invoice, amount in receipt.invoices):
+    got = sorted((str(r["DOCNUM"]).strip(), str(r["RECTYP"]).strip(), _q2(r["RCVAMT"])) for r in appended("ARRCPIT", "RCPNUM"))
+    if got != sorted(receipt.lines()):
         fail(f"invoice lines {got}", "ARRCPIT")
     got = sorted((str(r["CHQNUM"]).strip(), _q2(r["RCVAMT"])) for r in appended("ARRCPCQ", "RCPNUM"))
     if got != sorted((payment_methods.line_number(method.prefix, docnum), method.amount) for method, _acc in plan.methods):
@@ -765,8 +816,8 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
         if got != sorted((BANK_TRNTYP, bank, payment_methods.line_number(method.prefix, docnum), method.amount)
                          for method, bank in plan.bank):
             fail(f"bank lines {got}", BANK_TABLE)
-    now = invoice_state(account_dir, receipt.customer, [invoice for invoice, _amount in receipt.invoices])
-    for invoice, amount in receipt.invoices:
+    now = _states(account_dir, receipt)
+    for invoice, _rectyp, amount in receipt.lines():
         if now[invoice].get("remaining") != _q2(plan.states[invoice]["remaining"] - amount):
             fail(f"invoice {invoice} remaining {now[invoice].get('remaining')}", "ARTRN")
 

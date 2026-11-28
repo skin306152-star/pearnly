@@ -59,7 +59,10 @@ from typing import Optional
 # 旧版诚实拒收；版本 ≤ 20 的载荷不读这些键，与以前逐字节相同。
 # 22：库存单选簿（docs/work/2026-11-18-stock-express-parity-评估.md 4.4 / 4.5；``book``）：出库按用途写 OU / ZZ / XS / PD 哪一簿、调增写 JU 或 PI，
 # 都是同一 DOCTYP 下的另一前缀。旧版不认 ``book``（会照单别写进 OU / JU），所以带了它的载荷盖 22，旧版诚实拒收。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
+# 23：收款单 RE 带抵减单（``offsets``：减项 RECTYP 5 / 定金 RECTYP 0，从合计里扣；净额 0 的不写凭证；评估
+# docs/work/2026-11-28-credit-note-assessment.md）。旧版不认 ``offsets``（会只写发票、按发票合计写，金额与原生不符），所以带了它的
+# 收款载荷盖 23，旧版诚实拒收；不带抵减单的收款照旧 20。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
 OPERATOR_PAYLOAD_VERSION = 16
 REMARKS_PAYLOAD_VERSION = 17
 MRERP_OPERATOR_PAYLOAD_VERSION = 18
@@ -67,6 +70,7 @@ MIXED_LINES_PAYLOAD_VERSION = 19
 RECEIPT_PAYLOAD_VERSION = 20
 GUIDED_PAYLOAD_VERSION = 21
 STOCK_BOOK_PAYLOAD_VERSION = 22
+RECEIPT_OFFSETS_PAYLOAD_VERSION = 23
 # 载荷 21 的新键名单（与服务端 ``express_rules.push.common.GUIDED_KEYS`` 逐个相同，tests/test_companion_contract.py 守着）
 GUIDED_KEYS = {
     "header": ("guided", "due_date_be", "cash_account"),

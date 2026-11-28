@@ -18,7 +18,7 @@ def test_missing_version_defaults_to_v1_supported():
 
 
 def test_future_version_rejected():
-    assert check_payload_version({"payload_version": 23}) == ERR_PAYLOAD_VERSION
+    assert check_payload_version({"payload_version": 24}) == ERR_PAYLOAD_VERSION
 
 
 def test_supported_set_is_v1_to_v12_today():
@@ -43,7 +43,7 @@ def test_supported_set_is_v1_to_v12_today():
     # v19(2026-11-06):采购 / 销售明细库存行与非库存行同在一张单(混行;ERP 按行选入库 / 只记账),分段写、SEQNUM 用整张单的行号
     # v20(2026-11-11):收款单 RE(direction = receipt,收款员录的收款,dbf_receipt)
     # v22(2026-11-18):库存单选簿 `book`(出库按用途 OU / ZZ / XS / PD、调增 JU / PI;库存四入口与原生一致)
-    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
+    assert SUPPORTED_PAYLOAD_VERSIONS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23})
     assert check_payload_version({"payload_version": 21}) is None  # 11-12 引导录入
     assert check_payload_version({"payload_version": 22}) is None
     assert check_payload_version({"payload_version": 16}) is None

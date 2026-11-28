@@ -56,7 +56,7 @@ def _cfg():
 
 def test_unsupported_version_fails_honestly_zero_writes():
     qc = _FakeQC()
-    task = _task({"payload_version": 23, "direction": "purchase"})
+    task = _task({"payload_version": 24, "direction": "purchase"})
     with (
         mock.patch(
             "src.companion.secret_store.load_express_settings",
@@ -76,7 +76,7 @@ def test_unsupported_version_fails_honestly_zero_writes():
     assert len(qc.failures) == 1
     fail = qc.failures[0]
     assert fail["error_code"] == "ERR_PAYLOAD_VERSION"
-    assert fail["meta"] == {"got": 23, "supported": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]}
+    assert fail["meta"] == {"got": 24, "supported": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]}
     # 原文会存进推送原因、交给 CC：只用正式名字（2026-10-13 起旧称不出现在用户看得到的地方）
     assert "CC Desktop" in fail["error"] and "companion" not in fail["error"].lower()
     assert qc.successes == []
@@ -121,7 +121,7 @@ def test_heartbeat_reports_max_payload_version_and_companion_version():
 
     assert len(qc.health_calls) == 1
     call = qc.health_calls[0]
-    assert call["max_payload_version"] == 22  # 11-18 库存单选簿
+    assert call["max_payload_version"] == 23  # 11-28 收款单带抵减单
     assert call["companion_version"] == VERSION
     # 能代录到哪些目标（ADR-026）：这一版只有 Express，MR.ERP 执行层随第 2 步加
     assert call["operator_targets"] == ["express"]
