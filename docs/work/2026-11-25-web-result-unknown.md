@@ -69,3 +69,10 @@ LINE 回执与网页同一张表（`express.contracts.ledger_word`），本分�
 测试机1 testenv lab-start cowork（线上镜像 4cf9c586，实时源码），testcowork 测试副本；测完 lab-stop、域名回线上、定时任务恢复。截图 `~/pearnly-devtools/handoff-1128/cov5-liff-*.png`。
 
 真机记录 | cowork.scan.line.stocktake.liff-camera | 2026-11-28 | 37f728f91 | 三星 SM-A146P + LINE Cowork-test + 测试机1 | 通过 | 被测组合 c33ad3576；富菜单「库存盘点」经 LIFF 打开盘点页 → 开始盘点 → 扫码 → LINE 原生相机授权 → 真相机对测试机屏幕 EAN-13 8906008420319 读出，认出 P-0016 → 完成不保存 |
+
+## 11-28 变基到列车 + 状态筛选词（cc-coverage-5）
+
+基线：`pearnly/train-1128` 8c9b0fab1 叠 `pearnly/list-status-filter-labels` 50ec83186（共用 list.js 的 `labels`：筛选下拉与条件标签显示格子同一套状态词）。
+合上后本分支加的收款「状态」筛选档 `result_unknown` 会显示原码：`collection.contracts.STATUS_WORDS` 与 `collections.js` 的同名表加上
+`result_unknown → Result unknown`（四语已有词条，与格子同源），下拉与条件标签显示「结果不明」；筛选值仍是原码，由 `status_filters` 在服务端换成库条件。
+断言：`tests/test_line_receipt.py` 收款状态词——网页与契约同表，且 DocType 状态字段每一档都有状态词（不显示原码）。

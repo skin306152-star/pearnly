@@ -420,6 +420,13 @@ class StatusWordTables(unittest.TestCase):
                          contracts.STATUS_WORDS)
         self.assertEqual([contracts.status_word(status) for status in ("queued", "writing", "written", "failed", "withdrawn")],
                          ["Entering", "Entering", "Succeeded", "Failed", "Cancelled"])
+        # 状态筛选下拉的每一档（DocType 选项，含只作筛选值的 result_unknown）都有状态词，不显示原码（labels，list.js）
+        doctype = json.loads((ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_collection/"
+                              "erp_collection.json").read_text(encoding="utf-8"))
+        options = next(f["options"] for f in doctype["fields"] if f["fieldname"] == "status").split("\n")
+        self.assertIn(contracts.RESULT_UNKNOWN_STATUS, options)
+        self.assertEqual({o for o in options if o} - set(contracts.STATUS_WORDS), set())
+        self.assertEqual(contracts.STATUS_WORDS[contracts.RESULT_UNKNOWN_STATUS], "Result unknown")
         # 结果不明（主会话 11-25）：网页与 LINE 同一档，不说失败；LINE 回执先判它再判失败
         self.assertEqual(contracts.status_word("failed", "cc_desktop.result_unknown"), "Result unknown")
         self.assertEqual(contracts.status_word("failed", "mrerp.result_unknown: ERR_TECHNICAL"), "Result unknown")

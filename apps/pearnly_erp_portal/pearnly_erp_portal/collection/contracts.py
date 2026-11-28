@@ -37,12 +37,6 @@ REF_MAX = 30
 # 记录状态
 DRAFT, QUEUED, WRITING, WRITTEN, FAILED, WITHDRAWN = "draft", "queued", "writing", "written", "failed", "withdrawn"
 STATUSES = (DRAFT, QUEUED, WRITING, WRITTEN, FAILED, WITHDRAWN)
-# 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：LINE 回执与网页「收款」页同一张表（`collections.js` 的
-# ``STATUS_WORDS`` 契约测试比对）。草稿照旧
-STATUS_WORDS = {DRAFT: "erp.collection.status.draft", QUEUED: "Entering", WRITING: "Entering", WRITTEN: "Succeeded",
-                FAILED: "Failed", WITHDRAWN: "Cancelled"}
-
-
 # 结果不明（写没写进去不知道）单列「结果不明」，不并进失败（主会话 11-25，同 ERP 单据 `express.contracts.UNKNOWN_REASONS`）：
 # 失败且原因是 CC 桌面版写到一半断了（`cc_desktop.jobs.LOST`）或 MR.ERP 导入发出后查不到 / 出错（``mrerp.result_unknown: <码>``）
 RESULT_UNKNOWN = "Result unknown"
@@ -51,6 +45,11 @@ UNKNOWN_REASONS = (EXPRESS_UNKNOWN, "mrerp.result_unknown")
 # 列表「状态」筛选里结果不明单列一档（筛选值，不落库）：失败 + 原因是上面两种（库里按 LIKE 认，两种都含这一段）
 RESULT_UNKNOWN_STATUS = "result_unknown"
 UNKNOWN_LIKE = "%.result_unknown%"
+
+# 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：LINE 回执与网页「收款」页同一张表（`collections.js` 的
+# ``STATUS_WORDS`` 契约测试比对）。草稿照旧。结果不明那一档只是筛选值（不落库），列在这里让筛选下拉与条件标签显示状态词
+STATUS_WORDS = {DRAFT: "erp.collection.status.draft", QUEUED: "Entering", WRITING: "Entering", WRITTEN: "Succeeded",
+                FAILED: "Failed", WITHDRAWN: "Cancelled", RESULT_UNKNOWN_STATUS: RESULT_UNKNOWN}
 
 
 def result_unknown(status, reason="") -> bool:

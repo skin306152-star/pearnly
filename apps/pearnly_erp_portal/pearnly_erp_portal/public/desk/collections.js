@@ -17,9 +17,10 @@
 	p.collections = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.collection.api.";
 		const root = "pearnly-collections";
-		// 状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：同 LINE 回执（`collection.contracts.STATUS_WORDS`，契约测试比对）
+		// 状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：同 LINE 回执（`collection.contracts.STATUS_WORDS`，契约测试比对）；
+		// result_unknown 只是筛选值（不落库），筛选下拉与条件标签显示「结果不明」
 		const STATUS_WORDS = {draft: "erp.collection.status.draft", queued: "Entering", writing: "Entering", written: "Succeeded",
-			failed: "Failed", withdrawn: "Cancelled"};
+			failed: "Failed", withdrawn: "Cancelled", result_unknown: "Result unknown"};
 		// 结果不明（写没写进去不知道）单列，不并进失败（主会话 11-25，同 `collection.contracts.UNKNOWN_REASONS`）
 		const UNKNOWN_REASONS = ["cc_desktop.result_unknown", "mrerp.result_unknown"];
 		const result_unknown = (value, reason) => value === "failed"
