@@ -486,6 +486,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,�
 Used to create and edit customers. Leave a saved account's password empty to keep it.,ใช้สำหรับเพิ่มและแก้ไขข้อมูลลูกค้า หากเว้นรหัสผ่านของบัญชีที่บันทึกไว้ว่างไว้ ระบบจะใช้รหัสผ่านเดิม
 User manual,คู่มือการใช้งาน
 Vehicle master data,ข้อมูลหลักรถยนต์
+Vehicles,รถรุ่น
 Verified Write Results,ผลการบันทึกที่ตรวจสอบแล้ว
 Video guides,วิดีโอสอนการใช้งาน
 View result,ดูผลลัพธ์
@@ -814,9 +815,9 @@ dms.card.report.BTN_SUMMARY_XLSX,สรุป Excel
 dms.card.report.COL_COUNT,จำนวน
 dms.card.report.COL_PLACE,สถานที่จอดรถ
 dms.card.report.FOOT,อัพเดต {date} เวลา {time} Total
-dms.card.report.HEAD_AVAILABLE,รถรุ่น {my} ว่าง
+dms.card.report.HEAD_AVAILABLE,รถรุ่น ว่าง
 dms.card.report.HEAD_CODE,Model/Color
-dms.card.report.HEAD_OTHER,รถรุ่น {my}
+dms.card.report.HEAD_OTHER,รถรุ่น
 dms.card.report.MORE_ROWS,อีก {count} รายการอยู่ในไฟล์
 dms.card.report.SCOPE_ALL,ทั้งหมด
 dms.card.report.SCOPE_AVAILABLE,รถว่าง

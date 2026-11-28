@@ -486,6 +486,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,U
 Used to create and edit customers. Leave a saved account's password empty to keep it.,Used to create and edit customers. Leave a saved account's password empty to keep it.
 User manual,User manual
 Vehicle master data,Vehicle master data
+Vehicles,Vehicles
 Verified Write Results,Verified Write Results
 Video guides,Video guides
 View result,View result
@@ -814,9 +815,9 @@ dms.card.report.BTN_SUMMARY_XLSX,Summary Excel
 dms.card.report.COL_COUNT,Qty
 dms.card.report.COL_PLACE,Location
 dms.card.report.FOOT,Updated {date} {time} Total
-dms.card.report.HEAD_AVAILABLE,{my} Available
+dms.card.report.HEAD_AVAILABLE,Available
 dms.card.report.HEAD_CODE,Model/Color
-dms.card.report.HEAD_OTHER,{my} Vehicles
+dms.card.report.HEAD_OTHER,Vehicles
 dms.card.report.MORE_ROWS,{count} more rows are in the files
 dms.card.report.SCOPE_ALL,All
 dms.card.report.SCOPE_AVAILABLE,Available

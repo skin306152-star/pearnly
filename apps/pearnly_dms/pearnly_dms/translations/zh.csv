@@ -486,6 +486,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,�
 Used to create and edit customers. Leave a saved account's password empty to keep it.,用于新建和修改客户资料；已登记账号的密码留空则保持不变。
 User manual,使用手册
 Vehicle master data,车辆主档信息
+Vehicles,车辆
 Verified Write Results,已核实的写入结果
 Video guides,教程视频
 View result,查看结果
@@ -814,9 +815,9 @@ dms.card.report.BTN_SUMMARY_XLSX,汇总 Excel
 dms.card.report.COL_COUNT,台数
 dms.card.report.COL_PLACE,停放位置
 dms.card.report.FOOT,更新 {date} {time} 合计
-dms.card.report.HEAD_AVAILABLE,{my} 空车
+dms.card.report.HEAD_AVAILABLE,空车
 dms.card.report.HEAD_CODE,车型/颜色
-dms.card.report.HEAD_OTHER,{my} 车辆
+dms.card.report.HEAD_OTHER,车辆
 dms.card.report.MORE_ROWS,另有 {count} 行见文件
 dms.card.report.SCOPE_ALL,全部
 dms.card.report.SCOPE_AVAILABLE,空车

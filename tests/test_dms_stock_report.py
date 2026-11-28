@@ -179,12 +179,16 @@ class Summary(unittest.TestCase):
                           ("TS-01", "TS-01 RED", 1)])
         # 车名回落：没有 ชื่อรถ 用 ชื่อรุ่นรถ，再没有用代码
 
-    def test_year_only_when_every_model_has_the_same_year(self):
-        rows = report.parse_export(export(TEST_LIBRARY))
-        self.assertEqual(report.summarize(rows, "available", CARS)["year"], "")  # 2026 / 2025 / 没填
+    def test_no_model_year_even_when_every_model_has_the_same_year(self):
+        # 用户 11-27：表头不写年款。车型主档年份全一致也不出「26 MY」
         same = {code: {"name": code, "year": "2026"} for code in ("DM-2D19", "DM-4D19", "DM-4D30", "Test", "TS-01")}
-        self.assertEqual(report.summarize(rows, "all", same)["year"], "26")
-        self.assertEqual(report.summarize(rows, "all", {**same, "Test": {"name": "Test", "year": ""}})["year"], "")
+        summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "all", same)
+        self.assertNotIn("year", summary)
+        for code in ("th", "zh", "en", "ja"):
+            with lang(code):
+                page = stock_render.document(summary["rows"], summary, "available", {"date": "x", "time": "x"})
+                self.assertNotIn("MY", page)
+                self.assertNotIn("26 ", page.split("<tbody>")[0])
 
     def test_locations_are_counted_and_joined_like_the_sample(self):
         rows = [{"model": "UNT20", "color": "ELG", "status": "รถว่าง", "location": place}
@@ -222,26 +226,26 @@ class Layout(unittest.TestCase):
         summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", same)
         page = self.page(summary)
         self.assertEqual(page.count("</th>"), 4)
-        self.assertIn("<th>รถรุ่น 26 MY ว่าง</th><th>Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
+        self.assertIn("<th>รถรุ่น ว่าง</th><th>Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
         self.assertNotIn("<h1", page)
         self.assertIn("border:0", page)
         self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16.53 Total</td><td class=n>6</td>", page)
 
-    def test_header_wording_for_year_and_scope(self):
+    def test_header_wording_for_scope(self):
         rows = report.parse_export(export(TEST_LIBRARY))
         with lang("th"):
-            self.assertEqual(stock_render.header_text("available", ""), ("รถรุ่น ว่าง", "Model/Color"))
-            self.assertEqual(stock_render.header_text("all", "26"), ("รถรุ่น 26 MY", "Model/Color"))
-            self.assertEqual(stock_render.header_text("unallocated", ""), ("รถรุ่น", "Model/Color"))
+            self.assertEqual(stock_render.header_text("available"), ("รถรุ่น ว่าง", "Model/Color"))
+            self.assertEqual(stock_render.header_text("all"), ("รถรุ่น", "Model/Color"))
+            self.assertEqual(stock_render.header_text("unallocated"), ("รถรุ่น", "Model/Color"))
         with lang("zh"):
-            self.assertEqual(stock_render.header_text("available", "26"), ("26 MY 空车", "车型/颜色"))
-            self.assertEqual(stock_render.header_text("available", ""), ("空车", "车型/颜色"))
-            self.assertEqual(stock_render.header_text("all", ""), ("车辆", "车型/颜色"))
+            self.assertEqual(stock_render.header_text("available"), ("空车", "车型/颜色"))
+            self.assertEqual(stock_render.header_text("all"), ("车辆", "车型/颜色"))
         with lang("en"):
-            self.assertEqual(stock_render.header_text("all", ""), ("Vehicles", "Model/Color"))
+            self.assertEqual(stock_render.header_text("available"), ("Available", "Model/Color"))
+            self.assertEqual(stock_render.header_text("all"), ("Vehicles", "Model/Color"))
         with lang("ja"):
-            self.assertEqual(stock_render.header_text("available", "26"), ("26 MY 空き車", "車種/色"))
-            self.assertEqual(stock_render.header_text("all", ""), ("車両", "車種/色"))
+            self.assertEqual(stock_render.header_text("available"), ("空き車", "車種/色"))
+            self.assertEqual(stock_render.header_text("all"), ("車両", "車種/色"))
         self.assertIn("<th>รถรุ่น ว่าง</th><th>Model/Color</th>", self.page(report.summarize(rows, "available", CARS)))
 
     def test_pages_repeat_the_header_and_only_the_last_has_the_footer(self):
@@ -278,7 +282,7 @@ class Alignment(unittest.TestCase):
         self.assertIn("overflow-wrap:anywhere", page)  # 长车名在本列内换行，不压到代码列
         self.assertIn("table-layout:fixed", page)
         # 表头「Model/Color」与代码颜色列数据同列（第 2 格 / B 列）、同为靠左；其余各列同理
-        self.assertIn("<th>รถรุ่น 26 MY ว่าง</th><th>Model/Color</th><th class=n>", page)
+        self.assertIn("<th>รถรุ่น ว่าง</th><th>Model/Color</th><th class=n>", page)
         self.assertIn("<td class=c>USR30 DWP</td>", page)
         heads = [sheet.cell(1, column).alignment.horizontal for column in range(1, 5)]
         data = [sheet.cell(2, column).alignment.horizontal for column in range(1, 5)]
@@ -519,7 +523,7 @@ class Messages(unittest.TestCase):
 
     def test_zero_rows_is_one_sentence_and_no_card(self):
         with lang("zh"):
-            out = stock_flow.messages(self.result({"rows": [], "total": 0, "year": ""}), "available",
+            out = stock_flow.messages(self.result({"rows": [], "total": 0}), "available",
                                       {"date": "x", "time": "x"}, datetime(2026, 11, 26))
         self.assertEqual(out, [{"type": "text", "text": "没有可显示的车辆。"}])
         self.assertEqual(self.saved, [])

@@ -486,6 +486,7 @@ Used only to read data: the first full read and the every-minute daytime sync.,�
 Used to create and edit customers. Leave a saved account's password empty to keep it.,顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。
 User manual,使い方マニュアル
 Vehicle master data,車両マスター情報
+Vehicles,車両
 Verified Write Results,検証済みの書き込み結果
 Video guides,動画ガイド
 View result,結果を見る
@@ -814,9 +815,9 @@ dms.card.report.BTN_SUMMARY_XLSX,集計 Excel
 dms.card.report.COL_COUNT,台数
 dms.card.report.COL_PLACE,保管場所
 dms.card.report.FOOT,更新 {date} {time} 合計
-dms.card.report.HEAD_AVAILABLE,{my} 空き車
+dms.card.report.HEAD_AVAILABLE,空き車
 dms.card.report.HEAD_CODE,車種/色
-dms.card.report.HEAD_OTHER,{my} 車両
+dms.card.report.HEAD_OTHER,車両
 dms.card.report.MORE_ROWS,残り {count} 行はファイルにあります
 dms.card.report.SCOPE_ALL,全部
 dms.card.report.SCOPE_AVAILABLE,空き車
