@@ -165,3 +165,14 @@
 只做了入口与根函数的写法，还没有实验栈实证，不能合。进度与待办见交接 `~/pearnly-devtools/handoff-1128/并发冲突-后三批.md` 第四节。
 - 已改：采购 / 销售付款、附件、删草稿、提交（网页入口拿到 post 锁后再 commit，「修改」作废原单按最新付款冲回）、旧付款接口、网页从 LINE 卡片提交：先 commit 再 `conflicts.attempt`。`intake._owned`、`collection._own` 先锁后读。
 - E7 / E9 口径（主会话 11-28 同意）：全仓只有网页入口传 `amended_from`，LINE / CC 走不到「修改」。网页那格修前红修后绿；LINE / CC 那格写成不变式测试「内部调用撞并发付款时只报错重来，冲回金额恒等于实付合计」；另加守卫测试：以后新入口传 `amended_from` 而不走「拿锁后 commit」就失败。
+
+### ② 实验栈结果（maclab `pearnly-b3`；修前 = ③b 472c5f398，修后 = 本分支）
+
+| 格 | 修前 | 修后 |
+|---|---|---|
+| `erp.same_doc_writes`（同一张采购单 3 笔付款 + 补开凭证同时到，4 张一起） | 0/5（付款一路漏出 1213 死锁） | 10/10（每张已付 300、3 行付款） |
+| `erp.amend_vs_payment_web`（网页「修改」作废原单与一笔付款同时到） | 0/5（旧副本冲回，原单保存撞 417 TimestampMismatch） | 10/10（作废、冲回金额 = 实付合计） |
+| `erp.amend_vs_payment_internal`（内部调用、旧读视图，LINE / CC 那一类；不变式格） | 5/5 | 10/10（只许报错整笔回滚或冲回正确，从不作废了却冲少） |
+
+守卫测试 `AmendOnlyThroughFreshEntry`：在只带 ③a 的源码上红，本分支绿。
+还没做：LINE 卡片（同时保存 + 取消）、ERP 收款（同时改 + 放行）两格；闸门、候选、审查。
