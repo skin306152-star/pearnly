@@ -417,7 +417,7 @@ def plan_refusal(doctype, name) -> dict | None:
     return {"status": "not_pushed", "reason": reason, "note": write_plan.PERMIT_NOTES.get(reason, "")}
 
 
-def send(doctype, name, operator=None, session=""):
+def send(doctype, name, operator=None, session="", poll=False):
     """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。
 
     ``operator``：代录 Express 的批次信息（共用层 ``pearnly_core.express_operator``，CC「代录」里交的）：同一份载荷加代录标记
@@ -434,7 +434,7 @@ def send(doctype, name, operator=None, session=""):
         refused = plan_refusal(doctype, name)
         if refused:
             return refused
-        return _send(doctype, name, None)
+        return _send(doctype, name, None, poll=poll)
     with conversation.for_task((operator or {}).get("task")):
         return _send(doctype, name, operator)
 
@@ -452,7 +452,12 @@ def _ledger_seen(doctype, name) -> tuple:
     return _ledger_seen_of(frappe.db.get_value(doctype, name, list(LEDGER_SEEN), as_dict=True, for_update=True) or {})
 
 
-def _send(doctype, name, operator):
+def _polled(row) -> bool:
+    """每分钟巡检（:func:`poll`）该交的单：排队中、还没有件，或停在会自己好的原因上（:data:`contracts.POLL_REASONS`）。"""
+    return not row.ledger_job and (row.ledger_state == contracts.QUEUED or (row.ledger_reason or "") in contracts.POLL_REASONS)
+
+
+def _send(doctype, name, operator, poll=False):
     if not operator and operator_owned(doctype, name):
         return {"status": "held", "reason": contracts.OPERATOR_OWNED}
     # 行锁（原生 SELECT … FOR UPDATE，锁到这次准备写回、提交为止）：同一张单的几次准备（提交后的后台一轮、每分钟 poll、答题后
@@ -464,6 +469,10 @@ def _send(doctype, name, operator):
         return mrerp_push.send(doctype, name)  # 账本是 MR.ERP 的单（「再写一次」、对话直写）：走 MR.ERP 导入直写
     if not row or row.status != ready(doctype) or row.ledger_job or row.ledger_state not in contracts.OPEN_STATES:
         return {"status": "already_queued" if row and row.ledger_job else "not_ready"}
+    if poll and not _polled(row):
+        # 巡检用普通读列出这张时它还该交，拿到锁时已被别的路径改了（转成要人选、被人改原因…）：按锁内的现值放弃，不准备、不排件
+        # （11-28 B ③b：按旧值决定要不要写）。人工「再写一次」、答题后的 `resume` 不带 ``poll``，照原路径
+        return {"status": "skipped", "reason": row.ledger_reason or ""}
     company = company_of(doctype, name)
     if not enabled(company):
         # 排上之后这家公司断开了（断开时撤单与这一件同时发生）：不写，照实标已断开
@@ -967,9 +976,8 @@ def poll():
                 continue  # MR.ERP 的单由 `mrerp.push.poll` 看
             if (doctype, row.name) in hands_on:
                 continue
-            if not row.ledger_job and (row.ledger_state == contracts.QUEUED
-                                        or (row.ledger_reason or "") in contracts.POLL_REASONS):
-                send(doctype, row.name)
+            if _polled(row):
+                send(doctype, row.name, poll=True)  # 锁内按现值再判一次（:func:`_send`）
             elif row.ledger_job and row.ledger_state == contracts.QUEUED:
                 note = _queued_note(doctype, row)
                 if note != (row.ledger_reason or ""):

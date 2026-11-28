@@ -371,7 +371,7 @@ class Access(Precheck):
                 mock.patch.object(self.push, "operator_owned", lambda doctype, name: False), \
                 mock.patch.object(self.push, "_set", lambda doctype, name, values: docs[name].update(values)), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name)
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: sent.append(name)
                                   or {"status": "sent"}):
             out = self.precheck.resume("CO-1", ["P:PI-1", "P:PI-2", "P:PI-4", "P:PI-5"])
         self.assertEqual(out, [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])

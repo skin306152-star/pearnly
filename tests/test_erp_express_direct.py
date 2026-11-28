@@ -1581,14 +1581,56 @@ class LinkStates(PushModule):
         sent, woken = [], []
         with mock.patch.object(operator, "waiting_targets", lambda: {("Purchase Document", "PUR-1")}), \
                 mock.patch.object(tasks, "wake_waiting", lambda: woken.append(1)), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name)):
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: sent.append(name)):
             self.push.poll()
         self.assertEqual((sent, woken), ([], [1]))
         with mock.patch.object(operator, "waiting_targets", lambda: set()), \
                 mock.patch.object(tasks, "wake_waiting", lambda: None), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name)):
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: sent.append(name)):
             self.push.poll()
         self.assertEqual(sent, ["PUR-1"])  # 不归代录的照旧每分钟再试
+
+    def test_the_minute_poll_gives_up_a_document_that_turned_to_a_choice_after_it_was_listed(self):
+        """11-28 B ③b：巡检用普通读列出「排队中」的单，逐张交时单已被别的路径转成要人选（答案已记住）：按锁内现值放弃，
+        不准备、不排件；人工「再写一次」、答题后的 resume 不带巡检标记，照原路径往下准备。"""
+        F = ledger_columns()
+        self.company()
+        self.documents(self.AFTER)
+        self.push.queue("Purchase Document", "PUR-1")
+        row = fake.STATE.db.table("Purchase Document")["PUR-1"]
+        row.update({F["state"]: "queued", F["reason"]: "", F["job"]: None})
+        from pearnly_core.express_operator import tasks
+        from pearnly_erp_portal.express import operator
+
+        real, seen, queued = self.push.send, {}, []
+
+        def turned(doctype, name, operator=None, **kw):
+            if name == "PUR-1":
+                row.update({F["state"]: "held", F["reason"]: "choice_needed:account"})  # 列出之后、拿锁之前
+            seen[name] = real(doctype, name, operator=operator, **kw)
+            return seen[name]
+
+        with mock.patch.object(operator, "waiting_targets", lambda: set()), \
+                mock.patch.object(tasks, "wake_waiting", lambda: None), \
+                mock.patch.object(self.push, "send", turned), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: queued.append(kw) or {"job": "J9"}):
+            self.push.poll()
+        self.assertEqual(seen["PUR-1"]["status"], "skipped")
+        self.assertEqual((row[F["state"]], row[F["reason"]], row[F["job"]]), ("held", "choice_needed:account", None))
+        self.assertFalse([kw for kw in queued if kw.get("source_name") == "PUR-1"])
+        # 人工「再写一次」/ 答题后的 resume：不带巡检标记，越过这道判断照常准备
+        prepared = []
+        with mock.patch.object(self.push, "document", lambda doctype, name: prepared.append(name) or {"skip": True}):
+            again = self.push.send("Purchase Document", "PUR-1")
+        self.assertEqual(prepared, ["PUR-1"])  # 走到了准备那一步
+        self.assertNotEqual((again or {}).get("status"), "skipped")
+
+    def test_the_minute_poll_still_sends_what_it_should(self):
+        """同一道判断不挡巡检该交的：排队中没有件、停在会自己好的原因上的照常交。"""
+        self.assertTrue(self.push._polled(Row(ledger_state="queued", ledger_reason="", ledger_job=None)))
+        self.assertTrue(self.push._polled(Row(ledger_state="held", ledger_reason=E.NO_BOOK, ledger_job=None)))
+        self.assertFalse(self.push._polled(Row(ledger_state="held", ledger_reason="choice_needed:account", ledger_job=None)))
+        self.assertFalse(self.push._polled(Row(ledger_state="queued", ledger_reason="", ledger_job="J1")))
 
     def test_documents_started_before_the_link_are_never_written(self):
         """④a：开始早于接上时刻（草稿接上前建、接上后提交；接上前开盘点、接上后过账）：不写，也不补。"""
@@ -2638,7 +2680,7 @@ class OperatorPrecheck(PushModule):
                 mock.patch.object(api, "_options", lambda item, data: [{"code": C.NEW, "name": ""}]), \
                 mock.patch.object(choices, "remember", lambda *args: calls.append(("remember",) + args)), \
                 mock.patch.object(self.push, "release_operator", lambda doctype, name: calls.append(("release", name))), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: calls.append(
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: calls.append(
                     ("send", name, operator["id"])) or {"status": "sent"}), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             out = self.operator.submit("CO-1", ["P:PI-1"], {"id": "b1", "total": 1}, "",
@@ -2667,7 +2709,7 @@ class OperatorPrecheck(PushModule):
                 mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {}), \
                 mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
                 mock.patch.object(self.push, "release_operator", lambda doctype, name: None), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: next(held)):
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: next(held)):
             out = self.operator.submit("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3"], {"id": "b1", "total": 3}, "", {})
         self.assertEqual([(row["status"], row["reason"]) for row in out],
                          [("waiting_for_cc", E.READING), ("held", E.NO_BOOK), ("held", E.WAREHOUSE_UNMAPPED)])
@@ -2694,7 +2736,7 @@ class OperatorPrecheck(PushModule):
                                   calls.append(("remember", subject))), \
                 mock.patch.object(choices, "chosen", lambda company, kind, subject: "BK1" if subject in remembered else ""), \
                 mock.patch.object(self.push, "release_operator", lambda doctype, name: None), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: calls.append(("send", name))
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: calls.append(("send", name))
                                   or {"status": "sent"}), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             out = self.operator.submit("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3"], {"id": "b1", "total": 3}, "",

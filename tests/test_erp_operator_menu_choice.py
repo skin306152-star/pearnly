@@ -291,7 +291,7 @@ class Remember(Case):
         self.stopped()
         sent = []
         with mock.patch.object(self.push, "release_operator", lambda doctype, name: True), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name) or {"status": "sent"}), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: sent.append(name) or {"status": "sent"}), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             out = operator.submit("CO-1", ["P:PI-1"], dict(BATCH), "PC-1", {"P:PI-1": [self.answer()]})
         self.assertEqual(out, [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
@@ -307,7 +307,7 @@ class Remember(Case):
         sent, kept = [], []
         real = choices.remember
         with mock.patch.object(self.push, "release_operator", lambda doctype, name: True), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name) or {"status": "sent"}), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: sent.append(name) or {"status": "sent"}), \
                 mock.patch.object(choices, "remember", lambda *args: kept.append(args) or real(*args)), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             out = operator.submit("CO-1", ["P:PI-1", "P:PI-2"], {"id": "b1", "total": 2}, "PC-1",
@@ -338,7 +338,7 @@ class SeveralDocTypes(Case):
         answers = self.two()
         sent = []
         with mock.patch.object(self.push, "release_operator", lambda doctype, name: True), \
-                mock.patch.object(self.push, "send", lambda doctype, name, operator=None: sent.append(name) or {"status": "sent"}), \
+                mock.patch.object(self.push, "send", lambda doctype, name, operator=None, **kw: sent.append(name) or {"status": "sent"}), \
                 mock.patch.object(frappe.db, "commit", lambda: None, create=True):
             out = operator.submit("CO-1", ["P:PI-1", "P:PI-2"], {"id": "b1", "total": 2}, "PC-1",
                                   {"P:PI-1": answers, "P:PI-2": answers})
