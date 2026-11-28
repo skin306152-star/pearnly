@@ -289,3 +289,34 @@
 
 - `push_one` 在推之前按跟随公司选的账套 `retarget`（加锁读比去向，但不看人是否刚推过）：人推往另一份账套后、定时任务回 human 之前，票上的去向已被改成任务那份（只影响显示与按公司归类，不建推送记录），没改。
 - 顺手（76c687b83）：实验格收款两格 `_collection_seed` 改账套资料前记下原值，`_collection_cleanup` 还原（原来没有就删文件，同 `collection_lib.restore`）；实验栈上跑前跑后资料一致，原来没有资料时跑完文件已删。
+
+### A2 #12 LINE 收单识别任务记结果撞冲突：识别已付费、结果丢了（`integrations/intake.run`）
+
+- **现象**：识别任务开头普通 `get_doc` 判「还在排队」；`_fetch` 从 LINE 取件、交原件层上传后，`save` + `commit` 记到收单记录上；付费识别（扣费参考号固定 `erp.line_intake:<名>`）之后 `reload` → `save` 写成待提交 → 预选 → 提交 → 出题 → 发 LINE。整段不在 `conflicts.retried` 里，识别执行器对任何异常都整笔回滚、记 `workflow_error`、不重放（`execution/work.py`）。识别期间另一路改过这张卡（关快照隔离后 `reload` 读到的是本笔读视图里的旧修改时间），`save` 撞保存前比对：**识别已付费、结果丢了**，用户被告知重发，重发是新消息、新参考号，再扣一次；取件期间另一路改过，`_fetch` 的 `save` 撞上：File 与记录一起回滚，**存放处那份没人删**。
+- **核实**：执行器检查点 `work.checkpoint(key, state, body)` 按行 `INSERT … ON DUPLICATE KEY UPDATE` 后当场 `frappe.db.commit()`；同一份 Work 重跑时 `run` 每次从库里重读（`context` 清缓存 → `_stages` → `stored_checkpoints`），能取回。`state` 是自由文本：`run` 只看 `started`（判结果不明）与 `done` / `external`（判已付费），`done_calls` 只数 `done`；Cowork 已有产品自己的 `terminal`。删除链：登记 File 删掉时 `RegisteredFile.on_trash` 排 `enqueue_after_commit` 的 `purge` 删存放处那份；盘上那份 `delete_file_from_filesystem` 在 `after_commit` 才删（② 11-28）；回滚两样都不动。本机存的新 File 回滚时由 Frappe `File.on_rollback` 删盘。
+- **改法**（外部动作都只做一次，只有库内记结果那段重来）：
+  1. 开头判状态改 `get_doc(..., for_update=True)`，判完 `commit` 放锁（下面去 LINE 取件、交识别不攥着这一行）。
+  2. `_fetch`：取件、上传后先把 File 单独提交；记到记录上改为 `_keep_source`（按名字加锁读、仍在排队才写、提交），包 `conflicts.retried`。用尽：`_forget` 删掉刚上传的那条登记并提交（存放处 / 盘上那份按上面的链提交后删），抛 `Deferred("conflict")` 按队列稍后再来（还没付费，LINE 的内容还能再取）；这期间已不在排队：同样删掉，回「不在排队」。
+  3. 识别 `_recognised`：本份 Work 有结果检查点（`erp.line_intake.result`，状态 `terminal`，不算进调用计数）就取回；没有才识别，成功先写检查点（自己提交）。
+  4. 记结果 `_keep_result`（加锁读、仍在排队才写待提交 + 结果、拆出同一文件里的其余几张、每行预选、提交）包 `conflicts.retried`，重来不再调识别。用尽抛 `Deferred("conflict")`：重跑从检查点取回结果记上，不再识别、不再扣费（付过费的任务有 3 小时续跑宽限，过了按排队超时告诉本人）。识别期间这张已不在排队（取消 / 落定）：不改回、不出卡。
+  5. 出题、发 LINE 照旧在记结果提交之后。
+- **基线**：`unlocked-overwrite-baseline.tsv` 删 `integrations/intake.py run` 一行；`--extended` 新增 0。
+- **离线**（bench 容器里跑 `test_line_intake.py`，154 条全过）：新增 `SaveConflict` 5 条——记结果撞一次保存前比对 → 待提交、识别 1 次、扣费参考号 1 次、发 LINE 1 次、两处读都加锁；记结果用尽 → `Deferred`、没发 LINE，重跑从检查点取回、识别仍 1 次；识别期间被取消 → 不改回、不出卡；记原件撞一次 → 取件 1 次、上传 1 次、记上那份；记原件用尽 → 刚上传的登记被删、`Deferred`、没识别没扣费。5 条在修前代码上全红（4 条抛 TimestampMismatchError，1 条把取消的改回待提交）。`Base` 补检查点替身（按 Work 存内存）；`Billing` 一条同一替身跑两张时清检查点（两份 Work）；一处 `get_doc` 替身收 `for_update`。test_cc_intake、test_operator_intake 在容器里过；tests/ 下 test_upload_limits、test_erp_recognised_numbers、test_snapshot_reset、test_erp_pending_guide、test_erp_guide_documents、test_erp_express_direct、test_erp_write_precheck、test_conflict_catch_sites、test_check_impact、test_check_unlocked_overwrite 过；check-architecture、check-unbounded-queries、check-conflict-catch 通过。
+- **共用件**：没改共用件本身（`check-impact.py --base d86aca9b7`「命中的共用件：无」）；`intake.py` 新调用 `conflicts.retried`，登记进 transaction 件的入口（`erp.execution`）。只改到调用方的 8 个入口：
+
+| 入口 | 结果 | 依据 / 没测到的原因 |
+|---|---|---|
+| erp.execution、erp.ocr | 实验栈通过（识别替身） | 本条格；付费识别与真 LINE 不在本机测（任务书禁止） |
+| erp.line.chat、erp.line.item-questions、erp.line.precheck-questions、erp.line.binding、erp.line.intake.submit、erp.entry.choices | 没测到 | 真机 LINE 不在本窗口范围；离线 test_line_intake 154 条（含出题、出卡、卡片保存）过 |
+
+| 格 | 修前（b4-before = 24e3f1e3f） | 修后（dbb30a529） |
+|---|---|---|
+| `erp.line_intake_save_conflict`（识别替身，扣费参考号计数；识别期间 / 从 LINE 取件期间另一路改这张卡并提交，两种各半） | 0/12（两种都抛 TimestampMismatchError：卡还在排队、识别已调 1 次、结果丢了、没发 LINE；取件那种记录上没有原件） | 12/12（待提交、结果在、识别 1 次、取件 1 次、发 LINE 1 次、只留记上的那份 File） |
+
+修后另跑 `erp.line_card_submit_vs_cancel`、`erp.file_delete_rolled_back` 各 3 轮全过。格里任务在 `work.context(<b3lab 编号>)` 里跑（检查点照真写、跑完删），LINE 绑定、取件、出题、发送换替身。
+
+#### 已知 / 没做
+
+- `run_chat`（CC 对话收单，`erp.cc_intake`）同样「普通读 → 付费识别 → reload → save」、同样不在 `retried` 里，④ 清单与静态检查都没列它；不在本条范围，没改，交主会话定（改法可直接照本条：结果检查点 + 记结果包 `retried`）。
+- 记结果用尽后靠队列重跑，重跑前这张一直是「排队中」；本机没造出连撞 4 次（离线覆盖）。
+- 存放处那份的删除只在离线验（实验栈原件层是本机存放，`store.where() == local`）；本机存的新 File 回滚时 Frappe 自己删盘，修前在实验栈上也看不到残留。
