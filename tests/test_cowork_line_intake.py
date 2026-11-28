@@ -55,7 +55,7 @@ class LineFlowTest(unittest.TestCase):
 
         patches = [
             mock.patch.object(flow, "_", side_effect=lambda text, *a, **k: text),
-            mock.patch.object(flow, "locked", lambda user: contextlib.nullcontext()),
+            mock.patch.object(flow.line_session, "serialized", lambda user, **kwargs: contextlib.nullcontext()),
             mock.patch.object(flow.line_session, "get_session", side_effect=lambda user: store.get(user)),
             mock.patch.object(flow.line_session, "set_session", side_effect=set_session),
             mock.patch.object(flow.line_session, "clear_session", side_effect=lambda user: store.pop(user, None)),

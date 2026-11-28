@@ -80,12 +80,22 @@ class MemoryDatabase:
     def exists(self, doctype, filters):
         return bool(self.matching(doctype, filters))
 
+    # The session root's two locked reads (11-28: the version column rides along for the stale-read check)
+    LOCKED_READS = (
+        "select state, payload, expires_at, modified from `tabPearnly LINE Session` where line_user_id=%s for update",
+        "select name, state, payload, expires_at, modified, creation from `tabPearnly LINE Session` "
+        "where line_user_id=%s for update",
+    )
+
     def sql(self, query, values, as_dict=False):
-        if query != ("select state, payload, expires_at from `tabPearnly LINE Session` "
-                     "where line_user_id=%s for update"):
+        if query not in self.LOCKED_READS:
             raise AssertionError(f"Unexpected SQL: {query}")
         return [frappe._dict(copy.deepcopy(row)) for row in
                 self.matching("Pearnly LINE Session", {"line_user_id": values[0]})]
+
+    def set_value(self, doctype, name, values, value=None):
+        values = values if isinstance(values, dict) else {values: value}
+        self.rows[doctype, name].update(copy.deepcopy(values))
 
     def delete(self, doctype, filters):
         for row in self.matching(doctype, filters):

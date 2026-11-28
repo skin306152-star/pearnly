@@ -100,7 +100,7 @@ class LineAskTest(unittest.TestCase):
         side = mock.Mock(rows=lambda history: self.rows.get(history, []), title=lambda history: "ABC · " + history,
                          save=lambda history, answers: self.saved.append((history, answers)), search=lambda *a: [])
         patches = [
-            mock.patch.object(flow, "locked", lambda user: contextlib.nullcontext()),
+            mock.patch.object(flow.line_session, "serialized", lambda user, **kwargs: contextlib.nullcontext()),
             mock.patch.object(flow.line_session, "get_session", side_effect=lambda user: store.get(user)),
             mock.patch.object(flow.line_session, "set_session", side_effect=set_session),
             mock.patch.object(ask, "_", side_effect=lambda text, *a, **k: text),

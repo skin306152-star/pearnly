@@ -36,11 +36,6 @@ apps/pearnly_core/pearnly_core/exports/service.py	run	Pearnly Export	判断	随�
 apps/pearnly_core/pearnly_core/identity.py	_callback	Pearnly Identity	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/line_binding.py	bind	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/line_binding.py	unbind	Pearnly LINE Binding	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_core/pearnly_core/line_session.py	clear_session	Pearnly LINE Session	判断	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_core/pearnly_core/line_session.py	consume_nonce	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_core/pearnly_core/line_session.py	record_booking_attempt	Pearnly LINE Session	借函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_core/pearnly_core/line_session.py	release_rejected_booking_attempt	Pearnly LINE Session	判断	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
-apps/pearnly_core/pearnly_core/line_session.py	update_booking_attempt	Pearnly LINE Session	借函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_core/pearnly_core/provisioning.py	_grant	Custom DocPerm	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/provisioning.py	ensure_feature_roles	User	借函数	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
 apps/pearnly_core/pearnly_core/sessions.py	register_session	Pearnly Session	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清

@@ -14,10 +14,8 @@
 每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
 按钮只带序号，值存在会话里（账套键可能很长，postback 有 300 字上限）；只接受当前在问的那一步。
 识别后在问的题（`line.ask`，11-19）也存在这个会话里（:data:`ASKING_KEYS`）：重选口径、取消上传前的选择都不打断它们；同一个人的会话
-读改写经 :func:`locked` 串行（识别完的后台任务与 webhook 可能同时改）。
+读改写经 `line_session.serialized` 串行（三个产品同一把；识别完的后台任务与 LINE 事件可能同时改）。
 """
-import hashlib
-from contextlib import contextmanager
 from urllib.parse import parse_qs, urlencode
 
 import frappe
@@ -40,7 +38,6 @@ MAX_CHOICES = 12
 MENU_WORDS = ("เมนู", "menu", "菜单", "菜單", "メニュー")
 # 识别后在问的题（`line.ask` 的票、`line.items` 的按行追问、共用出题器 `write_precheck.line_ask` 的 KEY）：这里的各步不改它们
 ASKING_KEYS = ("tickets", "items", "precheck_ask")
-LOCK_SECONDS = 60
 
 
 # ── 会话 ────────────────────────────────────────────────────────────────────
@@ -51,21 +48,9 @@ def choices(line_user_id) -> dict:
     return dict(session.get("payload") or {}) if session.get("state") == STATE else {}
 
 
-@contextmanager
-def locked(line_user_id):
-    """同一个人的 LINE 会话读改写串行（Redis 锁，站点内各容器共用；不可重入：持锁时只用 :func:`keep` 存）。"""
-    from pearnly_core.execution import state as pearnly_state
-
-    store = pearnly_state.store()
-    digest = hashlib.sha256(str(line_user_id).encode()).hexdigest()[:24]
-    with store.lock(store.make_key("pearnly:cowork:line-session:" + digest), timeout=LOCK_SECONDS,
-                    blocking_timeout=LOCK_SECONDS):
-        yield
-
-
 def _save(line_user_id, payload):
     """上传前的选择存回会话；识别后在问的题以会话里此刻的为准原样带上（这里的各步不改它们）。"""
-    with locked(line_user_id):
+    with line_session.serialized(line_user_id):
         current = choices(line_user_id)
         payload = {**{key: value for key, value in payload.items() if key not in ASKING_KEYS},
                    **{key: current[key] for key in ASKING_KEYS if key in current}}
@@ -122,7 +107,7 @@ def start(line_user_id, reply_token):
 
 def _clear(line_user_id):
     """清掉上传前的选择；识别后在问的题照常留着（`line.ask`），没有就整个会话删掉。"""
-    with locked(line_user_id):
+    with line_session.serialized(line_user_id):
         asking = {key: value for key, value in choices(line_user_id).items() if key in ASKING_KEYS}
         if asking:
             keep(line_user_id, asking)

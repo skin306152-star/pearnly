@@ -21,7 +21,7 @@ LINE 的快捷回复只挂在最后一条消息上：有题在等答时，这次
 import frappe
 from frappe import _
 
-from pearnly_core import line
+from pearnly_core import line, line_session
 from pearnly_core.write_precheck import line_ask
 
 from pearnly_cowork.line import flow, items
@@ -210,7 +210,7 @@ def arrive(line_user_id, records, pending) -> list:
     card = {key: pending.get(key) for key in ("direction", "target", "mode")}
     if not pending.get("push"):
         return cards.previews(records, card)
-    with flow.locked(line_user_id):
+    with line_session.serialized(line_user_id):
         payload = flow.choices(line_user_id)
         state = _state(payload)
         state["queue"].extend({"name": name, "card": card, "answers": []} for name in records)
@@ -222,7 +222,7 @@ def arrive(line_user_id, records, pending) -> list:
 
 def touch(line_user_id):
     """又发了一张（webhook 里）：会话原样保留、30 分钟重新计时；按此刻会话里的存，不覆盖后台刚改过的题。"""
-    with flow.locked(line_user_id):
+    with line_session.serialized(line_user_id):
         payload = flow.choices(line_user_id)
         if payload:
             flow.keep(line_user_id, payload)
@@ -230,7 +230,7 @@ def touch(line_user_id):
 
 def step(line_user_id, data, reply_token):
     """出卡前提问的按钮点回来。"""
-    with flow.locked(line_user_id):
+    with line_session.serialized(line_user_id):
         payload = flow.choices(line_user_id)
         existed = bool(payload)
         state = _state(payload)
@@ -261,7 +261,7 @@ def step(line_user_id, data, reply_token):
 def text(line_user_id, message, reply_token) -> bool:
     """答题中打的字：按行追问「选已有存货」那一步是找存货，出题器在等答时是打编号 / 搜索（对不上回没找到、重问这一题）；按行追问的
     其余各步打了与答题无关的字，重发当前这道题。没有题在等答回 False（交给别的处理）。菜单词、解绑词在调用方之前已接走。"""
-    with flow.locked(line_user_id):
+    with line_session.serialized(line_user_id):
         payload = flow.choices(line_user_id)
         state = _state(payload)
         ticket = state.get("current") or {}
