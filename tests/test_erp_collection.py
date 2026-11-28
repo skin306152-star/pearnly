@@ -57,6 +57,7 @@ class Store:
         self.cache = {}
         self.hashes = {}
         self.seq = 0
+        self.locked = []
 
     def table(self, doctype):
         return self.tables.setdefault(doctype, {})
@@ -200,6 +201,16 @@ def get_doc(doctype, name=None, for_update=False):
     return doc
 
 
+class Flags(dict):
+    __getattr__ = dict.get
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def __delattr__(self, key):
+        self.pop(key, None)
+
+
 class DBApi:
     def get_value(self, doctype, name, fields="name", as_dict=False, for_update=False):
         if isinstance(name, dict):
@@ -282,6 +293,7 @@ def _install():
     frappe.PermissionError = PermissionError_
     frappe.AuthenticationError = type("AuthenticationError", (Exception,), {})
     frappe.DoesNotExistError = ValidationError
+    frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})  # 整笔重来接的冲突（`transaction.conflicts`）
 
     def throw(message, exc=ValidationError):
         raise exc(message)
@@ -291,12 +303,18 @@ def _install():
     frappe._ = lambda text: text
     frappe.get_all = get_all
     frappe.get_list = get_all
+    # 加锁读（`collection.service._rows`、`snapshot.rows(locked=True)`）：替身里与普通读同一份数据；记下谁加锁读过
+    frappe.qb = types.SimpleNamespace(get_query=lambda doctype, fields=None, filters=None, order_by=None, limit=None,
+                                      for_update=False: types.SimpleNamespace(run=lambda as_dict=False: (
+                                          S.locked.append(doctype) if for_update else None,
+                                          [row for row in get_all(doctype, filters=filters, fields=fields,
+                                                                        order_by=order_by, limit=limit)])[1]))
     frappe.get_doc = get_doc
     frappe.db = DBApi()
     frappe.cache = Cache()
     frappe.session = types.SimpleNamespace(user="a@x")
     frappe.local = types.SimpleNamespace(site="testerp.localhost")
-    frappe.flags = types.SimpleNamespace()
+    frappe.flags = Flags()  # 同 Frappe 的 _dict：属性、.get 两种读法（`transaction.conflicts` 用 .get）
     frappe.parse_json = lambda value: json.loads(value) if isinstance(value, str) else value
     frappe.log_error = lambda *a, **k: None
     frappe.whitelist = lambda **kw: (lambda fn: fn)
@@ -735,6 +753,16 @@ class Reservations(Base):
         result = service.release(second["name"], second["version"], "line:evt-2")
         self.assertEqual((result["status"], result["code"]), ("invalid", C.OVER_COLLECTED))
         self.assertEqual(frappe.db.get_value("ERP Collection", second["name"], "status"), C.DRAFT)
+
+    def test_release_judges_balances_and_reservations_with_locked_reads(self):
+        # 11-28 B ②：关快照隔离后普通读走拿发票锁之前建的读视图，看不到前一笔刚放行的预留（两笔收同一张）；改草稿、列未收清不加锁
+        made = self.draft("600")
+        S.locked.clear()
+        service.release(made["name"], made["version"], "line:evt-1")
+        self.assertTrue({"ERP Receivable Snapshot", "ERP Collection Invoice"} <= set(S.locked), S.locked)
+        S.locked.clear()
+        self.draft("100", user="b@x")
+        self.assertEqual(S.locked, [])
 
     def test_drafts_do_not_reserve_and_withdrawn_or_failed_ones_release_the_amount(self):
         made = self.draft("600")

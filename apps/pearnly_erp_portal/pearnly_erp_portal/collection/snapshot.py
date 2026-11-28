@@ -265,12 +265,17 @@ def apply_balances(book_key, found, at=None):
                                             "read_at": at}, update_modified=False)
 
 
-def rows(book_key, customer, limit=200):
+def rows(book_key, customer, limit=200, locked=False):
     """一位客户在这本账套此刻的未收清发票（快照），日期早的在前。客户按原样比：库的排序规则把不换行空格与空格当相等，
-    只差空白的是 Express 里两位客户，不能把另一位的发票列进来。"""
-    found = frappe.get_all(DOCTYPE, filters={"book_key": book_key, "customer": customer},
-                           fields=["name", "customer", "docnum", "doc_date", "salesman", "department", "net", "received",
-                                   "remaining", "read_at"], order_by="doc_date asc, docnum asc", limit_page_length=limit)
+    只差空白的是 Express 里两位客户，不能把另一位的发票列进来。``locked``：加锁读（放行判余额，`service.release`）。"""
+    fields = ["name", "customer", "docnum", "doc_date", "salesman", "department", "net", "received", "remaining", "read_at"]
+    filters = {"book_key": book_key, "customer": customer}
+    if locked:
+        found = frappe.qb.get_query(DOCTYPE, fields=fields, filters=filters, order_by="doc_date asc, docnum asc", limit=limit,
+                                    for_update=True).run(as_dict=True)
+    else:
+        found = frappe.get_all(DOCTYPE, filters=filters, fields=fields, order_by="doc_date asc, docnum asc",
+                               limit_page_length=limit)
     return [row for row in found if row.customer == customer]
 
 

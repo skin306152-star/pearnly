@@ -19,7 +19,8 @@
    "length": 40,
    "reqd": 1,
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "invoice_date",
@@ -53,7 +54,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-11 00:00:00.000000",
+ "modified": "2026-11-28 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "ERP Collection Invoice",
