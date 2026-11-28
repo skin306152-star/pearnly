@@ -214,17 +214,21 @@
   cc.operator.stop、cc.chat、cc.companies、erp.cc.guide.collection、erp.cc.typed-collection；control.assistant 没有流程），不是本窗口实测。
 - 净额 < 0（11-28 主会话定本批放开）：
   - CC 桌面版写入器：现金只在净额 < 0 时可为负；单头 NETAMT = IVCAMT = CSHRCV = 净额；凭证 SEQIT 2 贷现金、SEQIT 6 借应收（正数）；
-    ARBAL 加负数、ARMAS 加回。转账 / 支票等方式退负数：Express 原生没录到 → 载荷不合格（照证据拦，不是保守）。载荷仍是 23
-    （23 本批新加、还没有发布的桌面版认它），不加版本号。
-  - 服务端规则（三入口同一套 `collection.contracts.check`）：净额 < 0 时现金不填或填这个负数都按它记；选了别的方式回
-    `offsets_exceed_invoices`；账套没有现金科目回 `cash_account_missing`。
+    ARBAL 加负数、ARMAS 加回。转账退（原生 RE0000035）：方式行 RCVAMT 负数、单头 CHQRCV = CHQPAS 负数、BKTRN 负数、凭证 SEQIT 2
+    贷银行科目；支票退负数 Express 自己拒收（Message 13「ยอดที่ใส่ต้องไม่ติดลบ หรือเท่ากับศูนย์」），服务端本来就不列支票。退款里夹正数行
+    载荷不合格。载荷仍是 23（23 本批新加、还没有发布的桌面版认它），不加版本号。
+  - 服务端规则（三入口同一套 `collection.contracts.check`）：净额 < 0 时现金、转账可填负数（合计等于净额），什么都不填按现金退；
+    夹了折扣或正数回 `offsets_exceed_invoices`；账套没有现金科目回 `cash_account_missing`。
+  - 入口：网页在转账格填负数即转账退；LINE 与 CC 对话引导默认现金退（不问方式，同正好抵平），要转账退走网页。
   - LINE：勾完发票直接出确认卡（现金 −xx、合计 −xx，现有金额格式）；网页：现金不填即可；CC 对话引导：方式那张卡应分为负，
     交空的分摊（共用引擎「合计不是正数可交空」，只有收款用分摊题），复核卡列现金 −xx。没加新文案。
   - 回放（分支写入器在 TEST 快照副本上重写，与 Express 原生逐表逐字段比，只差时间、操作员、单号备注）：s4 → RE0000034（净额 −37）、
     s2 → RE0000033（部分抵 950），ARBAL / ARMAS / ARRCPIT / ARTRN / GLJNL / GLJNLIT / ISRUN 七张表全一致。
   - NLTTEST 里唯一一张原生净额 < 0（RE1803714，2018）是未完成单（DOCSTAT R、NETAMT −8000 ≠ IVCAMT −15463.92、无凭证），不当样本。
-  - 没做：转账 / 支票退负数的原生试录、TEST 真写一张净额 < 0 并在 Express 界面核对——都要 Express 重新登录（13:01 已退出），
-    TEST 里也没有未抵完的减项单可用，待主会话排。
+  - 13:14 用代录引擎 `Session.ensure_open` 重开 69EXP（凭据管理器，69EXP 首次验证能登）原生补录：SR0000003（留到收款时抵 107）、
+    RE0000035（转账退 −20，Express 收）、支票退 −20（Express 拒收 Message 13，该单改成现金退 −20 = RE0000036）。
+  - TEST 真写（分支写入器，持 PEARNLY.LCK）：RE0000037（转账退 −20）与原生 RE0000035 逐表逐字段一致（只差被收的发票号），
+    RE0000038（现金退 −7）与原生 RE0000036 只差金额；客户余额 +27、RE 期桶 −27；Express 界面打开两张都正常、无「ยอดเงินไม่เรียบร้อย」。
 - 未做 / 待定：
   - MR.ERP 减债：见上，本批不放。
   - MR.ERP 预收：不做（§1.5）。
