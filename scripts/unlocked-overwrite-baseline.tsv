@@ -146,7 +146,6 @@ apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	link_products	ERP Pro
 apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py	poll	$doctype	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：写账件：每分钟巡检按普通读出的行写 ledger_reason，与回执并发时会把已写入单的原因改回排队说明（低，只是显示）；随 ④ 后台巡检改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	_receive_document	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	_drop	File	判断	随各自改动	未判	存量（B ③ 11-28 全仓扫描）：存量（B ③ 11-28 全仓扫描）：未逐处判，改到这个函数时一并判清
-apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py	run	ERP LINE Intake	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：真，改归 ④（11-28 B ②）：LINE 收单识别流程，带外部 IO（取原件、回 LINE），随 ④ 改
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	_cancel_step	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	answer	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py	store_voucher	Pearnly LINE Session	跨函数	④	真	存量（B ③ 11-28 全仓扫描）：LINE 会话读改写：读出 payload 改完 set_session 整份写回，连发两条时后到的静默丢失（总表 K15 / D1）；随 ④ 改 line_session 根函数

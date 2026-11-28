@@ -134,11 +134,50 @@ def _fetch(doc, filename):
         frappe.db.rollback()
         frappe.log_error(title="ERP LINE document download failed", message=frappe.get_traceback()[-1500:])
         return False
-    doc.update({"file_hash": hashlib.sha256(content).hexdigest(), "source_file": file.file_url,
-                "source_file_name": file.name})
+    # 先把这份 File 自己提交（④ #12）：下面「记到收单记录上」撞冲突要整笔回滚重来，File 若和它在同一笔里，回滚连 File 一起没了、
+    # 存放处那份成了没人认的；重来的那次也不能再下载、再上传一次（外部动作不进会被整笔重来的事务）。
+    frappe.db.commit()
+    values = {"file_hash": hashlib.sha256(content).hexdigest(), "source_file": file.file_url, "source_file_name": file.name}
+    from pearnly_core.transaction import conflicts
+
+    try:
+        kept = conflicts.retried(_keep_source, doc.name, values)
+    except (conflicts.Exhausted, conflicts.RollbackFailed):
+        # 用尽：刚上传的这份登记删掉（提交后才删盘上那份、排任务删存放处那份，`originals.registered.RegisteredFile`），
+        # 按队列稍后再来（还没付费；LINE 的内容还能再取）
+        _forget(file.name)
+        raise Deferred("conflict") from None
+    if not kept:
+        _forget(file.name)  # 取件这段时间里这张已不在排队（取消 / 失败落定）：这份没人要了
+        return NOT_QUEUED
+    doc.update(values)
+    return True
+
+
+# `_fetch` 取到了，但这张已不在排队（取件期间被取消 / 落定）：run 照「不在排队」收尾
+NOT_QUEUED = "not_queued"
+
+
+def _keep_source(name, values):
+    """把取到的原件记到收单记录上（`conflicts.retried` 包着，撞冲突整笔重来只重来这一段）：加锁读、仍在排队才写。"""
+    doc = frappe.get_doc(DOCTYPE, name, for_update=True)
+    if doc.status != QUEUED:
+        return False
+    doc.update(values)
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return True
+
+
+def _forget(file_name):
+    """删掉一份没记上的原件登记并提交；删不掉只记日志（不挡收尾）。"""
+    try:
+        if frappe.db.exists("File", file_name):
+            frappe.delete_doc("File", file_name, ignore_permissions=True, force=True)
+        frappe.db.commit()
+    except Exception:  # noqa: BLE001 — 收尾删不掉不改变结论；留日志查
+        frappe.db.rollback()
+        frappe.log_error(title="ERP LINE document cleanup failed", message=frappe.get_traceback()[-1500:])
 
 
 # 同一文件拆出的另一张（:func:`_sibling`）：哪些栏随第一条、哪些每条自己的。收单记录每一栏都要归到其中一类
@@ -191,14 +230,58 @@ def _recogniser(direction):
     return recognition
 
 
-def run(intake, line_user_id, reply_token="", filename=""):
-    """登记在 `pearnly_ocr_handlers` 的识别入口。换绑 / 停用时不识别、不扣费。"""
-    doc = frappe.get_doc(DOCTYPE, intake)
+# 识别结果的检查点（执行器 `execution.work.checkpoint`，按行存、自己提交）：记结果用尽、进程中途没了，重跑从这里取回，不再付费识别。
+# 状态用产品自己的「terminal」（同 Cowork `cowork.terminal:`）：不是一次付费调用，不算进调用计数（`done_calls` 只数 done）。
+RESULT_CHECKPOINT = "erp.line_intake.result"
+RESULT_STATE = "terminal"
+
+
+def _recognised(doc):
+    """这张的识别结果：本次任务已有检查点就取回；没有才付费识别（扣费参考号固定 `erp.line_intake:<名>`），成功先写检查点。"""
+    from pearnly_core.execution import work
+
+    saved = work.checkpoint(RESULT_CHECKPOINT)
+    if saved and saved.get("state") == RESULT_STATE and isinstance(saved.get("body"), dict):
+        return dict(saved["body"])
+    result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
+                                                  billing_reference="erp.line_intake:" + doc.name,
+                                                  company=doc.company, prefill=False)
+    work.checkpoint(RESULT_CHECKPOINT, RESULT_STATE, json.loads(json.dumps(result, ensure_ascii=False, default=str)))
+    return result
+
+
+def _keep_result(name, result, extras, line_user_id):
+    """记结果（`conflicts.retried` 包着，撞冲突整笔重来只重来这一段，不再调识别）：加锁读这张，仍在排队才写成待提交、拆出同一文件里
+    的其余几张、每行预选，然后提交。已不在排队回 ``None``（不改回）。"""
+    doc = frappe.get_doc(DOCTYPE, name, for_update=True)
     if doc.status != QUEUED:
+        return None
+    doc.result = json.dumps(result, ensure_ascii=False, default=str)
+    doc.status = READY
+    doc.save(ignore_permissions=True)
+    cards = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
+    for card, data in cards:
+        # 每一行预选（按收单前选的对方，`line_items.prepare`）；定不了的在出卡前问
+        line_items.prepare(card, data, line_user_id)
+    frappe.db.commit()
+    return cards
+
+
+def run(intake, line_user_id, reply_token="", filename=""):
+    """登记在 `pearnly_ocr_handlers` 的识别入口。换绑 / 停用时不识别、不扣费。
+
+    外部动作（LINE 取件、原件上传、付费识别、发 LINE）都不进会被整笔重来的事务（④ #12）：取件后先把 File 提交，记到记录上那段
+    （`_keep_source`）撞冲突只重来那一段；识别结果先写进执行器检查点（自己提交），再进「记结果」（`_keep_result`，加锁读、仍在排队
+    才写，撞冲突只重来这一段、不再调识别）；用尽按队列稍后再来，重跑从检查点取回结果、不再付费。发 LINE 在记结果提交之后。"""
+    # 加锁读（④ #12）：关快照隔离后普通读可能停在更早的读视图，取消 / 落定了还当成在排队
+    doc = frappe.get_doc(DOCTYPE, intake, for_update=True)
+    if doc.status != QUEUED:
+        frappe.db.commit()
         return {"cancelled": "not_queued"}
     if line_binding.user_of(line_user_id) != doc.sent_by or doc.line_user_id != line_user_id:
         _drop(doc, FAILED, "binding_changed")
         return {"cancelled": "binding_changed"}
+    frappe.db.commit()  # 放掉行锁：下面去 LINE 取件、交识别，不攥着这一行
     previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(doc.sent_by)
     # 卡片与 webhook 回复同一口径：用这个人手机上 LINE 的语言（用户 2026-09-26），
@@ -206,6 +289,8 @@ def run(intake, line_user_id, reply_token="", filename=""):
     frappe.local.lang = doc.get("language") or line.user_language(line_user_id, default=channel_language())
     try:
         fetched = _file_name(doc) or _fetch(doc, filename)
+        if fetched == NOT_QUEUED:
+            return {"cancelled": "not_queued"}
         if not fetched or fetched == TOO_LARGE:
             from pearnly_core.originals import upload_limits
 
@@ -215,9 +300,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
             line_out.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
             return {"failed": code, "notified": True}
         try:
-            result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
-                                                          billing_reference="erp.line_intake:" + doc.name,
-                                                          company=doc.company, prefill=False)
+            result = _recognised(doc)
         except frappe.ValidationError as exc:
             from pearnly_erp_portal.recognition import billing, policy
 
@@ -228,15 +311,16 @@ def run(intake, line_user_id, reply_token="", filename=""):
             line_out.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
             return {"failed": "recognition_failed", "notified": True}
         extras = result.pop("additional", None) or []
-        doc.reload()
-        doc.result = json.dumps(result, ensure_ascii=False, default=str)
-        doc.status = READY
-        doc.save(ignore_permissions=True)
-        cards = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
-        for card, data in cards:
-            # 每一行预选（按收单前选的对方，`line_items.prepare`）；定不了的在出卡前问
-            line_items.prepare(card, data, line_user_id)
-        frappe.db.commit()
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_core.transaction import conflicts
+
+        try:
+            cards = conflicts.retried(_keep_result, doc.name, result, extras, line_user_id)
+        except (conflicts.Exhausted, conflicts.RollbackFailed):
+            # 用尽：结果在检查点里，按队列稍后再来，重跑直接取回记上（不再识别、不再扣费）
+            raise Deferred("conflict") from None
+        if cards is None:
+            return {"cancelled": "not_queued"}  # 识别期间这张已不在排队（取消 / 落定）：不改回、不出卡
         from pearnly_erp_portal.integrations import line_questions
 
         try:

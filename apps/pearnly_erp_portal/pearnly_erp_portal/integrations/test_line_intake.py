@@ -47,6 +47,15 @@ class Base(unittest.TestCase):
                                 side_effect=lambda capability, user=None: capability in self.roles.get(user or frappe.session.user, set())))
         self.network = self.enterContext(patch("requests.sessions.Session.request",
                                                side_effect=AssertionError("External network forbidden")))
+        # 识别任务的检查点（④ #12，`execution.work.checkpoint`）：替身按一份 Work 的检查点存在内存里
+        self.checkpoints = {}
+        self.enterContext(patch("pearnly_core.execution.work.checkpoint", side_effect=self._checkpoint))
+
+    def _checkpoint(self, key, state=None, body=None):
+        if state is None:
+            return self.checkpoints.get(key)
+        self.checkpoints[key] = {"state": state, "body": body}
+        return self.checkpoints[key]
 
     @staticmethod
     def reject(message, exception=frappe.ValidationError, **kwargs):
@@ -317,7 +326,7 @@ class Documents(Base):
         doc.save = lambda **kw: None
         inserted = []
 
-        def get_doc(value, name=None):
+        def get_doc(value, name=None, **kwargs):
             if isinstance(value, dict) and value.get("doctype") == "File":
                 return SimpleNamespace(insert=lambda **kw: SimpleNamespace(name="FILE-X", file_url="/private/files/x.jpg"))
             if isinstance(value, dict):
@@ -1866,10 +1875,157 @@ class Billing(Base):
             raise billing.InsufficientBalance("Top up please")
 
         doc.status = intake.QUEUED
+        self.checkpoints.clear()  # 另一张、另一份 Work（检查点按 Work 存）
         self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(recognise=broke)))
         self.enterContext(patch.object(intake, "_drop"))
         intake.run("LI-1", "U1")
         self.assertEqual(self.last_text(), "Top up please")
+
+
+def _stale_save():
+    """Frappe 保存前比对抛的那一种 TimestampMismatchError（`conflicts._stale_save` 按 frappe/model/document.py 的 check_if_latest 认）。"""
+    namespace = {"frappe": frappe}
+    exec(compile("def check_if_latest():\n    raise frappe.TimestampMismatchError('modified after you opened it')\n",
+                 "frappe/model/document.py", "exec"), namespace)
+    namespace["check_if_latest"]()
+
+
+class _Card:
+    """一张收单记录的替身：按名字加锁读回同一张；``conflicts`` 次保存先撞保存前比对，撞了就退回上次存下的样子（同整笔回滚）。"""
+
+    def __init__(self, conflicts=0, **values):
+        self.__dict__.update(dict(name="LI-1", direction="purchase", company="CO-1", party="SUP-1", status=intake.QUEUED,
+                                  sent_by="buyer", line_user_id="U1", language="th", line_message_id="M1",
+                                  source_file_name="FILE-1", source_file="/private/files/a.jpg", result=None), **values)
+        self.conflicts, self.saves = conflicts, []
+        self._kept = self._fields()
+
+    def _fields(self):
+        return {key: value for key, value in self.__dict__.items() if key not in ("conflicts", "saves", "_kept")}
+
+    def get(self, key, default=None):
+        return self.__dict__.get(key, default)
+
+    def update(self, values):
+        self.__dict__.update(values)
+
+    def reload(self):
+        pass
+
+    def save(self, **kwargs):
+        if self.conflicts:
+            self.conflicts -= 1
+            self.__dict__.update(self._kept)
+            _stale_save()
+        self._kept = self._fields()
+        self.saves.append({"status": self.status, "source_file_name": self.source_file_name})
+
+
+class SaveConflict(Base):
+    """④ #12：识别任务记结果 / 记原件撞保存前比对（关快照隔离后另一路在识别期间改过这张）只重来库内那一段：识别、扣费、取件、上传都
+    只做一次；用尽按队列稍后再来，重跑从检查点取回结果；记不上的原件登记删掉。"""
+
+    def setUp(self):
+        super().setUp()
+        from pearnly_erp_portal.integrations import line_out
+
+        self.enterContext(patch.object(intake, "stopped_reason", return_value=""))
+        self.enterContext(patch.object(intake, "totals", return_value={}))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        self.enterContext(patch("pearnly_core.transaction.conflicts.time.sleep"))
+        self.enterContext(patch("pearnly_core.transaction.conflicts._drop_messages"))  # 替身里没有 frappe.local.flags
+        self.enterContext(patch.object(frappe, "log_error", create=True))
+        self.enterContext(patch.object(intake.line_items, "prepare"))
+        self.sent = self.enterContext(patch.object(line_questions, "send"))
+        self.enterContext(patch.object(line_questions, "begin", return_value=[{"type": "flex"}]))
+        self.enterContext(patch.object(line_out, "reply_or_push"))
+        self.recognised, self.charges = [], []
+
+        def recognise(files, **kw):
+            self.recognised.append(files)
+            self.charges.append(kw["billing_reference"])  # 识别成功才报账（同一 reference 只扣一次）
+            return {"doc_no": "INV-9", "lines": []}
+
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(recognise=recognise)))
+        self.deleted = []
+        self.enterContext(patch.object(frappe, "delete_doc", side_effect=lambda doctype, name, **kw: self.deleted.append(
+            (doctype, name)), create=True))
+        frappe.db.exists.return_value = True
+
+    def card(self, card):
+        self.locked = []
+
+        def get_doc(*args, **kwargs):
+            if args and args[0] == intake.DOCTYPE:
+                self.locked.append(kwargs.get("for_update", False))
+                return card
+            raise AssertionError(args)
+
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=get_doc, create=True))
+        return card
+
+    def test_a_stale_save_after_recognition_records_the_result_without_recognising_again(self):
+        card = self.card(_Card(conflicts=1))
+        self.assertEqual(intake.run("LI-1", "U1"), {})
+        self.assertEqual((card.status, json.loads(card.result)["doc_no"]), (intake.READY, "INV-9"))
+        self.assertEqual((len(self.recognised), self.charges), (1, ["erp.line_intake:LI-1"]))
+        self.sent.assert_called_once()  # 发 LINE 在记结果提交之后，只一次
+        # 开头判状态与记结果都是加锁读（关快照隔离后普通读可能还是取消之前的样子）
+        self.assertTrue(self.locked and all(self.locked), self.locked)
+
+    def test_exhausted_record_defers_and_the_rerun_takes_the_checkpoint(self):
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_core.transaction import conflicts
+
+        card = self.card(_Card(conflicts=conflicts.ATTEMPTS))
+        with self.assertRaises(Deferred):
+            intake.run("LI-1", "U1")
+        self.assertEqual(card.status, intake.QUEUED)  # 替身里没有真回滚：状态没写成待提交就是没记上
+        self.sent.assert_not_called()
+        intake.run("LI-1", "U1")  # 队列稍后再来：同一份 Work 的检查点里有结果
+        self.assertEqual((card.status, len(self.recognised), len(self.charges)), (intake.READY, 1, 1))
+        self.sent.assert_called_once()
+
+    def test_a_card_cancelled_during_recognition_is_not_turned_back_to_ready(self):
+        card = self.card(_Card())
+        original = intake._recogniser.return_value.recognise
+
+        def cancelled_meanwhile(files, **kw):
+            card.status = intake.CANCELLED
+            return original(files, **kw)
+
+        intake._recogniser.return_value.recognise = cancelled_meanwhile
+        self.assertEqual(intake.run("LI-1", "U1"), {"cancelled": "not_queued"})
+        self.assertEqual((card.status, card.saves), (intake.CANCELLED, []))
+        self.sent.assert_not_called()
+
+    def fetching(self, conflicts):
+        from pearnly_core import line
+
+        card = self.card(_Card(conflicts=conflicts, source_file_name=None, source_file=None))
+        self.download = self.enterContext(patch.object(line, "download_message_content", return_value=b"img"))
+        self.stored = self.enterContext(patch.object(intake, "_store", return_value=SimpleNamespace(
+            name="ERO-F1.bin", file_url="/private/files/ERO-F1.bin")))
+        return card
+
+    def test_a_stale_save_after_fetching_records_the_file_without_downloading_again(self):
+        card = self.fetching(1)
+        self.assertEqual(intake.run("LI-1", "U1", filename="line-M1.jpg"), {})
+        self.assertEqual((self.download.call_count, self.stored.call_count), (1, 1))
+        self.assertEqual((card.source_file_name, card.status, self.deleted), ("ERO-F1.bin", intake.READY, []))
+        self.assertEqual(self.recognised, [[{"file": "ERO-F1.bin", "kind": "bill"}]])
+
+    def test_exhausted_file_record_deletes_the_uploaded_registration(self):
+        from pearnly_core.execution.errors import Deferred
+        from pearnly_core.transaction import conflicts
+
+        card = self.fetching(conflicts.ATTEMPTS)
+        with self.assertRaises(Deferred):
+            intake.run("LI-1", "U1", filename="line-M1.jpg")
+        # 存放处那份：登记 File 删掉时排提交后任务删（`originals.registered.RegisteredFile.on_trash`）
+        self.assertEqual(self.deleted, [("File", "ERO-F1.bin")])
+        self.assertEqual((card.source_file_name, self.recognised, self.charges), (None, [], []))
 
 
 class Products(Base):
