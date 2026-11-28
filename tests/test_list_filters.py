@@ -98,13 +98,26 @@ class SalesRecords(unittest.TestCase):
         sales = types.ModuleType("pearnly_erp_portal.sales")
         sales.access = types.SimpleNamespace()
         sales.contracts = types.SimpleNamespace(SOURCE_POS="pos", RECEIPT="receipt", SUBMITTED="submitted")
+        express = types.ModuleType("pearnly_erp_portal.express")
+        found = importlib.util.spec_from_file_location(  # 纯判断，按原样加载（「Express 状态」筛选的条件）
+            "pearnly_erp_portal.express.contracts", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py")
+        express.contracts = importlib.util.module_from_spec(found)
+        found.loader.exec_module(express.contracts)
         sys.modules.update({"pearnly_erp_portal": portal, "pearnly_erp_portal.access": access,
+                            "pearnly_erp_portal.express": express, "pearnly_erp_portal.express.contracts": express.contracts,
                             "pearnly_erp_portal.inventory": inventory, "pearnly_erp_portal.masters": masters,
                             "pearnly_erp_portal.sales": sales})
         spec = importlib.util.spec_from_file_location(
             "sales_records_under_test", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/sales/records.py")
         self.records = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.records)
+
+    def test_receipts_are_not_listed_under_an_express_status(self):
+        # 收银小票不单独写 Express：按「Express 状态」筛某几档不列它；「不等于」某档（空白算在内）照列
+        self.assertFalse(self.records._pos_applies({"ledger_word": "Failed"}))
+        self.assertTrue(self.records._pos_applies({"conditions": [["ERP Sales Document", "ledger_word", "!=", "Failed"]]}))
+        filters, _or, _datefield = self.records.query({"ledger_word": "Result unknown"})
+        self.assertIn("and", filters)  # 原生嵌套条件：前面的条件且上状态那一组
 
     def test_conditions_reach_the_sales_document_query(self):
         filters, _or, datefield = self.records.query({"conditions": (
