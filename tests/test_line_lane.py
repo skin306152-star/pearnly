@@ -81,13 +81,17 @@ class LaneDB:
                            if row["line_user_id"] == values[0] and row["status"] == "queued"),
                           key=lambda row: (row["line_timestamp"], row["set_index"], row["arrived_at"], row["name"]))
             return [(rows[0]["name"],)] if rows else []
-        if q.startswith("update `tabPearnly LINE Event` set status='failed', detail='interrupted"):
-            _now, user, now = values
-            hit = [row for row in self.events.values() if row["line_user_id"] == user
-                   and row["status"] == "processing" and row["lease_until"] and row["lease_until"] < now]
-            for row in hit:
-                row.update(status="failed", detail="interrupted: not replayed", content=None, lease_until=None)
-            cur.rowcount = len(hit)
+        if q.startswith("select name, content, replied from `tabPearnly LINE Event` where line_user_id=%s"):
+            user, now = values
+            return [frappe._dict(name=row["name"], content=row["content"], replied=row.get("replied", 0))
+                    for row in self.events.values() if row["line_user_id"] == user
+                    and row["status"] == "processing" and row["lease_until"] and row["lease_until"] < now]
+        if q.startswith("update `tabPearnly LINE Event` set status='failed', detail=%s, replied=%s"):
+            detail, answered, _now, name = values
+            row = self.events[name]
+            cur.rowcount = int(row["status"] == "processing")
+            if cur.rowcount:
+                row.update(status="failed", detail=detail, replied=answered, content=None, lease_until=None)
             return ()
         if q.startswith("update `tabPearnly LINE Event` set status=%s, attempts=attempts+1"):
             status, lease, _now, name = values
@@ -96,11 +100,11 @@ class LaneDB:
             if cur.rowcount:
                 row.update(status=status, lease_until=lease, attempts=row["attempts"] + 1)
             return ()
-        if q.startswith("update `tabPearnly LINE Event` set status=%s, detail=%s, content=null"):
-            status, detail, _now, name = values
+        if q.startswith("update `tabPearnly LINE Event` set status=%s, detail=%s, replied=%s, content=null"):
+            status, detail, answered, _now, name = values
             row = self.events[name]
             if row["status"] == "processing":
-                row.update(status=status, detail=detail, content=None, lease_until=None)
+                row.update(status=status, detail=detail, replied=answered, content=None, lease_until=None)
             return ()
         if q.startswith("update `tabPearnly LINE Event` set content=null where name=%s"):
             self.events[values[0]]["content"] = None
@@ -141,7 +145,9 @@ class LaneCase(unittest.TestCase):
         self.patch(line, "_count", lambda kind: self.dispatched.append(("count", kind)))
         self.patch(line_session, "serialized", lambda user, **kw: nullcontext())
         self.patch(line, "_dispatch_with_feedback", self.dispatch)
-        self.fail_on = set()
+        self.fail_on, self.reply_on, self.marks = set(), set(), set()
+        self.patch(line_lane, "_mark_for", lambda name: lambda: self.marks.add(name))
+        self.patch(line_lane, "replied", lambda name: name in self.marks)
 
     def patch(self, owner, name, value, **kwargs):
         return self.stack.enter_context(patch.object(owner, name, value, **kwargs))
@@ -149,6 +155,8 @@ class LaneCase(unittest.TestCase):
     def dispatch(self, event, waited=0.0):
         mid = (event.get("message") or {}).get("id") or (event.get("postback") or {}).get("data")
         self.dispatched.append(mid)
+        if mid in self.reply_on:
+            line._lane_sent()  # what _post_reply does before it sends
         if mid in self.fail_on:
             self.db.log.append("handler-raised")
             raise RuntimeError("handler broke")
@@ -217,14 +225,43 @@ class Draining(LaneCase):
         self.assertLess(order.index("handler-raised"), order.index("rollback"))
         self.assertLess(order.index("rollback"), order.index("log_error"))
 
-    def test_an_interrupted_event_is_marked_failed_and_never_replayed(self):
+    def interrupt(self, name):
+        self.db.events[name].update(status="processing", lease_until=line_lane.utcnow() - timedelta(seconds=1))
+
+    def test_an_interrupted_event_nobody_answered_is_never_replayed_and_the_sender_is_told_once(self):
         self.queue(self.event("a", 1000), self.event("b", 2000))
-        self.db.events["evt-a"].update(status="processing", lease_until=line_lane.utcnow() - timedelta(seconds=1))
+        self.interrupt("evt-a")
         line_lane.start(USER)
+        line_lane.start(USER)  # a second pass does not tell again
         self.assertNotIn("a", self.dispatched)
         self.assertIn(("count", "lane_interrupted"), self.dispatched)
-        self.assertEqual(self.db.events["evt-a"]["status"], "failed")
+        self.assertEqual((self.db.events["evt-a"]["status"], self.db.events["evt-a"]["replied"]), ("failed", 0))
         self.assertEqual(self.db.events["evt-b"]["status"], "done")
+        self.assertEqual([(to, m[0]["text"]) for to, m, _k in self.pushed], [(USER, "Please try again later")])
+
+    def test_an_interrupted_event_that_already_answered_the_sender_is_left_alone(self):
+        self.queue(self.event("a", 1000))
+        self.interrupt("evt-a")
+        self.marks.add("evt-a")  # the handler had sent its reply before the process went away
+        line_lane.start(USER)
+        self.assertEqual((self.db.events["evt-a"]["status"], self.db.events["evt-a"]["replied"]), ("failed", 1))
+        self.assertEqual(self.pushed, [])
+
+    def test_a_reply_from_the_handler_marks_the_event_answered_and_a_push_to_someone_else_does_not(self):
+        self.reply_on.add("a")
+        self.queue(self.event("a", 1000), self.event("b", 2000))
+
+        def dispatch(event, waited=0.0):
+            mid = event["message"]["id"]
+            if mid == "a":
+                line._lane_sent()
+            else:
+                line._lane_sent(OTHER)  # notifying another member is not an answer to this sender
+            return True
+
+        with patch.object(line, "_dispatch_with_feedback", dispatch):
+            line_lane.start(USER)
+        self.assertEqual((self.db.events["evt-a"]["replied"], self.db.events["evt-b"]["replied"]), (1, 0))
 
     def test_an_event_queued_too_long_is_expired_and_the_sender_is_told_once(self):
         self.queue(self.event("old", 1000), arrived=line_lane.utcnow() - timedelta(seconds=line_lane.EXPIRE_SECONDS + 5))

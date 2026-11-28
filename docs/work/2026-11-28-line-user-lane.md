@@ -35,7 +35,9 @@
 2. **道**（`pearnly_core.line_lane.lane`）：`Pearnly LINE Lane` 一行一个用户，`holder` + `lease_until`（90 秒）。`acquire` = `UPDATE … WHERE lease_until IS NULL OR lease_until < now`，影响 1 行才算拿到；拿不到直接走。持道的按 `(line_timestamp, set_index, arrived_at, name)` 逐条：开头提交（结束读视图）→ 续租（续不上说明被接走，退出）→ `status='queued'` 条件认领 → 在 `line_session.serialized` 块里跑 `line._dispatch_with_feedback` → 记结论、清内容。道空了放道后再查一次。
 3. **在哪跑**：webhook 回了 200 之后在网页进程起一个**非守护**线程排空（空 `contextvars.Context`，`frappe.init(force=True)` / `connect` / `destroy` 自建自关连接）；进程回收时等手上这条跑完（优雅退出时限 120 秒内）。每进程最多 8 条线程，满了放道交短队列 `line_lane.lane.run`。没有 `after_response` 的进程内调用（离线流程、站点脚本）当场排空。
 4. **兜底**：每分钟 `sweep`：有 queued / processing 却没人持道的用户交短队列（job_id 按用户固定、去重；单个用户出错不卡整轮）。
-5. **不重放**：processing 且租约到点（进程没了）→ 记 failed「interrupted: not replayed」、记数 `lane_interrupted`，不再跑（ERP 收单不按消息号去重，重放会多一条、多扣一次）。
+5. **不重放，按事实告诉本人**（主会话 11-28）：processing 且租约到点（进程没了）→ 记 failed「interrupted: not replayed」、记数 `lane_interrupted`，不再跑（ERP 收单不按消息号去重，重放会多一条、多扣一次）。
+   - 事件行上记「回过本人没有」（`replied`）：处理器每次回复 / 推送给本人**之前**（`line._lane_sent`，含 `reply_sender` 计时线程里的兜底回复；推给别人不算）落标记，宁可多记不可漏记。标记先写 Redis（`pearnly:line:lane-replied:<事件号>`，留一天）：处理器的数据库事务要到处理完才提交，中途进程没了库里什么都不剩；处理完 / 判中断时抄到 `replied`。
+   - 中断时没回过 → 真故障，推「Please try again later」一次（去重键按事件号）；回过 → 只记 failed 与日志，不再推。Redis 读不到按「回过」算（宁可少打扰一次，不让办成的事再办一遍）。
 6. **真故障**：排队超过 180 秒才轮到 → 记 expired、记数 `lane_expired`、推送「Please try again later」一次（`X-Line-Retry-Key` 按事件号）。
 7. **三个点**：`_dispatch_with_feedback(event, waited)` 从到达算起，排过 0.6 秒的一开始就显示。
 8. **失败回滚**（L4）：处理器报错先 `rollback` 再记日志再记 failed（`_dispatch` 不再在 raise 前记日志，改挂 `pearnly_line_handler`）；群组同步路径同样。
@@ -61,13 +63,13 @@
 
 | 层 | 状态 |
 |---|---|
-| 离线 | `tests/test_line_lane.py` 20 条（顺序、重投、群组、持道、失败先回滚、中断不重放、超时只推一次、放道瞬间新到、被接走就停、回应后起线程、线程满交短队列、webhook 只收件、验签失败不落行、三个点计时、串行块可重入、旧读拒写、块内读最新、update_session）；现有 `run-offline-tests --plain` 65/65、`--image` 45/45、Cowork / DMS 替身跟着改后全过 |
+| 离线 | `tests/test_line_lane.py` 22 条（中断没回过推一次、中断已回过不推、回复落标记推给别人不算，顺序、重投、群组、持道、失败先回滚、中断不重放、超时只推一次、放道瞬间新到、被接走就停、回应后起线程、线程满交短队列、webhook 只收件、验签失败不落行、三个点计时、串行块可重入、旧读拒写、块内读最新、update_session）；现有 `run-offline-tests --plain` 65/65、`--image` 45/45、Cowork / DMS 替身跟着改后全过 |
 | 闸门 | 架构 0 违规；无上限查询未超基线；未加锁读后写回 `--extended` 新增 0（5 处根内锁读按 A1.3 S0 从基线挪进误报登记，道的 3 处认领是带条件 UPDATE） |
 | 实验栈流程 | 未跑（栈要先问主会话） |
 | 真机 | 未做（上线前三星连发 10 张，约 ฿2，时段问主会话） |
 
 ## 待主会话定 / 未核实
 
-1. 处理到一半进程没了的那条只记 failed、不告诉本人（处理器可能已回过；结果不明）。要不要也推「请稍后重试」？
+1. （已定，主会话 11-28）中断的事件按「回过本人没有」分开，见设计第 5 条。
 2. LINE webhook 重投窗口没核实，保留期先取 7 天。
 3. 坑：DMS 在块里的 `get_session` 变成加锁读，会把本人会话行锁到这条事件提交；DMS 后台 `replace_session_snapshot` 撞上要等（最长 `innodb_lock_wait_timeout`）。第二期逐个核 DMS 同步段。

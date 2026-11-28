@@ -16,6 +16,7 @@
   "set_index",
   "attempts",
   "lease_until",
+  "replied",
   "section_content",
   "content",
   "detail"
@@ -84,6 +85,12 @@
    "fieldname": "lease_until",
    "fieldtype": "Datetime",
    "label": "Lease Until"
+  },
+  {
+   "default": "0",
+   "fieldname": "replied",
+   "fieldtype": "Check",
+   "label": "Replied"
   },
   {
    "fieldname": "section_content",

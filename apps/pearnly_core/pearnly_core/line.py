@@ -373,6 +373,13 @@ def reply(reply_token: str, messages: list) -> bool:
     return _post_reply(reply_token, messages)[0]
 
 
+def _lane_sent(to: str = "") -> None:
+    """道里正在处理的事件要发给本人了（`line_lane`）：先落「回过本人」标记再发，宁可多记不可漏记。推给别人的不算。"""
+    current = getattr(frappe.local, "pearnly_line_lane_mark", None)
+    if current and (not to or to == current["user"]):
+        current["mark"]()
+
+
 def _post_reply(reply_token: str, messages: list):
     """发一次回覆。返回 `(成功?, HTTP 状态码, 摘要)`；网络层失败时状态码为 0。
 
@@ -380,6 +387,7 @@ def _post_reply(reply_token: str, messages: list):
     前者可以放心改用推播，后者改了就可能重复发一条（见 `reply_or_push`）。
     记账也在这里做（`reply_ok` / `reply_rejected` / `reply_failed` / `reply_unknown`）。
     """
+    _lane_sent()  # 回复令牌只属于发事件的本人
     if mirroring():
         return bool(_mirror("reply", reply_token, messages)), 200, "mirror"
     _feedback_settle()
@@ -412,6 +420,7 @@ def push(to: str, messages: list, *, retry_key: str = "") -> bool:
         current["messages"].extend(messages)
         # 回执类要真实结果（台账按它记"已送达"），当场连同已攒的一起发
         return flush(retry_key=retry_key) if retry_key else True
+    _lane_sent(to)
     if mirroring():
         return _mirror("push", to, messages)
     _feedback_settle(to)
@@ -697,8 +706,11 @@ def reply_sender(reply_token: str):
     except requests.RequestException:
         logger.warning("[line] background reply unavailable: no channel token")
         return lambda messages: False
+    lane = getattr(frappe.local, "pearnly_line_lane_mark", None)
+    mark = lane["mark"] if lane else (lambda: None)
 
     def send(messages: list) -> bool:
+        mark()  # 道里那条事件的「回过本人」（计时线程里发的兜底也算）
         try:
             resp = requests.post(
                 "https://api.line.me/v2/bot/message/reply",
@@ -910,17 +922,17 @@ def webhook():
         user = line_lane.user_of(event)
         if user:
             # 同一请求里的几条差 1 微秒，保住请求内的先后；当场提交，后面群组事件处理失败的回滚不冲掉它
-            if line_lane.store(event, user, arrived + timedelta(microseconds=index)):
+            if line_lane.store(event, user, arrived + timedelta(microseconds=index)):  # loop-query: 一个 webhook 请求里的事件（LINE 一次投递有界，通常 1 条），每条各自幂等占坑
                 frappe.db.commit()
                 if user not in users:
                     users.append(user)
             continue
         event_id = event.get("webhookEventId") or ""
-        if not _claim_event(event_id, source="line_webhook"):
+        if not _claim_event(event_id, source="line_webhook"):  # loop-query: 一个 webhook 请求里的事件（LINE 一次投递有界，通常 1 条），每条各自幂等占坑
             continue  # 重投的旧事件，跳过
         try:
             handled = _dispatch_with_feedback(event)
-            _finish_event(event_id, "done" if handled else "ignored")
+            _finish_event(event_id, "done" if handled else "ignored")  # loop-query: 一个 webhook 请求里的事件（LINE 一次投递有界，通常 1 条），每条各自幂等占坑
         except Exception as e:
             # 先回滚处理器做了一半的库内写，再记日志、记 failed（log_error 不提交，回滚在后会把它冲掉）
             frappe.db.rollback()
@@ -928,9 +940,9 @@ def webhook():
                 title="LINE 事件处理失败",
                 message=f"event={event_id}\nhandler={getattr(e, 'pearnly_line_handler', '')}\n{str(e)[:600]}",
             )
-            _finish_event(event_id, "failed", str(e)[:400])
+            _finish_event(event_id, "failed", str(e)[:400])  # loop-query: 一个 webhook 请求里的事件（LINE 一次投递有界，通常 1 条），每条各自幂等占坑
     for user in users:
-        line_lane.start(user)
+        line_lane.start(user)  # loop-query: 这个请求里出现过的用户（有界），每人抢一次道
 
     return {"ok": True}
 

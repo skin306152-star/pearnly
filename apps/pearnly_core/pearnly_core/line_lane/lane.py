@@ -256,18 +256,18 @@ def drain(line_user_id: str, holder: str) -> None:
     """持道时一条一条处理本人排队的事件；道被接走或排空就走。"""
     while True:
         frappe.db.commit()  # 结束读视图：下一条读到的都是最新的
-        if not renew(line_user_id, holder):
+        if not renew(line_user_id, holder):  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
             return
-        _interrupted(line_user_id)
-        name = _next(line_user_id)
+        _interrupted(line_user_id)  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
+        name = _next(line_user_id)  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
         if not name:
-            release(line_user_id, holder)
+            release(line_user_id, holder)  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
             frappe.db.commit()
             # 放道的那一刻新到的事件：它的 webhook 可能刚好没抢到道
-            if not _next(line_user_id) or not acquire(line_user_id, holder):
+            if not _next(line_user_id) or not acquire(line_user_id, holder):  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
                 return
             continue
-        _run(name, line_user_id, holder)
+        _run(name, line_user_id, holder)  # loop-query: 道里一条事件一轮（逐条处理就是道的本意），每轮几条主键 / 索引语句
 
 
 def _next(line_user_id: str) -> str:
@@ -280,17 +280,34 @@ def _next(line_user_id: str) -> str:
 
 
 def _interrupted(line_user_id: str) -> None:
-    """处理到一半进程没了的那条：记 failed，不重放（处理器里有不按消息号去重的写入和扣费）。"""
+    """处理到一半进程没了的那条：记 failed，不重放（处理器里有不按消息号去重的写入和扣费）。
+
+    按事实分（主会话 11-28）：处理器已经回过本人（:func:`replied`）→ 只记 failed 与日志，不再打扰；没回过 → 本人发了消息
+    却什么也没收到，归入真故障，推「请稍后重试」。"""
     now = utcnow()
-    frappe.db.sql(
-        "update `tabPearnly LINE Event` set status='failed', detail='interrupted: not replayed', content=null, "
-        "lease_until=null, modified=%s where line_user_id=%s and status='processing' and lease_until<%s limit 20",
-        (now, line_user_id, now),
+    rows = frappe.db.sql(
+        "select name, content, replied from `tabPearnly LINE Event` where line_user_id=%s and status='processing' "
+        "and lease_until<%s order by line_timestamp limit 20",
+        (line_user_id, now),
+        as_dict=True,
     )
-    if frappe.db._cursor.rowcount:
-        logger.warning("[line_lane] 处理到一半中断的事件 %s 条，记 failed 不重放", frappe.db._cursor.rowcount)
-        _count("lane_interrupted")
+    for row in rows:
+        answered = bool(row.get("replied")) or replied(row["name"])
+        frappe.db.sql(  # overwrite-ok: 只从 processing 转出（带条件的 UPDATE、rowcount 判输赢），replied 只会由 0 记成 1  # loop-query: 本人中断的事件最多 20 条
+            "update `tabPearnly LINE Event` set status='failed', detail=%s, replied=%s, content=null, "
+            "lease_until=null, modified=%s where name=%s and status='processing'",
+            ("interrupted: not replayed" + ("" if answered else "; sender told to retry"), int(answered), now,
+             row["name"]),
+        )
+        if not _changed():
+            continue
         frappe.db.commit()
+        _count("lane_interrupted")
+        logger.warning("[line_lane] 事件处理到一半中断，记 failed 不重放（%s）", "已回复过本人" if answered else "没回复过，推送重试")
+        if not answered:
+            content = row.get("content")
+            event = json.loads(content) if isinstance(content, str) and content else (content or {})
+            _tell_retry(line_user_id, event, "interrupted")  # loop-query: 同上，中断事件有界
 
 
 def _claim(name: str, status: str) -> bool:
@@ -308,13 +325,50 @@ def _claim(name: str, status: str) -> bool:
 
 
 def _finish(name: str, status: str, detail: str = "") -> None:
-    """处理完：记结论，清掉内容（文字、回复令牌）和租约。只从 processing 转出，被判中断的不改回。"""
+    """处理完：记结论与「回过本人没有」，清掉内容（文字、回复令牌）和租约。只从 processing 转出，被判中断的不改回。"""
     frappe.db.sql(
-        "update `tabPearnly LINE Event` set status=%s, detail=%s, content=null, lease_until=null, modified=%s "
-        "where name=%s and status='processing'",
-        (status, (detail or "")[:500], utcnow(), name),
+        "update `tabPearnly LINE Event` set status=%s, detail=%s, replied=%s, content=null, lease_until=null, "
+        "modified=%s where name=%s and status='processing'",
+        (status, (detail or "")[:500], int(replied(name)), utcnow(), name),
     )
     frappe.db.commit()
+
+
+# ── 回过本人没有 ────────────────────────────────────────────────────────────
+#
+# 处理器发出回复 / 推送之前（`line._lane_sent`）落一个标记：宁可多记不可漏记——发到一半进程没了也算回过，免得让他重发、
+# 事情办了两遍。标记放 Redis，不跟处理器的数据库事务走：事务要到处理完才提交，中途进程没了就什么都不剩；
+# 处理完 / 判中断时再抄到事件行的 `replied` 上。
+
+REPLIED_PREFIX = "pearnly:line:lane-replied:"
+REPLIED_SECONDS = 86400
+
+
+def _mark_for(name: str):
+    """给这条事件的「回过本人」标记函数：可在任何线程调（计时线程里的兜底回复也算），不碰站点上下文。"""
+    try:
+        cache = frappe.cache()
+        key = cache.make_key(REPLIED_PREFIX + name)
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_lane] 取不到 Redis，回复标记记不上", exc_info=True)
+        return lambda: None
+
+    def mark():
+        try:
+            cache.execute_command("SET", key, "1", "EX", REPLIED_SECONDS)
+        except Exception:  # noqa: BLE001 —— 记不上不影响发送本身
+            logger.warning("[line_lane] 回复标记记不上", exc_info=True)
+
+    return mark
+
+
+def replied(name: str) -> bool:
+    try:
+        cache = frappe.cache()
+        return bool(cache.execute_command("GET", cache.make_key(REPLIED_PREFIX + name)))
+    except Exception:  # noqa: BLE001 —— 读不到按「回过」算：宁可少打扰一次，不让他把办成的事再办一遍
+        logger.warning("[line_lane] 读不到回复标记，按已回复处理", exc_info=True)
+        return True
 
 
 def _run(name: str, line_user_id: str, holder: str) -> None:
@@ -334,6 +388,7 @@ def _run(name: str, line_user_id: str, holder: str) -> None:
     if not _claim(name, "processing"):
         return
     _reset()
+    frappe.local.pearnly_line_lane_mark = {"user": line_user_id, "mark": _mark_for(name)}
     try:
         with line_session.serialized(line_user_id):
             handled = line._dispatch_with_feedback(event, waited=waited)
@@ -369,6 +424,7 @@ def _reset() -> None:
     local.lang = lane_lang
     local.pearnly_line_batch = None
     local.pearnly_line_feedback = None
+    local.pearnly_line_lane_mark = None
     line_session.forget_seen()
 
 
@@ -380,18 +436,23 @@ def _count(kind: str) -> None:
 
 def _tell_expired(line_user_id: str, event: dict, waited: float) -> None:
     """排队超过时限才轮到：处理器不跑了，推送「请稍后重试」（回复令牌早过期；罕见路径，记数）。"""
-    from pearnly_core import line
-
     _count("lane_expired")
     logger.warning("[line_lane] 事件排队 %.0f 秒才轮到，记 expired", waited)
+    _tell_retry(line_user_id, event, "expired")
+
+
+def _tell_retry(line_user_id: str, event: dict, why: str) -> None:
+    """真故障告诉本人一次：只对他发的消息 / 点的按钮；推送带按事件号算的去重键，扫描重进也只推一条。"""
+    from pearnly_core import line
+
     if event.get("type") not in ("message", "postback"):
         return
     try:
         text = frappe._("Please try again later", lang=line.user_language(line_user_id))
-        key = str(uuid.uuid5(uuid.NAMESPACE_URL, "pearnly-line-expired:" + str(event.get("webhookEventId") or "")))
+        key = str(uuid.uuid5(uuid.NAMESPACE_URL, "pearnly-line-%s:%s" % (why, event.get("webhookEventId") or "")))
         line.push(line_user_id, [{"type": "text", "text": text}], retry_key=key)
     except Exception:  # noqa: BLE001
-        logger.warning("[line_lane] 过期通知没发出去", exc_info=True)
+        logger.warning("[line_lane] 重试通知没发出去", exc_info=True)
 
 
 # ── 兜底与清理 ──────────────────────────────────────────────────────────────
@@ -418,7 +479,7 @@ def prune() -> None:
     """每天：处理完超过 :data:`KEEP_DAYS` 天的事件行删掉（挡重投够了）；闲了一天、没有待办的道删掉。删不完明天接着删。"""
     cut = utcnow() - timedelta(days=KEEP_DAYS)
     for _round in range(PRUNE_ROUNDS):
-        frappe.db.sql(
+        frappe.db.sql(  # loop-query: 分批删，最多 PRUNE_ROUNDS 批、每批 LIMIT
             "delete from `tabPearnly LINE Event` where status in %s and modified<%s limit %s",
             (FINISHED, cut, PRUNE_BATCH),
         )

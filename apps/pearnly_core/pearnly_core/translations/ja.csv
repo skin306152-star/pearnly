@@ -56,6 +56,7 @@ Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
+Arrived At,受信日時
 Asked before posting,記帳前に確認しました
 Asked questions,質問しました
 Attempt,試行回数
@@ -407,6 +408,7 @@ ID number is required,身分証番号は必須です
 IP,IP
 Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
+Image Set Index,画像セット内の順番
 In-progress state of a multi-turn conversation. One row per session.,多段対話の途中状態。1セッション1行。
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 Include in this entry by invoice date,伝票日付で今回の代行入力に含める
@@ -436,6 +438,7 @@ LINE Display Name,LINE表示名
 LINE Login,LINEログイン
 LINE Login Link,LINEログイン連携
 LINE Login Link Updated,LINEログイン連携の更新日時
+LINE Timestamp,LINE タイムスタンプ
 LINE User ID,LINEユーザーID
 "LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE でカメラを使えません。スマートフォンの設定で LINE のカメラを許可してから再試行するか、コードを入力してください。
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
@@ -708,6 +711,7 @@ Removed By,削除者
 Removed from Product History At,製品履歴から削除した日時
 Removed from Product History By,製品履歴から削除した人
 Reorder sidebar,サイドバーの並べ替え
+Replied,返信済み
 Request & Response,リクエストと応答
 Request Body,リクエスト内容
 Request Key,リクエストキー

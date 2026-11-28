@@ -31,6 +31,7 @@ REGISTERED = {
     ("pearnly_core/pearnly_core/assistant/webhook.py", "_gone"): (1, "后台出错分支，只撤销出错那一步自己的写"),
     ("pearnly_core/pearnly_core/cc_desktop/machine.py", "_login"): (1, "此前只有锁定读，回滚只放锁"),
     ("pearnly_core/pearnly_core/execution/work.py", "_finish"): (1, "紧跟在本函数自己的提交之后"),
+    ("pearnly_core/pearnly_core/line_lane/lane.py", "_thread_main"): (1, "排空线程收尾：每条事件都已各自提交，回滚只丢没提交完的那半条，随后关连接"),
     ("pearnly_core/pearnly_core/execution/work.py", "run"): (3, "后台任务开头 / 本函数分段提交之后"),
     ("pearnly_core/pearnly_core/execution/work.py", "wake"): (1, "紧跟在本函数自己的提交之后"),
     ("pearnly_core/pearnly_core/transaction/snapshot.py", "fresh"): (1, "共用件本身：先落下调用方的写再回滚"),

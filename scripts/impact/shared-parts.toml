@@ -218,6 +218,7 @@ paths = ["apps/pearnly_core/pearnly_core/line_session.py"]
 markers = ["pearnly_core.line_session", "import line_session", ", line_session", "line_session as store"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "erp.line.collection", "erp.line.precheck-questions", "cowork.line.precheck-questions"]
+not_entries = { "apps/pearnly_core/pearnly_core/line_lane/lane.py" = "按用户的道本身（登记在共用件 line 里）：每条事件进 serialized 串行块、开头清掉读到的会话版本，入口见 line 的 entries" }
 
 [[part]]
 id = "line-binding"
