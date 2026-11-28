@@ -594,9 +594,11 @@ class LineCardSaveTest(unittest.TestCase):
         self.settled = settle
         return start, replies
 
-    def resume(self):
+    def resume(self, unknown=frozenset()):
+        # 推送记录标没标结果不明（`push.unknown.records` 读库，这里按参数给）
         with mock.patch.object(self.line_save, "_", side_effect=lambda text, *a, **k: text), \
-                mock.patch("pearnly_core.account.line_login.entry_url", side_effect=lambda path: "https://t" + path):
+                mock.patch("pearnly_core.account.line_login.entry_url", side_effect=lambda path: "https://t" + path), \
+                mock.patch("pearnly_cowork.push.unknown.records", side_effect=lambda names: frozenset(unknown) & set(names)):
             return self.line_save.resume("CWH-3")
 
     def test_save_waits_for_the_push_receipt_and_answers_with_the_result(self):
@@ -617,6 +619,11 @@ class LineCardSaveTest(unittest.TestCase):
         failed = self.resume()[0]
         self.assertEqual(failed["text"], "Failed · T:push.disabled")
         self.assertEqual([item["action"]["type"] for item in failed["quickReply"]["items"]], ["uri"])
+        # 主会话 11-25：推送记录标了结果不明（原因可能是 ERR_TECHNICAL 之类）→「结果不明」+ 只有【查看结果】，不说失败、不给【编辑】
+        self.after = {"last_push_status": "manual", "last_push_reason": "ERR_TECHNICAL", "last_push_record": "PR-1"}
+        unknown = self.resume(unknown={"PR-1"})[0]
+        self.assertEqual(unknown["text"], "Result unknown")
+        self.assertEqual([item["action"]["type"] for item in unknown["quickReply"]["items"]], ["postback"])
 
     def test_a_receipt_already_there_is_the_answer_at_once(self):
         self.after = {"last_push_status": "success", "last_push_reason": "", "last_push_record": "PR-1"}
